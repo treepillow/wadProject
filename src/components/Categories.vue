@@ -1,4 +1,9 @@
-<script setup>
+<script>
+
+export default{
+
+    name: 'Categories'
+}
 
 </script>
 
@@ -40,20 +45,25 @@
 </nav>
 
 <hr></hr>
+
 </div>
 
 
 
 </template>
 
-
-
-
-
 <style scoped>
     hr {
         border: 1;
         opacity: 0.25;
+    }
+
+    .category img
+    {
+        width: 150px;
+        height: 150px;
+        border: 1px solid black;
+        border-radius: 100px;
     }
 
 </style>

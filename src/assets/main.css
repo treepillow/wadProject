@@ -4,6 +4,8 @@
 #app {
     background-color: rgb(243, 233, 243); /* Set background color */
     height: 100vh;
-    padding: 25px;
+    padding-left: 200px;
+    padding-right: 200px;
+
 }
 

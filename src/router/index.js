@@ -16,7 +16,10 @@ const router = createRouter({
       name: 'profile',
       component: Profile,
     },
-    { path: '/', component: LoginSignup }, // default page
+    { path: '/', 
+      name: 'loginsignup',
+      component: LoginSignup 
+    }, // default page
   ],
 })
 

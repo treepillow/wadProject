@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Categories from '../components/Categories.vue'
 import Profile from '../components/Profile.vue';
+import LoginSignup from '../components/LoginSignup.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -15,7 +16,7 @@ const router = createRouter({
       name: 'profile',
       component: Profile,
     },
- 
+    { path: '/', component: LoginSignup }, // default page
   ],
 })
 

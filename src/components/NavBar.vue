@@ -14,7 +14,8 @@ const showSearchBar = computed(() => route.path !== "/profile");
 <div class="container-fluid">
     <nav class="navbar navbar-expand-lg">
 
-    <a class="navbar-brand" href="#">Homes</a>
+    <a class="navbar-brand" href="#">
+        <img src="../assets/homes_logo.png"></img>Homes</a>
 
 
     <div class="d-flex ms-auto">
@@ -35,9 +36,9 @@ const showSearchBar = computed(() => route.path !== "/profile");
     </div>
 
     </nav>
-
+    <SearchBar  v-if="showSearchBar"/>
 </div>
-<SearchBar  v-if="showSearchBar"/>
+
 
 </template>
 
@@ -47,6 +48,11 @@ const showSearchBar = computed(() => route.path !== "/profile");
     .navbar{
         background-color: rgb(243, 233, 243); /* Set background color */
 
+    }
+
+    .navbar img
+    {
+        width: 100px;
     }
 
     .navbar-brand

@@ -1,13 +1,4 @@
 <script setup>
-import SearchBar from './SearchBar.vue';
-
-import { useRoute } from 'vue-router';
-import { computed } from 'vue';
-
-const route = useRoute();
-const showSearchBar = computed(() => route.path !== "/profile");
-
-
 </script>
 
 <template>
@@ -36,7 +27,6 @@ const showSearchBar = computed(() => route.path !== "/profile");
     </div>
 
     </nav>
-    <SearchBar  v-if="showSearchBar"/>
 </div>
 
 
@@ -46,7 +36,7 @@ const showSearchBar = computed(() => route.path !== "/profile");
 
 <style scoped>
     .navbar{
-        background-color: rgb(243, 233, 243); /* Set background color */
+        background-color: transparent; /* Set background color */
 
     }
 
@@ -59,13 +49,14 @@ const showSearchBar = computed(() => route.path !== "/profile");
     {
         font-size: 50px;
         font-weight: bold;
-        color: purple;
+        color: white;
     }
 
     .profile-icon
     {
         border: 3px solid black;
         border-radius: 50px;
+        background-color: white;
     }
 
     .nav-item img

@@ -65,5 +65,9 @@ export default{
         border: 1px solid black;
         border-radius: 100px;
     }
+    .category-text
+    {
+        color: white;
+    }
 
 </style>

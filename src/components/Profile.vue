@@ -1,5 +1,5 @@
-<script>
-
+<script setup>
+import NavBar from './NavBar.vue';
 
 
 </script>
@@ -7,8 +7,8 @@
 
 
 <template>
-
 <div class="container-fluid">
+    <NavBar/>
     <div class="row d-flex justify-content-center">
 
         <div class="profile-container d-flex rounded mb-5 col-lg-10">

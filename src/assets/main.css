@@ -2,10 +2,10 @@
 
 /* main.css */
 #app {
-    background-color: rgb(243, 233, 243); /* Set background color */
+    background-color: black; /* Set background color */
     height: 100vh;
-    padding-left: 200px;
-    padding-right: 200px;
+    /* padding-left: 200px;
+    padding-right: 200px;  */
 
 }
 

@@ -6,7 +6,6 @@ import Categories from "./components/Categories.vue";
 
 <template>
 
-  <NavBar/>
   <RouterView />
 </template>
 

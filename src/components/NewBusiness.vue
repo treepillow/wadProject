@@ -38,7 +38,8 @@ import 'bootstrap/dist/css/bootstrap.min.css'
             </select>
           </div>
           <div class="mb-3">
-            <label>Menu</label><br />
+            <label>Menu</label>
+            <br/>
             <button id="addItem" type="button" class="btn">Add Item</button>
           </div>
         </div>

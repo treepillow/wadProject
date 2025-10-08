@@ -11,7 +11,7 @@ import 'bootstrap/dist/css/bootstrap.min.css'
         <div class="col-md-4">
           <div class="mb-3">
             <input type="file" id="photoUpload" accept="image/*" style="display: none;" />
-            <label for="photoUpload" class="btn btn-outline-primary">Click to Upload Photo</label>
+            <label for="photoUpload" class="btn">Click to Upload Photo</label>
           </div>
           <div class="mb-3">
             <label for="businessName" class="form-label">Business Name</label>

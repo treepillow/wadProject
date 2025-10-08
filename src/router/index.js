@@ -22,7 +22,7 @@ const router = createRouter({
       name: 'profile',
       component: Profile,
     },
-    { path: '/', 
+    { path: '/signup', 
       name: 'loginsignup',
       component: LoginSignup 
     }, // default page

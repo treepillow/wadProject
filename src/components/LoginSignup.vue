@@ -34,7 +34,7 @@
   </div>
 </template>
 
-<script>
+<!-- <script>
 export default {
   name: "LoginSignup",
   data() {
@@ -52,6 +52,70 @@ export default {
       alert(`Creating account for ${this.signup.username}`);
     }
   }
+};
+</script> -->
+
+<script>
+import { auth, db } from "../firebase"; // ✅ correct path (since you're in src/components)
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+
+export default {
+  name: "LoginSignup",
+  data() {
+    return {
+      signUpMode: false,
+      login: { email: "", password: "" },
+      signup: { username: "", email: "", password: "" },
+    };
+  },
+  methods: {
+    // 🔐 LOGIN FUNCTION
+    async handleLogin() {
+      try {
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          this.login.email,
+          this.login.password
+        );
+        const user = userCredential.user;
+        alert(`✅ Logged in as ${user.email}`);
+        console.log("User:", user);
+      } catch (err) {
+        alert(`❌ Login failed: ${err.message}`);
+        console.error(err);
+      }
+    },
+
+    // 🧾 SIGNUP FUNCTION
+    async handleSignup() {
+      try {
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          this.signup.email,
+          this.signup.password
+        );
+        const user = userCredential.user;
+
+        // Store user info in Firestore
+        await setDoc(doc(db, "users", user.uid), {
+          username: this.signup.username,
+          email: this.signup.email,
+          createdAt: serverTimestamp(),
+        });
+
+        alert(`✅ Account created for ${this.signup.username}`);
+        console.log("User created:", user);
+        this.signUpMode = false;
+      } catch (err) {
+        alert(`❌ Signup failed: ${err.message}`);
+        console.error(err);
+      }
+    },
+  },
 };
 </script>
 

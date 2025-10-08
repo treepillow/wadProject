@@ -48,7 +48,7 @@ import 'bootstrap/dist/css/bootstrap.min.css'
         <button id="publishBtn" type="submit" class="btn me-2">Publish Listing</button>
         <button id="clearFormBtn" type="reset" class="btn">Clear Form</button>
       </div>
-      
+      <br/>
     </form>
   </div>
 </template>
@@ -66,6 +66,5 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 .last{
     display: flex;
     justify-content: center;
-    padding-bottom: 10px;
 }
 </style>

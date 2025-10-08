@@ -44,8 +44,8 @@ import 'bootstrap/dist/css/bootstrap.min.css'
         </div>
       </div>
       <div class="mt-4 last">
-        <button id="publish" type="submit" class="btn me-2">Publish Listing</button>
-        <button id="clear" type="reset" class="btn">Clear Form</button>
+        <button id="publishBtn" type="submit" class="btn me-2">Publish Listing</button>
+        <button id="clearFormBtn" type="reset" class="btn">Clear Form</button>
       </div>
       
     </form>

@@ -1,5 +1,4 @@
-<script>
-</script>
+
 
 <template>
   <div class="containers" :class="{ 'sign-up-mode': signUpMode }">
@@ -65,6 +64,7 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useRoute, useRouter } from "vue-router";
 
 export default {
   name: "LoginSignup",
@@ -87,6 +87,8 @@ export default {
         const user = userCredential.user;
         alert(`✅ Logged in as ${user.email}`);
         console.log("User:", user);
+        const success_login = (this.$route?.query?.redirect) || "/home";
+        this.$router.replace(success_login);
       } catch (err) {
         alert(`❌ Login failed: ${err.message}`);
         console.error(err);
@@ -189,12 +191,12 @@ a { color: #fff; text-decoration: underline; }
 
 /* Toggle animations */
 .signup-form { transform: translateX(100%); opacity: 0; }
-.container.sign-up-mode .signup-form 
+.containers.sign-up-mode .signup-form 
 { 
   left: 0;
   transform: translateX(0%); 
   opacity: 1; 
 }
-.container.sign-up-mode .login-form { left: 0;transform: translateX(-100%); opacity: 0; }
-.container.sign-up-mode .image-box { order: 1; }
+.containers.sign-up-mode .login-form { left: 0;transform: translateX(-100%); opacity: 0; }
+.containers.sign-up-mode .image-box { order: 1; }
 </style>

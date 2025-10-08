@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, onBeforeUnmount } from 'vue'
+import { RouterLink } from 'vue-router'
 
 let io = null
 let descriptionIo = null
@@ -70,10 +71,10 @@ onBeforeUnmount(() => {
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav">
             <li class="nav-item">
-              <a href="#">Login</a>
+              <RouterLink to="/signup">Login</RouterLink>
             </li>
             <li class="nav-item">
-              <a href="#">Sign up</a>
+              <RouterLink to="/signup">Sign up</RouterLink>
             </li>
           </ul>
         </div>
@@ -222,7 +223,7 @@ onBeforeUnmount(() => {
     .content h1{
         text-align: center;
         font-family: "Figtree", sans-serif;
-        font-size: 100px;
+        font-size: 70px;
         color: #fff;
     }
     .mission::before {
@@ -246,7 +247,7 @@ onBeforeUnmount(() => {
     .mission{
         position: absolute;
         left: 50%;
-        bottom: 16vh;              /* adjust: 4–12vh to taste */
+        bottom: 4vh;              /* adjust: 4–12vh to taste */
         transform: translateX(-50%);
         width: 100%;
         display: flex;
@@ -301,7 +302,7 @@ onBeforeUnmount(() => {
 
     @keyframes fly-to-title{
         to{
-            top: 38%; left: 50%;
+            top: 45%; left: 50%;
             right: auto; bottom: auto;
             transform: translate(-50%, -50%) scale(.96);
             opacity: 1;

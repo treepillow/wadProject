@@ -1,5 +1,8 @@
+<script>
+</script>
+
 <template>
-  <div class="container" :class="{ 'sign-up-mode': signUpMode }">
+  <div class="containers" :class="{ 'sign-up-mode': signUpMode }">
     <div class="forms-wrapper">
 
       <!-- Login Form -->
@@ -120,20 +123,24 @@ export default {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
 
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+/* * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
 
 body {
   background: linear-gradient(135deg, #c65dd3, #7b4eff);
-  display: flex; justify-content: center; align-items: center; height: 100vh;
-}
+  display: flex; justify-content: center; align-items: center;
+} */
 
-.container {
-  position: relative; width: 850px; height: 500px;
-  background: rgba(210, 124, 225, 0.792); border-radius: 20px;
-  overflow: hidden; display: flex;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.3); transition: transform 1s ease-in-out;
+
+.containers {
+  margin: 0;
+  inset: 0;
+  padding: 0;
+  height: 100vh;
+  background: rgba(210, 124, 225, 0.792); 
+  overflow: hidden; 
+  display: flex;
+  transition: transform 1s ease-in-out;
 }
 
 .forms-wrapper { position: relative; width: 50%; height: 100%; overflow: hidden; }
@@ -168,8 +175,13 @@ a { color: #fff; text-decoration: underline; }
 
 /* Image box */
 .image-box {
-  width: 50%; background: linear-gradient(0deg, #55296e, #1a0d2a);
-  display: flex; justify-content: center; align-items: center; transition: all 1s ease-in-out;
+  width: 50%; 
+
+  background: linear-gradient(0deg, #55296e, #1a0d2a);
+  display: flex;
+  justify-content: center;
+  align-items: center; 
+  transition: all 1s ease-in-out;
 }
 .image-box img { width: auto; animation: float 4s ease-in-out infinite; }
 
@@ -177,7 +189,12 @@ a { color: #fff; text-decoration: underline; }
 
 /* Toggle animations */
 .signup-form { transform: translateX(100%); opacity: 0; }
-.container.sign-up-mode .signup-form { transform: translateX(0%); opacity: 1; }
-.container.sign-up-mode .login-form { transform: translateX(-100%); opacity: 0; }
-.container.sign-up-mode .image-box { order: -1; }
+.container.sign-up-mode .signup-form 
+{ 
+  left: 0;
+  transform: translateX(0%); 
+  opacity: 1; 
+}
+.container.sign-up-mode .login-form { left: 0;transform: translateX(-100%); opacity: 0; }
+.container.sign-up-mode .image-box { order: 1; }
 </style>

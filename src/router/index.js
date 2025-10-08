@@ -3,6 +3,7 @@ import Profile from '../components/Profile.vue';
 import LoginSignup from '../components/LoginSignup.vue';
 import AboutPage from '../components/AboutPage.vue';
 import HomePage from '@/components/HomePage.vue';
+import NewBusinessPage from '../components/NewBusiness.vue'
 import { auth } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -10,6 +11,11 @@ import { onAuthStateChanged } from "firebase/auth";
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/newbusiness',
+      name: 'newbusiness',
+      component: NewBusinessPage, meta: {requiresAuth: true}
+    },
     {
       path: '/',
       name: 'about',

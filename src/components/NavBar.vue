@@ -13,14 +13,10 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link active" aria-current="page" href="#">
                     <img src="../assets/message_icon.png"></img>
-                    </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link profile-icon" href="#">
-                    <img src="../assets/user.png"></img>
-                    </a>
+                        <RouterLink to="/profile"><img src="../assets/user.png" class="profile-icon"></img></RouterLink>
                 </li>
             </ul>
         </div>

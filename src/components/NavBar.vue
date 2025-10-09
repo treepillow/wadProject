@@ -32,7 +32,7 @@
 
 <style scoped>
     .navbar{
-        background-color: transparent; /* Set background color */
+        background-color: transparent;
 
     }
 
@@ -58,12 +58,5 @@
     .nav-item img
     {
         width: 50px;
-    }
-
-
-
-
-
-
-    
+    }    
 </style>

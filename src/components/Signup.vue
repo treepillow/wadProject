@@ -7,7 +7,7 @@
         <input type="email" placeholder="Email" v-model="signup.email" required />
         <input type="password" placeholder="Password" v-model="signup.password" required />
         <button type="submit">Sign Up</button>
-        <p>ed
+        <p>
           <span class="toggle-link" @click="goToLogin">
             Already have an account? Login
           </span>

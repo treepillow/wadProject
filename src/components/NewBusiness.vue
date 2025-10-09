@@ -115,7 +115,7 @@ const clearForm = () => {
   </div>
 </template>
 
-<style>
+<style scoped>
 .container-fluid {
   background-color: white;
   color: purple;

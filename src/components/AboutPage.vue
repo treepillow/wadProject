@@ -71,7 +71,7 @@ onBeforeUnmount(() => {
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav">
             <li class="nav-item">
-              <RouterLink to="/signup">Login</RouterLink>
+              <RouterLink to="/login">Login</RouterLink>
             </li>
             <li class="nav-item">
               <RouterLink to="/signup">Sign up</RouterLink>

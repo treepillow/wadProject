@@ -1,7 +1,7 @@
 <template>
   <div class="containers" :class="{ 'sign-up-mode': isSignup }">
     <div class="forms-wrapper">
-      <!-- Slot allows either Login or Signup form to appear here -->
+      <!-- slot for login or signup form -->
       <slot></slot>
     </div>
 
@@ -32,12 +32,7 @@ export default {
   transition: transform 1s ease-in-out;
 }
 
-.forms-wrapper {
-  position: relative;
-  width: 50%;
-  height: 100%;
-  overflow: hidden;
-}
+.forms-wrapper { position: relative; width: 50%; height: 100%; overflow: hidden; }
 
 .form-container {
   position: absolute;
@@ -53,16 +48,9 @@ export default {
   transition: all 0.8s ease-in-out;
 }
 
-.form-container h2 {
-  text-align: center;
-  margin-bottom: 30px;
-}
+.form-container h2 { text-align: center; margin-bottom: 30px; }
 
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
+form { display: flex; flex-direction: column; gap: 20px; }
 
 input {
   padding: 10px;
@@ -72,10 +60,7 @@ input {
   background: transparent;
   color: #fff;
 }
-input::placeholder {
-  color: rgba(255, 255, 255, 0.7);
-  opacity: 1;
-}
+input::placeholder { color: rgba(255,255,255,0.7); opacity: 1; }
 
 button {
   background: linear-gradient(0deg, #aa67d1, #442569);
@@ -87,23 +72,11 @@ button {
   cursor: pointer;
   transition: transform 0.2s;
 }
-button:hover {
-  transform: scale(1.05);
-}
+button:hover { transform: scale(1.05); }
 
-p {
-  font-size: 0.9rem;
-  text-align: center;
-}
-a {
-  color: #fff;
-  text-decoration: underline;
-}
-.toggle-link {
-  cursor: pointer;
-  text-decoration: underline;
-  color: #fff;
-}
+p { font-size: 0.9rem; text-align: center; }
+a { color: #fff; text-decoration: underline; }
+.toggle-link { cursor: pointer; text-decoration: underline; color: #fff; }
 
 /* Image box */
 .image-box {
@@ -114,18 +87,16 @@ a {
   align-items: center;
   transition: all 1s ease-in-out;
 }
-.image-box img {
-  width: auto;
-  animation: float 4s ease-in-out infinite;
-}
+.image-box img { width: auto; animation: float 4s ease-in-out infinite; }
 
 @keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+  0%,100%{transform:translateY(0px);} 
+  50%{transform:translateY(-10px);}
 }
+
+/* Toggle animations */
+.signup-form { transform: translateX(100%); opacity: 0; }
+.containers.sign-up-mode .signup-form { left: 0; transform: translateX(0%); opacity: 1; }
+.containers.sign-up-mode .login-form { left: 0; transform: translateX(-100%); opacity: 0; }
+.containers.sign-up-mode .image-box { order: 1; }
 </style>

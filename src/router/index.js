@@ -1,9 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Profile from '../components/Profile.vue';
-import LoginSignup from '../components/LoginSignup.vue';
+// import LoginSignup from '../components/LoginSignup.vue';
 import AboutPage from '../components/AboutPage.vue';
 import HomePage from '@/components/HomePage.vue';
 import NewBusinessPage from '../components/NewBusiness.vue'
+import Login from "@/components/Login.vue";
+import Signup from "@/components/Signup.vue";
+
+
 import { auth } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -31,10 +35,12 @@ const router = createRouter({
       name: 'profile',
       component: Profile, meta: {requiresAuth: true}
     },
-    { path: '/signup', 
-      name: 'loginsignup',
-      component: LoginSignup, meta: {guestOnly: true}
-    }, // default page
+    // { path: '/signup', 
+    //   name: 'loginsignup',
+    //   component: LoginSignup, meta: {guestOnly: true}
+    // },
+    { path: "/login", component: Login },
+    { path: "/signup", component: Signup },
   ],
 })
 

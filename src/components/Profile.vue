@@ -157,7 +157,7 @@ export default {
     <NavBar/>
     <div class="row d-flex justify-content-center">
 
-        <div class="profile-container d-flex rounded mb-5 col-lg-10">
+        <div class="profile-container d-flex rounded mb-5 col-lg-10 shadow-lg p-3 mb-5">
             <img src="../assets/message_icon.png" class="w-25 m-5"></img>
             <div class="details my-auto fs-3">
                 <p>Username: {{ username }}</p>

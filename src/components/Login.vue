@@ -26,9 +26,11 @@ export default {
     async handleLogin() {
       try {
         const userCredential = await signInWithEmailAndPassword(auth, this.login.email, this.login.password);
-        alert(`✅ Logged in as ${userCredential.user.email}`);
+        // alert(`✅ Logged in as ${userCredential.user.email}`);
         this.$router.replace("/home");
-      } catch (err) { alert(`❌ Login failed: ${err.message}`); }
+      } catch (err) { 
+        alert(`❌ Login failed: ${err.message}`);
+       }
     },
     goToSignup() { this.$router.push("/signup"); }
   }

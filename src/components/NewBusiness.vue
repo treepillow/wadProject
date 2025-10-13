@@ -1,76 +1,85 @@
-<script setup>
-import { ref } from 'vue'
+<script>
 import { addDoc, collection, doc } from 'firebase/firestore'
 import { auth, db } from '@/firebase'
 import 'bootstrap'
 import 'bootstrap/dist/css/bootstrap.min.css'
 
-// Reactive form fields & binded to input
-const businessName = ref('')
-const businessDesc = ref('')
-const businessLocation = ref('')
-const businessCategory = ref('')
-const toggleBtn = ref(false)
+export default {
+  data() {
+    return {
+      businessName: '',
+      businessDesc: '',
+      businessLocation: '',
+      businessCategory: '',
+      toggleBtn: false
+    }
+  },
+  methods: {
+    handleSubmit(e) {
+      e.preventDefault()
 
-const handleSubmit = async (e) => {
-  e.preventDefault()
+      const user = auth.currentUser
+      if (!user) {
+        alert('You must be logged in to publish a listing.')
+        return
+      }
 
-  const user = auth.currentUser
-  if (!user) {
-    alert('You must be logged in to publish a listing.')
-    return
+      // if any field is empty -> pop-up error
+      if (
+        !this.businessName.trim() ||
+        !this.businessDesc.trim() ||
+        !this.businessLocation.trim() ||
+        !this.businessCategory.trim()
+      ) {
+        alert('Please fill in all required fields.')
+        return
+      }
+
+      // add to allListings -> Use to display all listings
+      // add to database collection: 'allListings'
+      addDoc(collection(db, 'allListings'), {
+        businessName: this.businessName.trim(),
+        businessDesc: this.businessDesc.trim(),
+        businessLocation: this.businessLocation.trim(),
+        businessCategory: this.businessCategory.trim(),
+        isActive: this.toggleBtn,
+        userId: user.uid,
+        createdAt: new Date()
+      }).then(() => {
+        // add to user personal listings -> for users to view own listings
+        addDoc(collection(doc(db, 'users', user.uid), 'myListings'), {
+          businessName: this.businessName.trim(),
+          businessDesc: this.businessDesc.trim(),
+          businessLocation: this.businessLocation.trim(),
+          businessCategory: this.businessCategory.trim(),
+          isActive: this.toggleBtn,
+          userId: user.uid,
+          createdAt: new Date()
+        }).then(() => {
+          alert('Business listing published!')
+          this.clearForm()
+        }).catch((error) => {
+          console.error('Error adding to user\'s myListings:', error)
+          alert('Failed to add to personal listings.')
+        })
+      }).catch((error) => {
+        console.error('Error publishing listing:', error)
+        alert('Failed to publish listing.')
+      })
+    },
+
+    // Clear form after successful submission
+    clearForm() {
+      this.businessName = ''
+      this.businessDesc = ''
+      this.businessLocation = ''
+      this.businessCategory = ''
+      this.toggleBtn = false
+    }
   }
-  
-  // Validate required fields
-  if (
-    !businessName.value.trim() ||
-    !businessDesc.value.trim() ||
-    !businessLocation.value.trim() ||
-    !businessCategory.value.trim()
-  ) {
-    alert('Please fill in all required fields.')
-    return
-  }
-
-  try {
-    // add to allListings -> Use to display all listings
-    await addDoc(collection(db, 'allListings'), {
-      businessName: businessName.value.trim(),
-      businessDesc: businessDesc.value.trim(),
-      businessLocation: businessLocation.value.trim(),
-      businessCategory: businessCategory.value.trim(),
-      isActive: toggleBtn.value,
-      userId: user.uid,
-      createdAt: new Date()
-    })
-    // add to user personal listings -> for users to view own listings
-    await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), {
-      businessName: businessName.value.trim(),
-      businessDesc: businessDesc.value.trim(),
-      businessLocation: businessLocation.value.trim(),
-      businessCategory: businessCategory.value.trim(),
-      isActive: toggleBtn.value,
-      userId: user.uid,
-      createdAt: new Date()
-    })
-    alert('Business listing published!')
-    clearForm()
-  } catch (error) {
-    console.error('Error publishing listing:', error)
-    alert('Failed to publish listing.')
-  }
-}
-
-
-// clear inputs
-const clearForm = () => {
-  businessName.value = ''
-  businessDesc.value = ''
-  businessLocation.value = ''
-  businessCategory.value = ''
-  toggleBtn.value = false
 }
 </script>
+
 
 <template>
   <div class="container-fluid mt-4">

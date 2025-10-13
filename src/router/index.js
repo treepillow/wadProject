@@ -6,6 +6,7 @@ import HomePage from '@/components/HomePage.vue';
 import NewBusinessPage from '../components/NewBusiness.vue'
 import Login from "@/components/Login.vue";
 import Signup from "@/components/Signup.vue";
+import ChatPage from '../components/ChatPage.vue';
 
 
 import { auth } from "@/firebase";
@@ -46,6 +47,12 @@ const router = createRouter({
     { path: "/signup", 
       name: 'signup',
       component: Signup 
+    },
+    {
+      path: '/chat',
+      name: 'chat',
+      component: ChatPage,
+      meta: { requiresAuth: true }
     },
   ],
 })

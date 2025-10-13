@@ -34,7 +34,9 @@ const loggingOut = ref(false)
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <img src="../assets/message.png"></img>
+                    <RouterLink to="/chat">
+                    <img src="../assets/message.png" />
+                    </RouterLink>
                 </li>
                 <li class="nav-item">
                     <div class="dropdown show">

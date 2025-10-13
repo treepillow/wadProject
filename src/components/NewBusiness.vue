@@ -7,6 +7,7 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 export default {
   data() {
     return {
+      // initialize fields
       businessName: '',
       businessDesc: '',
       businessLocation: '',
@@ -15,15 +16,16 @@ export default {
     }
   },
   methods: {
-    handleSubmit(e) {
+    // triggers when user submit the form
+    async handleSubmit(e) {
+      console.log('Form submitted')
       e.preventDefault()
-
+      // check if user is authenticated (check if user detail is in database)
       const user = auth.currentUser
       if (!user) {
         alert('You must be logged in to publish a listing.')
         return
       }
-
       // if any field is empty -> pop-up error
       if (
         !this.businessName.trim() ||
@@ -34,20 +36,10 @@ export default {
         alert('Please fill in all required fields.')
         return
       }
-
       // add to allListings -> Use to display all listings
       // add to database collection: 'allListings'
-      addDoc(collection(db, 'allListings'), {
-        businessName: this.businessName.trim(),
-        businessDesc: this.businessDesc.trim(),
-        businessLocation: this.businessLocation.trim(),
-        businessCategory: this.businessCategory.trim(),
-        isActive: this.toggleBtn,
-        userId: user.uid,
-        createdAt: new Date()
-      }).then(() => {
-        // add to user personal listings -> for users to view own listings
-        addDoc(collection(doc(db, 'users', user.uid), 'myListings'), {
+      try{
+        await addDoc(collection(db, 'allListings'), {
           businessName: this.businessName.trim(),
           businessDesc: this.businessDesc.trim(),
           businessLocation: this.businessLocation.trim(),
@@ -55,19 +47,26 @@ export default {
           isActive: this.toggleBtn,
           userId: user.uid,
           createdAt: new Date()
-        }).then(() => {
-          alert('Business listing published!')
-          this.clearForm()
-        }).catch((error) => {
-          console.error('Error adding to user\'s myListings:', error)
-          alert('Failed to add to personal listings.')
         })
-      }).catch((error) => {
-        console.error('Error publishing listing:', error)
-        alert('Failed to publish listing.')
-      })
+      // add to myListing, a subcollection for users -> to view own listings
+      await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), {
+          businessName: this.businessName.trim(),
+          businessDesc: this.businessDesc.trim(),
+          businessLocation: this.businessLocation.trim(),
+          businessCategory: this.businessCategory.trim(),
+          isActive: this.toggleBtn,
+          userId: user.uid,
+          createdAt: new Date()
+        })
+        console.log('Listing Successfully Added to database')
+        alert('Listing Added Successfully!')
+        this.clearForm()
+      }
+      catch(error){
+        console.log('Failed to add listing: ', error)
+        alert('Failed to add listing, please try again')
+      }
     },
-
     // Clear form after successful submission
     clearForm() {
       this.businessName = ''
@@ -79,7 +78,6 @@ export default {
   }
 }
 </script>
-
 
 <template>
   <div class="container-fluid mt-4">

@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { addDoc, collection } from 'firebase/firestore'
+import { addDoc, collection, doc } from 'firebase/firestore'
 import { auth, db } from '@/firebase'
 import 'bootstrap'
 import 'bootstrap/dist/css/bootstrap.min.css'
@@ -20,7 +20,7 @@ const handleSubmit = async (e) => {
     alert('You must be logged in to publish a listing.')
     return
   }
-
+  
   // Validate required fields
   if (
     !businessName.value.trim() ||
@@ -33,7 +33,8 @@ const handleSubmit = async (e) => {
   }
 
   try {
-    await addDoc(collection(db, 'businessListing'), {
+    // add to allListings -> Use to display all listings
+    await addDoc(collection(db, 'allListings'), {
       businessName: businessName.value.trim(),
       businessDesc: businessDesc.value.trim(),
       businessLocation: businessLocation.value.trim(),
@@ -42,7 +43,16 @@ const handleSubmit = async (e) => {
       userId: user.uid,
       createdAt: new Date()
     })
-
+    // add to user personal listings -> for users to view own listings
+    await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), {
+      businessName: businessName.value.trim(),
+      businessDesc: businessDesc.value.trim(),
+      businessLocation: businessLocation.value.trim(),
+      businessCategory: businessCategory.value.trim(),
+      isActive: toggleBtn.value,
+      userId: user.uid,
+      createdAt: new Date()
+    })
     alert('Business listing published!')
     clearForm()
   } catch (error) {

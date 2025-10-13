@@ -4,7 +4,6 @@
       <!-- slot for login or signup form -->
       <slot></slot>
     </div>
-
     <div class="image-box">
       <img src="@/assets/homes_logo.png" alt="Homes Logo" />
     </div>

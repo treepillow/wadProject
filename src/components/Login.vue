@@ -4,7 +4,19 @@
       <h2>Login</h2>
       <form @submit.prevent="handleLogin">
         <input type="email" placeholder="Email" v-model="login.email" required />
-        <input type="password" placeholder="Password" v-model="login.password" required />
+        <!-- <input type="password" placeholder="Password" v-model="login.password" required /> -->
+        <!-- Password input with eye toggle -->
+        <div class="password-container">
+          <input
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="Password"
+            v-model="login.password"
+            required
+          />
+          <span class="toggle-password" @click="togglePassword">
+            <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
+          </span>
+        </div>
         <button type="submit">Login</button>
         <p><a href="#">Forgot password?</a></p>
         <p><span class="toggle-link" @click="goToSignup">Create an account</span></p>
@@ -21,8 +33,12 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 export default {
   name: "Login",
   components: { AuthLayout },
-  data() { return { login: { email: "", password: "" } }; },
+  data() { return { login: { email: "", password: "" },
+  showPassword: false, }; },
   methods: {
+    togglePassword() {
+      this.showPassword = !this.showPassword;
+    },
     async handleLogin() {
       try {
         const userCredential = await signInWithEmailAndPassword(auth, this.login.email, this.login.password);
@@ -52,7 +68,7 @@ body {
   inset: 0;
   padding: 0;
   height: 100vh;
-  background: rgba(210, 124, 225, 0.792); 
+  background: rgba(165, 100, 179, 0.792); 
   overflow: hidden; 
   display: flex;
   transition: transform 1s ease-in-out;
@@ -112,4 +128,28 @@ a { color: #fff; text-decoration: underline; }
 }
 .containers.sign-up-mode .login-form { left: 0;transform: translateX(-100%); opacity: 0; }
 .containers.sign-up-mode .image-box { order: 1; }
+
+.password-container {
+  position: relative;
+  width: 100%;
+}
+
+.password-container input {
+  width: 100%;
+  padding-right: 40px; /* room for the eye icon */
+}
+
+.toggle-password {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.toggle-password:hover {
+  opacity: 0.8;
+}
 </style>

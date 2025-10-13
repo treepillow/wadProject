@@ -157,8 +157,8 @@ export default {
     <NavBar/>
     <div class="row d-flex justify-content-center">
 
-        <div class="profile-container d-flex rounded mb-5 col-lg-10 shadow-lg p-3 mb-5">
-            <img src="../assets/message_icon.png" class="w-25 m-5"></img>
+        <div class="profile-container d-flex rounded mb-5 col-lg-10">
+            <img v-if="photoURL" :src="photoURL" alt="Profile" class="w-25 m-5 rounded-circle" />
             <div class="details my-auto fs-3">
                 <p>Username: {{ username }}</p>
                 <p>Email: {{ userEmail }}</p>
@@ -166,15 +166,17 @@ export default {
             Upload Profile Image
             </button>
 
+
             <!-- hidden file input right below the button -->
             <input
             ref="fileInput"
             type="file"
             class="d-none"
             accept="image/png,image/jpeg,image/webp"
-            @change="onFileSelect"
+            @change="onFilePicked"
             />
-
+              <p v-if="uploading" class="mt-2">Uploading… {{ progress }}%</p>
+              <p v-if="error" class="text-danger mt-2">{{ error }}</p>
             </div>
 
         </div>

@@ -4,9 +4,8 @@
       <!-- slot for login or signup form -->
       <slot></slot>
     </div>
-
     <div class="image-box">
-      <img src="@/assets/planet_img.jpg" alt="Planet Image" />
+      <img src="@/assets/homes_logo.png" alt="Homes Logo" />
     </div>
   </div>
 </template>
@@ -87,7 +86,7 @@ a { color: #fff; text-decoration: underline; }
   align-items: center;
   transition: all 1s ease-in-out;
 }
-.image-box img { width: auto; animation: float 4s ease-in-out infinite; }
+.image-box img { width: 70%; animation: float 4s ease-in-out infinite; }
 
 @keyframes float {
   0%,100%{transform:translateY(0px);} 

@@ -5,7 +5,21 @@
       <form @submit.prevent="handleSignup">
         <input type="text" placeholder="Username" v-model="signup.username" required />
         <input type="email" placeholder="Email" v-model="signup.email" required />
-        <input type="password" placeholder="Password" v-model="signup.password" required />
+        <!-- <input type="password" placeholder="Password" v-model="signup.password" required /> -->
+
+        <!-- Password input with eye toggle -->
+        <div class="password-container">
+          <input
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="Password"
+            v-model="signup.password"
+            required
+          />
+          <span class="toggle-password" @click="togglePassword">
+            <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
+          </span>
+        </div>
+
         <button type="submit">Sign Up</button>
         <p><span class="toggle-link" @click="goToLogin">Already have an account? Login</span></p>
       </form>
@@ -22,8 +36,12 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 export default {
   name: "Signup",
   components: { AuthLayout },
-  data() { return { signup: { username: "", email: "", password: "" } }; },
+  data() { return { signup: { username: "", email: "", password: "" },
+  showPassword: false, }; },
   methods: {
+    togglePassword() {
+      this.showPassword = !this.showPassword;
+    },
     async handleSignup() {
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, this.signup.email, this.signup.password);
@@ -53,7 +71,7 @@ body {
   inset: 0;
   padding: 0;
   height: 100vh;
-  background: rgba(210, 124, 225, 0.792); 
+  background: rgba(165, 100, 179, 0.792);
   overflow: hidden; 
   display: flex;
   transition: transform 1s ease-in-out;
@@ -113,4 +131,28 @@ a { color: #fff; text-decoration: underline; }
 }
 .containers.sign-up-mode .login-form { left: 0;transform: translateX(-100%); opacity: 0; }
 .containers.sign-up-mode .image-box { order: 1; }
+
+.password-container {
+  position: relative;
+  width: 100%;
+}
+
+.password-container input {
+  width: 100%;
+  padding-right: 40px; /* room for the eye icon */
+}
+
+.toggle-password {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.toggle-password:hover {
+  opacity: 0.8;
+}
 </style>

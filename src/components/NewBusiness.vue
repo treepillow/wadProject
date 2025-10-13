@@ -36,7 +36,7 @@ export default {
         alert('Please fill in all required fields.')
         return
       }
-      // add to allListings -> Use to display all listings
+      // add to allListings -> Use to display all listings for consumers
       // add to database collection: 'allListings'
       try{
         await addDoc(collection(db, 'allListings'), {
@@ -48,7 +48,8 @@ export default {
           userId: user.uid,
           createdAt: new Date()
         })
-      // add to myListing, a subcollection for users -> to view own listings
+      // Use to view own listings for users
+      // added to database collection: myListings (a subcollection of each user)
       await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), {
           businessName: this.businessName.trim(),
           businessDesc: this.businessDesc.trim(),

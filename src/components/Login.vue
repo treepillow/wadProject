@@ -18,7 +18,7 @@
           </span>
         </div>
         <button type="submit">Login</button>
-        <p><a href="#">Forgot password?</a></p>
+        <p><span class="toggle-link" @click="$router.push('/forgotpassword')">Forgot password?</span></p>
         <p><span class="toggle-link" @click="goToSignup">Create an account</span></p>
       </form>
     </div>

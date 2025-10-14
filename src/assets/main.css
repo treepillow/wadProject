@@ -2,6 +2,7 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
 /* main.css */
 /* * { margin: 0; 
     padding: 0; 
@@ -16,12 +17,14 @@ html, body, #app {
 } */
 
 
-#app {
+#app,body {
     background: linear-gradient(135deg, #c65dd3, #7b4eff);
     height: 100vh;
     margin: 0;
     padding: 0;
     /* padding-left: 200px;
     padding-right: 200px;   */
+    
 
 }
+

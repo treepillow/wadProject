@@ -38,63 +38,72 @@ export default {
   },
 
   // Uploads to Storage, updates Auth photoURL and Firestore users/{uid}.photoURL
-  async uploadProfileImage() {
-    if (!this.file) {
-      this.error = "Select an image first.";
-      return;
-    }
-    const user = auth.currentUser;
-    if (!user) {
-      this.error = "Not signed in.";
-      return;
-    }
+async uploadProfileImage() {
+  if (!this.file) { this.error = "Select an image first."; return; }
+  const user = auth.currentUser;
+  if (!user) { this.error = "Not signed in."; return; }
 
-    this.uploading = true;
-    this.progress = 0;
-    this.error = "";
+  this.uploading = true;
+  this.progress = 0;
+  this.error = "";
 
+  try {
+    // 1) Get existing photoPath (if any)
+    const userRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userRef);
+    const oldPath = snap.exists() ? snap.data().photoPath : null;
+
+    // 2) Compute extension from MIME (default to jpg)
     const ext =
       this.file.type === "image/png" ? "png" :
-      this.file.type === "image/webp" ? "webp" : "jpg";
-    const path = `avatars/${user.uid}.${ext}`;
-    const sref = storageRef(storage, path);
+      this.file.type === "image/webp" ? "webp" :
+      this.file.type === "image/jpeg" ? "jpg" : "jpg";
 
+    // 3) New unique path
+    const newPath = `avatars/${user.uid}/${Date.now()}.${ext}`;
+    const sref = storageRef(storage, newPath);
+
+    // 4) Upload with metadata (cache-bust on overwrite not needed since unique name)
     const task = uploadBytesResumable(sref, this.file, { contentType: this.file.type });
+    await new Promise((resolve, reject) => {
+      task.on("state_changed",
+        (snap) => { this.progress = Math.round((snap.bytesTransferred / snap.totalBytes) * 100); },
+        (err) => reject(err),
+        () => resolve()
+      );
+    });
 
-    task.on(
-      "state_changed",
-      (snap) => {
-        this.progress = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
-      },
-      (err) => {
-        this.error = err?.message || "Upload failed.";
-        this.uploading = false;
-      },
-      async () => {
-        try {
-          const url = await getDownloadURL(task.snapshot.ref);
+    // 5) Get URL, update Auth + Firestore
+    const url = await getDownloadURL(sref);
 
-          // Update Firebase Auth profile photo
-          await updateProfile(user, { photoURL: url });
+    await updateProfile(user, { photoURL: url });
+    await setDoc(userRef, {
+      photoURL: url,
+      photoPath: newPath,       // <— store path so we can delete later
+      updatedAt: Date.now()
+    }, { merge: true });
 
-          // Save in Firestore (merge so other fields stay intact)
-          await setDoc(
-            doc(db, "users", user.uid),
-            { photoURL: url, email: user.email || "" },
-            { merge: true }
-          );
-
-          this.photoURL = url;
-          this.file = null;
-        } catch (e) {
-          this.error = e?.message || "Failed to save profile image.";
-        } finally {
-          this.uploading = false;
-          this.progress = 0;
-        }
+    // 6) Delete previous image (if any)
+    if (oldPath && oldPath !== newPath) {
+      try {
+        await deleteObject(storageRef(storage, oldPath));
+      } catch (e) {
+        console.warn("Old avatar delete failed:", e?.code || e?.message);
+        // non-fatal — continue
       }
-    );
     }
+
+    // 7) Update UI
+    this.photoURL = url;
+    this.file = null;
+  } catch (err) {
+    console.error("Avatar upload error:", err?.code, err?.message);
+    this.error = err?.message || "Upload failed.";
+  } finally {
+    this.uploading = false;
+    this.progress = 0;
+  }
+}
   },
 
   data() {

@@ -238,4 +238,9 @@ button{ background-color: transparent; border:1px solid black; }
   .container-description,
   .container-description2 { opacity: 1; transform: none; transition: none; }
 }
+
+.nav-item
+{
+  font-family: "Poppins", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif; 
+}
 </style>

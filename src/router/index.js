@@ -7,6 +7,7 @@ import NewBusinessPage from '../components/NewBusiness.vue'
 import Login from "@/components/Login.vue";
 import Signup from "@/components/Signup.vue";
 import ChatPage from '../components/ChatPage.vue';
+import ForgotPassword from '../components/ForgotPassword.vue';
 
 
 import { auth } from "@/firebase";
@@ -54,6 +55,11 @@ const router = createRouter({
       component: ChatPage,
       meta: { requiresAuth: true }
     },
+    {
+      path:'/forgotpassword',
+      name: 'forgotpassword',
+      component: ForgotPassword
+    }
   ],
 })
 

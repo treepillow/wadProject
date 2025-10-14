@@ -171,6 +171,10 @@ function listAvatar(chat) {
   background: #c9c2e6;
   color: #1f1f29;
   border: none;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+.btn-toggle:hover {
+  transform: translateY(-3px);
 }
 .btn-toggle.active {
   background: #7a4de8;

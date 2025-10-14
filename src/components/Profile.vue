@@ -221,6 +221,7 @@ button
     padding: 20px;
     background-color: rgb(250, 194, 250);
     border: 1px solid black;
+    transition: transform 0.2s ease;
 }
 
 .container-button
@@ -228,4 +229,9 @@ button
     width: 50%;
 }
 
+.btn:hover {
+  background-color: rgb(211, 116, 211);
+  border: 1px solid black;
+  transform: translateY(-3px);
+}
 </style>

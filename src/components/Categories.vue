@@ -69,5 +69,11 @@ export default{
     {
         color: white;
     }
+    .category {
+        transition: transform 0.2s ease;
+    }
+    .category:hover {
+        transform: translateY(-3px);
+    }
 
 </style>

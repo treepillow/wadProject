@@ -11,8 +11,3 @@ import SearchBar from './SearchBar.vue'
     <Categories/>
   </div>
 </template>
-<style>
-.container-fluid {
-  /* background-color: rgba(165, 100, 179, 0.792); */
-}
-</style>

@@ -1,26 +1,26 @@
-{
-  "name": "wad-project",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "engines": {
-    "node": "^20.19.0 || >=22.12.0"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "bootstrap": "^5.3.8",
-    "firebase": "^12.3.0",
-    "uuid": "^13.0.0",
-    "vue": "^3.5.22",
-    "vue-router": "^4.5.1"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.1",
-    "vite": "^7.1.9",
-    "vite-plugin-vue-devtools": "^8.0.2"
+  {
+    "name": "wad-project",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "engines": {
+      "node": "^20.19.0 || >=22.12.0"
+    },
+    "scripts": {
+      "dev": "vite",
+      "build": "vite build",
+      "preview": "vite preview"
+    },
+    "dependencies": {
+      "bootstrap": "^5.3.8",
+      "firebase": "^12.3.0",
+      "uuid": "^13.0.0",
+      "vue": "^3.5.22",
+      "vue-router": "^4.5.1"
+    },
+    "devDependencies": {
+      "@vitejs/plugin-vue": "^6.0.1",
+      "vite": "^7.1.9",
+      "vite-plugin-vue-devtools": "^8.0.2"
+    }
   }
-}

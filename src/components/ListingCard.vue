@@ -1,4 +1,6 @@
 <script setup>
+
+import StartChatButton from './StartChatButton.vue'
 import { computed } from 'vue'
 
 const props = defineProps({
@@ -63,6 +65,7 @@ const sellerAvatar = computed(() =>
       <div class="mt-auto"></div>
     </div>
 
+<<<<<<< HEAD
     <div class="card-footer bg-transparent d-flex justify-content-end align-items-center gap-2">
         <span class="small text-muted">{{ likesCount }}</span>
       <button
@@ -75,6 +78,13 @@ const sellerAvatar = computed(() =>
       >
         ♥
       </button>
+=======
+    <div class="card-footer bg-white">
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-primary flex-grow-1" type="button">View</button>
+        <StartChatButton :targetUserId="listing.userId" />
+      </div>
+>>>>>>> e7eb7f9 (chatbox+listingabit)
     </div>
   </div>
 </template>

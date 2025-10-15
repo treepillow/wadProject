@@ -8,16 +8,46 @@ export default {
   components: { NavBar },
   data() {
     return {
+      // Listing fields
       businessName: '',
       businessDesc: '',
-      businessLocation: '',
       businessCategory: '',
-      toggleBtn: false,
-      photos: [], // [{ file, url }]
+      // Singapore address (standardized)
+      locationBlk: '',
+      locationStreet: '',
+      locationPostal: '',
+      locationUnit: '',
+
+      // UI-only state
+      photos: [],           // [{ file, url }]
       isDragging: false,
       menuItems: [{ name: '', price: '' }],
     }
   },
+
+  computed: {
+    isFoodCategory() {
+      return this.businessCategory === 'Food and Drinks'
+    },
+    listLabel() {
+      return this.isFoodCategory ? 'Menu' : 'Services'
+    },
+    addItemBtnText() {
+      return this.isFoodCategory ? 'Add Item' : 'Add Service'
+    },
+    itemNamePlaceholder() {
+      return this.isFoodCategory ? 'Item name' : 'Service name'
+    },
+    pricePlaceholder() {
+      return this.isFoodCategory ? 'Price' : 'Price / Rate'
+    },
+    emptyLineAlertText() {
+      return this.isFoodCategory
+        ? 'Please ensure each menu item has a name and price.'
+        : 'Please ensure each service has a name and price.'
+    }
+  },
+
   methods: {
     // ---------- Photos ----------
     openFilePicker() { this.$refs.photoInput?.click() },
@@ -49,10 +79,9 @@ export default {
       this.photos.splice(i, 1)
     },
 
-    // ---------- Menu ----------
+    // ---------- Menu/Services ----------
     addMenuItem() { this.menuItems.push({ name: '', price: '' }) },
     removeMenuItem(i) {
-      // prevent deleting last remaining item
       if (this.menuItems.length === 1) return
       this.menuItems.splice(i, 1)
     },
@@ -86,9 +115,28 @@ export default {
       const user = auth.currentUser
       if (!user) { alert('You must be logged in to publish a listing.'); return }
 
-      if (!this.businessName.trim() || !this.businessDesc.trim() ||
-          !this.businessLocation.trim() || !this.businessCategory.trim()) {
-        alert('Please fill in all required fields.')
+      // Required checks
+      if (!this.businessName.trim() || !this.businessDesc.trim() || !this.businessCategory.trim()) {
+        alert('Please fill in Service Name, Description, and Category.')
+        return
+      }
+
+      // SG address: require all fields
+      const blk = this.locationBlk.trim()
+      const street = this.locationStreet.trim()
+      const postal = this.locationPostal.trim()
+      const unit = this.locationUnit.trim()
+
+      if (!blk || !street || !postal || !unit) {
+        alert('Please fill in BLK, Street Address, Postal Code, and Unit No.')
+        return
+      }
+      if (!/^\d{6}$/.test(postal)) {
+        alert('Postal Code must be a 6-digit number (Singapore).')
+        return
+      }
+      if (!/^#?[0-9]{2}-[0-9]{3}$/.test(unit)) {
+        alert('Unit No must look like #09-142 (2 digits, hyphen, 3 digits).')
         return
       }
       for (const m of this.menuItems) {

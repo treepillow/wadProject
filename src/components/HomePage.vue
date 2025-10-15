@@ -3,7 +3,7 @@ import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import {
   collection, query, orderBy, limit, getDocs, startAfter,
   doc, setDoc, deleteDoc, onSnapshot,
-  collectionGroup, getCountFromServer, where
+  getCountFromServer
 } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import { db, auth } from '@/firebase'
@@ -23,30 +23,51 @@ const lastDoc      = ref(null)
 const noMore       = ref(false)
 
 /* likes: state + listeners */
-const likedSet     = ref(new Set())      // which listings current user liked
+const likedSet     = ref(new Set())
 let unsubLikes     = null
 let unsubAuth      = null
 
-/* like counts per listing — use reactive object (not Map) */
-const likeCounts   = reactive({})        // { [listingId]: number }
+/* like counts per listing */
+const likeCounts   = reactive({})
 
-/* seller names/avatars (live), with unsub per uid */
-const profileMap   = ref({})             // uid -> { displayName, photoURL }
-const profileUnsubs = new Map()          // uid -> unsubscribe
+/* seller names/avatars (live) */
+const profileMap   = ref({})
+const profileUnsubs = new Map()
 
-/* ---------- helpers ---------- */
-async function fetchLikesCount(listingId) {
-  try {
-    const cg = collectionGroup(db, 'likedListings')
-    const q = query(cg, where('listingId', '==', listingId))
-    const snap = await getCountFromServer(q)
-    likeCounts[listingId] = snap.data().count || 0  // <-- reactive write
-  } catch (e) {
-    // non-fatal; keep quiet in prod
-    console.warn('likes count error:', listingId, e)
+/* ---------- batch reveal state ---------- */
+/** IDs whose images are allowed to show (revealed). */
+const revealedIds = ref(new Set())
+/** The IDs added by the most recent fetch (current batch). */
+let currentBatchIds = []
+/** Count images in the current batch that we must wait for. */
+const batchTotalImages = ref(0)
+/** Track how many of those images have fired load/error. */
+const batchLoadedImages = ref(0)
+
+function hasPhoto(l) {
+  return Boolean(l.photoUrls?.[0] || l.photos?.[0]?.url)
+}
+
+function markBatchRevealed(ids) {
+  const s = new Set(revealedIds.value)
+  ids.forEach(id => s.add(id))
+  revealedIds.value = s
+  // reset batch counters
+  currentBatchIds = []
+  batchTotalImages.value = 0
+  batchLoadedImages.value = 0
+}
+
+function handleImageLoaded(listingId) {
+  // Count only if this listing belongs to the current batch and has a photo
+  if (!currentBatchIds.includes(listingId)) return
+  batchLoadedImages.value++
+  if (batchLoadedImages.value >= batchTotalImages.value && batchTotalImages.value > 0) {
+    markBatchRevealed(currentBatchIds)
   }
 }
 
+/* ---------- helpers ---------- */
 function startProfileListener(uid) {
   if (!uid || profileUnsubs.has(uid)) return
   const unsub = onSnapshot(doc(db, 'users', uid), snap => {
@@ -84,13 +105,20 @@ async function fetchPage () {
     lastDoc.value = snap.docs[snap.docs.length - 1]
     const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
 
-    // push rows
+    // ----- Batch reveal prep (for *new* rows only) -----
+    currentBatchIds = rows.map(r => r.listingId || r.id)
+    // Count only listings with a real image to wait for
+    batchTotalImages.value = rows.filter(hasPhoto).length
+    batchLoadedImages.value = 0
+
+    // If there are no images in this batch, reveal immediately
+    if (batchTotalImages.value === 0) {
+      markBatchRevealed(currentBatchIds)
+    }
+
+    // Merge data and listeners
     listings.value.push(...rows)
-
-    // start live username listeners
     attachProfileListeners(rows)
-
-    // fetch like counts (non-blocking)
     rows.forEach(r => fetchLikesCount(r.listingId || r.id))
 
     if (snap.size < pageSize) noMore.value = true
@@ -103,7 +131,18 @@ async function fetchPage () {
   }
 }
 
-/* ---------- likes (for current user) ---------- */
+/* ---------- like counts ---------- */
+async function fetchLikesCount(listingId) {
+  try {
+    const col = collection(db, 'listingLikes', listingId, 'users')
+    const snap = await getCountFromServer(col)
+    likeCounts[listingId] = snap.data().count || 0
+  } catch (e) {
+    console.warn('likes count error:', listingId, e)
+  }
+}
+
+/* ---------- likes listener ---------- */
 function startLikesListener(user) {
   if (unsubLikes) { unsubLikes(); unsubLikes = null }
   likedSet.value = new Set()
@@ -116,24 +155,28 @@ function startLikesListener(user) {
   })
 }
 
+/* ---------- like toggle ---------- */
 async function onToggleLike(listing) {
   const uid = auth.currentUser?.uid
   if (!uid) return alert('Please log in to like.')
 
   const id = listing.listingId || listing.id
-  const refDoc = doc(db, 'users', uid, 'likedListings', id)
-  const isLiked = likedSet.value.has(id)
+  const userLikeRef   = doc(db, 'users', uid, 'likedListings', id)
+  const publicLikeRef = doc(db, 'listingLikes', id, 'users', uid)
 
-  // optimistic state
+  const isLiked = likedSet.value.has(id)
   if (isLiked) likedSet.value.delete(id); else likedSet.value.add(id)
   const prev = likeCounts[id] || 0
   likeCounts[id] = Math.max(0, prev + (isLiked ? -1 : +1))
 
   try {
-    if (isLiked) await deleteDoc(refDoc)
-    else await setDoc(refDoc, { listingId: id, at: new Date() })
+    if (isLiked) {
+      await Promise.all([ deleteDoc(userLikeRef), deleteDoc(publicLikeRef) ])
+    } else {
+      const payload = { at: new Date() }
+      await Promise.all([ setDoc(userLikeRef, { listingId: id, ...payload }), setDoc(publicLikeRef, payload) ])
+    }
   } catch (e) {
-    // revert
     if (isLiked) likedSet.value.add(id); else likedSet.value.delete(id)
     likeCounts[id] = prev
     console.error('like toggle error:', e)
@@ -172,24 +215,26 @@ onBeforeUnmount(() => {
       </div>
       <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
-      <!-- grid -->
+      <!-- listings grid -->
       <div v-else>
-        <div v-if="listings.length" class="row g-3 row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xxl-5">
+        <div class="row g-3 row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xxl-5">
           <div class="col" v-for="l in listings" :key="l.id">
             <div class="card-sm">
               <ListingCard
                 :listing="l"
-                :liked="likedSet.has(l.listingId || l.id)"
+                :liked="likedSet?.has(l.listingId || l.id)"
                 :likesCount="likeCounts[l.listingId || l.id] || 0"
                 :sellerNameOverride="profileMap[l.userId]?.displayName || ''"
                 :sellerAvatarOverride="profileMap[l.userId]?.photoURL || ''"
+                :reveal="revealedIds.has(l.listingId || l.id)"
                 @toggle-like="onToggleLike"
+                @image-loaded="handleImageLoaded"
               />
             </div>
           </div>
         </div>
 
-        <div v-else class="text-center text-muted py-5">No listings yet.</div>
+        <div v-if="!listings.length" class="text-center text-muted py-5">No listings yet.</div>
 
         <!-- pagination -->
         <div v-if="listings.length && !noMore" class="d-flex justify-content-center mt-4">
@@ -207,25 +252,33 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* keep Categories in a single row with horizontal scroll on small screens */
-.categories-row { overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:.25rem; }
-.categories-row :deep(.navbar){ flex-wrap:nowrap !important; gap:18px; }
-.categories-row :deep(.category img){ width:110px; height:110px; }
-.categories-row :deep(.category-text){ font-size:.95rem !important; }
+/* categories horizontal scroll */
+.categories-row {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.25rem;
+}
+.categories-row :deep(.navbar) {
+  flex-wrap: nowrap !important;
+  gap: 18px;
+}
+.categories-row :deep(.category img) {
+  width: 110px;
+  height: 110px;
+}
+.categories-row :deep(.category-text) {
+  font-size: 0.95rem !important;
+}
 
-/* make cards a bit denser without touching the Card component internals */
-.card-sm :deep(.img-box){ height:220px !important; }
-.card-sm :deep(.card-img-top){ height:220px !important; }
-.card-sm :deep(.card-title){ font-size:1rem; }
-.card-sm :deep(.badge){ font-size:.7rem; }
-.card-sm :deep(.card-body){ padding:.75rem 1rem; }
-.card-sm :deep(.card-footer){ padding:.5rem 1rem; }
+/* layout tweaks */
+.card-sm :deep(.img-box) { height: 220px !important; }
+.card-sm :deep(.card-title) { font-size: 1rem; }
+.card-sm :deep(.badge) { font-size: 0.7rem; }
+.card-sm :deep(.card-body) { padding: 0.75rem 1rem; }
+.card-sm :deep(.card-footer) { padding: 0.5rem 1rem; }
 
-.object-fit-cover{ object-fit:cover; }
-
-@media (min-width:992px){
-  .categories-row{ scrollbar-width:none; }
-  .categories-row::-webkit-scrollbar{ display:none; }
+@media (min-width: 992px) {
+  .categories-row { scrollbar-width: none; }
+  .categories-row::-webkit-scrollbar { display: none; }
 }
 </style>
-  

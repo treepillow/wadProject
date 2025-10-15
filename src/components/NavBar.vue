@@ -5,9 +5,11 @@ import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
 import { getFirestore, doc, getDoc } from 'firebase/firestore'
 import userPng from '../assets/user.png'
 
-/** Only AboutPage will pass this as true */
 const props = defineProps({
-  authCtasOnly: { type: Boolean, default: false } // show Login/Sign up only on this page
+  /** About page uses this to show Login/Sign up instead of user items */
+  authCtasOnly: { type: Boolean, default: false },
+  /** Optional: customize where Create Service points to */
+  createPath: { type: String, default: '/service/new' }
 })
 
 const router = useRouter()
@@ -35,8 +37,6 @@ onMounted(() => {
 onBeforeUnmount(() => { unsubAuth && unsubAuth() })
 
 const isLoggedIn = computed(() => !!user.value)
-
-/** Show Login/Sign up ONLY when AboutPage asks for it */
 const showAuthCtas = computed(() => props.authCtasOnly)
 
 async function logout() {
@@ -71,7 +71,7 @@ async function logout() {
         <div id="mainNav" class="collapse navbar-collapse">
           <ul class="navbar-nav ms-auto align-items-center gap-lg-2">
 
-            <!-- About page only -->
+            <!-- About page only: Login / Sign up -->
             <template v-if="showAuthCtas">
               <li class="nav-item">
                 <RouterLink to="/login" class="btn btn-outline-primary me-2">Login</RouterLink>
@@ -81,15 +81,21 @@ async function logout() {
               </li>
             </template>
 
-            <!-- Everywhere else, only if logged in -->
+            <!-- Logged in, everywhere else -->
             <template v-else-if="isLoggedIn">
+
+
               <li class="nav-item">
                 <RouterLink to="/chat" class="nav-link d-flex align-items-center">
                   <img src="../assets/message.png" alt="Messages" class="icon-24 me-1" />
                   <span class="d-none d-sm-inline">Messages</span>
                 </RouterLink>
               </li>
-
+              <li class="nav-item me-1">
+                <RouterLink to="/createService" class="btn btn-brand">
+                  + Create Service
+                </RouterLink>
+              </li>
               <li class="nav-item dropdown">
                 <button class="btn p-0 dropdown-toggle avatar-btn" data-bs-toggle="dropdown" aria-expanded="false">
                   <img :src="avatarUrl" alt="User avatar" class="avatar-36" />
@@ -106,7 +112,7 @@ async function logout() {
               </li>
             </template>
 
-            <!-- If not logged in on other pages: show nothing (your guards handle redirects) -->
+            <!-- Not logged in on other pages => show nothing (your guards handle redirects) -->
 
           </ul>
         </div>
@@ -137,15 +143,35 @@ async function logout() {
 }
 .avatar-btn { background: transparent; border: 0; border-radius: 999px; }
 
+/* Brand button */
+.btn-brand {
+  --brand: #4b2aa6;
+  --brand-contrast: #fff;
+  background: var(--brand);
+  color: var(--brand-contrast);
+  border: 1px solid var(--brand);
+  padding: .45rem .85rem;
+  border-radius: .75rem;
+  font-weight: 600;
+}
+.btn-brand:hover {
+  filter: brightness(1.05);
+  color: var(--brand-contrast);
+  text-decoration: none;
+}
+
+/* Link color on light bg */
 .navbar-light .nav-link { color: #2b2b2b; }
 .navbar-light .nav-link:hover { color: #4b2aa6; }
 
+/* Dropdown look */
 .dropdown-menu {
   border-radius: 12px;
   border: 1px solid rgba(0,0,0,.06);
   box-shadow: 0 8px 24px rgba(0,0,0,.08);
 }
 
+/* Toggler */
 .navbar-toggler { border-color: rgba(0,0,0,.15); }
 .navbar-toggler:focus { box-shadow: 0 0 0 .15rem rgba(75,42,166,.15); }
 </style>

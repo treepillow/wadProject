@@ -1,46 +1,31 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 
-// 🔸 When Firebase is ready, uncomment these:
-// import { auth, db } from '@/firebase'
-// import { onAuthStateChanged } from 'firebase/auth'
-// import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore'
-
-const mode = ref('buyer')        // buyer or seller
-const chats = ref([])            // list of chats for sidebar
-const activeChat = ref(null)     // selected chat
-const messages = ref([])         // messages of selected chat
-const newMessage = ref('')       // input field
-const currentUserId = ref('mock-user-id') // Replace with Firebase auth UID later
-
-watch(mode, () => {
-  fetchChats()
-})
+const chats = ref([])
+const activeChat = ref(null)
+const messages = ref([])
+const newMessage = ref('')
+const currentUserId = ref('mock-user-id')
+const sidebarCollapsed = ref(false)
 
 onMounted(() => {
-  // 🔸 When Firebase is ready, replace with onAuthStateChanged(auth, user => ...)
   fetchChats()
 })
 
 function fetchChats() {
-  // 🔸 Replace this with Firestore query based on mode
   chats.value = [
     {
       id: '1',
-      buyerId: 'user_1',
       buyerName: 'Sarah Smith',
       buyerImage: 'https://via.placeholder.com/80/888',
-      sellerId: 'biz_1',
       sellerBusinessTitle: "Melly's Bakery",
       sellerBusinessLogo: 'https://via.placeholder.com/80/7a4de8',
       lastMessage: 'Thanks for your order!'
     },
     {
       id: '2',
-      buyerId: 'user_2',
       buyerName: 'James Lee',
       buyerImage: 'https://via.placeholder.com/80/777',
-      sellerId: 'biz_2',
       sellerBusinessTitle: 'Zen Yoga',
       sellerBusinessLogo: 'https://via.placeholder.com/80/bdb4dd',
       lastMessage: 'See you at class!'
@@ -53,18 +38,14 @@ function fetchChats() {
 
 function selectChat(chat) {
   activeChat.value = chat
-
-  // 🔸 Replace with Firestore subcollection subscription for messages
   messages.value = [
     { id: 'm1', senderId: currentUserId.value, text: 'hello i book appointment to shave my chest tmr 1pm okay?' },
-    { id: 'm2', senderId: 'other-user', text: 'Yeap no problem. See You then 🦊🐰🐻🐿🐧!' }
+    { id: 'm2', senderId: 'other-user', text: 'Yeap no problem. See you then 🦊🐰🐻🐿🐧!' }
   ]
 }
 
 function sendMessage() {
   if (!newMessage.value.trim() || !activeChat.value) return
-
-  // 🔸 Replace with addDoc(...) to Firestore
   messages.value.push({
     id: `${Date.now()}`,
     senderId: currentUserId.value,
@@ -73,55 +54,57 @@ function sendMessage() {
   newMessage.value = ''
 }
 
-// Helper functions to switch between buyer & seller views
-function listTitle(chat) {
-  return mode.value === 'buyer' ? chat.sellerBusinessTitle : chat.buyerName
+function getSidebarTitle(chat) {
+  return `${chat.sellerBusinessTitle} — ${chat.buyerName}`
 }
 
-function listAvatar(chat) {
-  return mode.value === 'buyer' ? chat.sellerBusinessLogo : chat.buyerImage
+function getSidebarAvatar(chat) {
+  return chat.sellerBusinessLogo || chat.buyerImage
+}
+
+function getActiveChatTitle() {
+  if (!activeChat.value) return ''
+  return activeChat.value.sellerBusinessTitle || activeChat.value.buyerName
+}
+
+function getActiveChatAvatar() {
+  if (!activeChat.value) return ''
+  return activeChat.value.sellerBusinessLogo || activeChat.value.buyerImage
 }
 </script>
 
 <template>
   <div class="chatbox container-fluid rounded-4 mt-4">
-    <!-- Toggle -->
-    <div class="text-center pt-3 pb-4">
-      <button
-        class="btn btn-xl btn-toggle me-3"
-        :class="{ active: mode === 'buyer' }"
-        @click="mode = 'buyer'"
-      >
-        👤 Buyer
+    <!-- Always visible top bar with toggle -->
+    <div class="chat-topbar d-flex justify-content-between align-items-center p-3">
+      <button class="toggle-btn" @click="sidebarCollapsed = !sidebarCollapsed">
+        {{ sidebarCollapsed ? '📂 Open Chats' : '✖ Close Chats' }}
       </button>
-      <button
-        class="btn btn-xl btn-toggle"
-        :class="{ active: mode === 'seller' }"
-        @click="mode = 'seller'"
-      >
-        🏪 Seller
-      </button>
+      <div v-if="activeChat" class="active-chat-header d-flex align-items-center">
+        <img :src="getActiveChatAvatar()" class="rounded-circle me-2" width="50" height="50" />
+        <h5 class="m-0">{{ getActiveChatTitle() }}</h5>
+      </div>
     </div>
 
     <div class="row g-0 shadow-lg rounded overflow-hidden chat-frame">
       <!-- Sidebar -->
-      <div class="col-12 col-md-4 sidebar p-0 overflow-auto">
+      <div :class="['sidebar col-md-4 p-0 overflow-auto', { collapsed: sidebarCollapsed }]">
         <div
           v-for="chat in chats"
           :key="chat.id"
           class="chat-item d-flex align-items-center p-4 border-bottom"
           @click="selectChat(chat)"
         >
-          <img :src="listAvatar(chat)" class="rounded-circle me-3 flex-shrink-0" width="84" height="84" />
+          <img :src="getSidebarAvatar(chat)" class="rounded-circle me-3 flex-shrink-0" width="70" height="70" />
           <div class="flex-grow-1">
-            <div class="fw-bold fs-2 sidebar-title">{{ listTitle(chat) }}</div>
+            <div class="fw-bold fs-5 sidebar-title">{{ getSidebarTitle(chat) }}</div>
             <div class="text-muted small text-truncate-2">{{ chat.lastMessage }}</div>
           </div>
         </div>
       </div>
 
       <!-- Conversation -->
-      <div class="col-12 col-md-8 d-flex flex-column p-0 chat-window">
+      <div :class="['chat-window d-flex flex-column p-0', { expanded: sidebarCollapsed }]">
         <div class="flex-grow-1 p-4 overflow-auto msg-scroll">
           <div
             v-for="msg in messages"
@@ -151,53 +134,67 @@ function listAvatar(chat) {
 
 <style scoped>
 .chatbox {
-  max-width: 1400px;
-  background: #23232d;
-  color: #e9e7f5;
-  padding: 0.5rem 1rem 1.5rem;
+  width: 100%;
+  max-width: 100%;
+  background: #f8f5fb;
+  color: #2d2d2d;
+  padding: 0;
+}
+
+.chat-topbar {
+  background: #f3f0f8;
+  border-bottom: 1px solid #e1dbee;
+}
+
+.toggle-btn {
+  background: #7a4de8;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.toggle-btn:hover {
+  background: #693ccc;
 }
 
 .chat-frame {
-  height: 78vh;
-}
-
-/* Toggle */
-.btn-xl {
-  font-size: 1.6rem;
-  padding: 16px 42px;
-  border-radius: 48px;
-}
-.btn-toggle {
-  background: #c9c2e6;
-  color: #1f1f29;
-  border: none;
-  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
-}
-.btn-toggle:hover {
-  transform: translateY(-3px);
-}
-.btn-toggle.active {
-  background: #7a4de8;
-  color: #fff;
+  height: 80vh;
+  background: white;
+  border: 1px solid #e3e0ec;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
 }
 
 /* Sidebar */
 .sidebar {
-  background: #2b2b37;
-  border-right: 1px solid #3e3e4c;
+  background: #f3f0f8;
+  border-right: 1px solid #e1dbee;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  max-width: 350px;
 }
+.sidebar.collapsed {
+  transform: translateX(-100%);
+  width: 0;
+  min-width: 0;
+}
+
 .chat-item {
   cursor: pointer;
   transition: background 0.2s ease;
-  min-height: 140px;
+  min-height: 100px;
 }
 .chat-item:hover {
-  background: #343447;
+  background: #e8e2f3;
 }
 .sidebar-title {
-  line-height: 1.25;
-  word-break: break-word;
-  margin-bottom: 4px;
+  line-height: 1.4;
+  margin-bottom: 6px;
 }
 .text-truncate-2 {
   display: -webkit-box;
@@ -208,19 +205,27 @@ function listAvatar(chat) {
 
 /* Chat Window */
 .chat-window {
-  background: #242431;
+  background: #ffffff;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
 }
+.chat-window.expanded {
+  width: 100%;
+}
+
 .bubble {
   max-width: 75%;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   padding: 12px 16px;
   border-radius: 16px;
   margin: 0 0 12px 0;
   word-break: break-word;
 }
 .in {
-  background: #eeeeff;
-  color: #242431;
+  background: #e9e4f5;
+  color: #3a2e5c;
   margin-right: auto;
 }
 .out {
@@ -229,24 +234,32 @@ function listAvatar(chat) {
   margin-left: auto;
 }
 .msg-scroll::-webkit-scrollbar { width: 10px; }
-.msg-scroll::-webkit-scrollbar-thumb { background: #3c3c4b; border-radius: 6px; }
-.msg-scroll::-webkit-scrollbar-thumb:hover { background: #56566b; }
+.msg-scroll::-webkit-scrollbar-thumb { background: #d4c8ee; border-radius: 6px; }
+.msg-scroll::-webkit-scrollbar-thumb:hover { background: #b7a5e5; }
 
 /* Composer */
 .composer {
-  background: #2d2d39;
-  border-top: 1px solid #3a3a49;
+  background: #f3f0f8;
+  border-top: 1px solid #e1dbee;
 }
 .chat-input {
-  background: linear-gradient(145deg, #3a3946, #2f2e3a);
-  color: #e9e7f5;
-  border: 1px solid #57536d;
+  background: #fff;
+  color: #2d2d2d;
+  border: 1px solid #d5caee;
   border-radius: 14px;
 }
-.chat-input::placeholder { color: #c2bcdf; }
+.chat-input::placeholder { color: #9b8dc6; }
 .chat-input:focus {
   outline: none;
-  box-shadow: 0 0 0 0.2rem rgba(122, 77, 232, 0.35);
+  box-shadow: 0 0 0 0.2rem rgba(122, 77, 232, 0.25);
   border-color: #7a4de8;
+}
+.btn-primary {
+  background-color: #7a4de8;
+  border-color: #7a4de8;
+}
+.btn-primary:hover {
+  background-color: #693ccc;
+  border-color: #693ccc;
 }
 </style>

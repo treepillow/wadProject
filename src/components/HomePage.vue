@@ -9,5 +9,6 @@ import SearchBar from './SearchBar.vue'
     <NavBar/>
     <SearchBar/>
     <Categories/>
+    
   </div>
 </template>

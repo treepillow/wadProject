@@ -49,9 +49,31 @@
         <!-- Address -->
         <input type="text" placeholder="Address" v-model="signup.address" required />
 
+        <!-- Profile Picture -->
+        <div class="profile-picture-container">
+          <span class="profile-label">Set a profile picture:</span>
+          <label class="custom-file-upload" for="profilePicture">
+            Choose File
+          </label>
+          <input type="file" id="profilePicture" accept="image/*" @change="handleProfilePicture" />
+          <div v-if="signup.profilePreview" class="preview-container">
+            <img 
+              :src="signup.profilePreview" 
+              alt="Profile Preview" 
+              class="profile-preview" 
+              @click="showImageModal = true"
+            />
+          </div>
+        </div>
+
         <button type="submit">Sign Up</button>
         <p><span class="toggle-link" @click="goToLogin">Already have an account? Login</span></p>
       </form>
+
+      <!-- Image Modal -->
+      <div v-if="showImageModal" class="image-modal" @click="showImageModal = false">
+        <img :src="signup.profilePreview" alt="Full Image Preview"/>
+      </div>
 
       <!-- Scroll indicator -->
       <div class="scroll-indicator">
@@ -86,18 +108,30 @@ export default {
         year: "",
         phone: "",
         address: "",
+        profilePreview: null,   // preview image URL
        },
-      months: [
-        "January","February","March","April","May","June",
-        "July","August","September","October","November","December"
-      ],
-      years: Array.from({ length: 100 }, (_, i) => currentYear - i), // last 100 years
-      showPassword: false,
+        showImageModal: false, // <-- modal toggle
+        months: [
+          "January","February","March","April","May","June",
+          "July","August","September","October","November","December"
+        ],
+        years: Array.from({ length: 100 }, (_, i) => currentYear - i), // last 100 years
+        showPassword: false,
     }; 
   },
   methods: {
     togglePassword() {
       this.showPassword = !this.showPassword;
+    },
+    handleProfilePicture(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.signup.profilePreview = e.target.result; // now inside signup
+      };
+      reader.readAsDataURL(file);
     },
     // validate Singapore number (8 digits starting with 8 or 9, optional +65)
     isValidSGPhone(phone) {
@@ -120,7 +154,6 @@ export default {
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, this.signup.email, this.signup.password);
         const user = userCredential.user;
-        // await setDoc(doc(db, "users", user.uid), { username: this.signup.username, email: this.signup.email, createdAt: serverTimestamp() });
         await setDoc(doc(db, "users", user.uid), {
           username: this.signup.username,
           email: this.signup.email,
@@ -320,6 +353,92 @@ input {
 @keyframes bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(5px); }
+}
+
+
+
+
+.profile-picture-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.profile-picture-container input[type="file"] {
+  display: none; /* hide native input */
+}
+
+.profile-label {
+  color: #fff;
+  font-weight: 500;
+}
+
+.custom-file-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 2px solid #fff;
+  border-radius: 5px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  cursor: pointer;
+  min-width: 120px;
+  height: 40px;
+}
+
+.custom-file-upload:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.profile-button-preview {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-preview {
+  width: 60px;      /* smaller width */
+  height: 60px;     /* smaller height */
+  border-radius: 50%; /* makes it circular */
+  object-fit: cover;  /* ensures it fits without distortion */
+  border: 2px solid #fff; /* optional: adds a border */
+}
+
+.image-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: zoom-out;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.image-modal img {
+  max-width: 90%;
+  max-height: 90%;
+  border-radius: 10px;
+  transform: scale(0.8);   /* start smaller */
+  animation: zoomIn 0.3s forwards;  /* scale to full size */
+}
+
+@keyframes fadeIn {
+  from { background-color: rgba(0,0,0,0); }
+  to { background-color: rgba(0,0,0,0.8); }
+}
+
+@keyframes zoomIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 </style>

@@ -10,7 +10,7 @@
           {{ loading ? 'Sending...' : 'Send OTP' }}
         </button>
         <p class="info-text">
-          If the email address is valid, a One Time Password will be sent to your email.
+          If the email address is valid, a one-time password (OTP) will be sent to the email.
         </p>
         <p>
           <span class="toggle-link" @click="$router.push('/login')">

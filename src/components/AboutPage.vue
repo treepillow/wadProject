@@ -77,7 +77,7 @@ onBeforeUnmount(() => {
         <div class="row justify-content-center">
           <div class="col-12 col-md-10 col-lg-8">
             <h3 class="text-center text-black fs-2 fw-semibold">
-              Our mission<br>
+              <span class="underline">Our mission</span><br>
               Discover, support, and grow with<br>
               <span class="green">trusted home businesses</span>
             </h3>
@@ -197,6 +197,11 @@ onBeforeUnmount(() => {
 }
 .mission h3 { font-family: "Figtree", sans-serif; }
 .mission .green { color: #198754; }
+.underline {
+  border-bottom: 3px solid #000; /* adjust thickness/color */
+  padding-bottom: 3px; /* space between text and line */
+  display: inline-block; /* ensures underline only spans text */
+}
 
 /* Description cards fade-in (minimal) */
 .container-description,

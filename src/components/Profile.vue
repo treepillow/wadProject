@@ -7,7 +7,9 @@ import {
   collection, getDocs, query, orderBy, where
 } from 'firebase/firestore'
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
+
 import NavBar from './NavBar.vue'
+import ListingCard from '@/components/ListingCard.vue' // <-- integrate your card here
 
 const auth = getAuth()
 const db = getFirestore()
@@ -15,28 +17,35 @@ const storage = getStorage()
 
 export default {
   name: 'Profile',
-  components: { NavBar, RouterLink },
-  setup() {
-    // ------------ UI state -------------
-    const activeTab = ref('profile') // 'profile' | 'my' | 'liked'
-    const loading = ref(true)
-    const saving = ref(false)
-    const err = ref('')
-    const ok = ref('')
+  components: { NavBar, RouterLink, ListingCard },
 
-    // ------------ auth / user -------------
+  setup() {
+    // Tabs
+    const activeTab = ref('profile') // 'profile' | 'my' | 'liked'
+    const openTab = (t) => {
+      activeTab.value = t
+      if (t === 'liked' && likedListings.value.length === 0) loadLikedListings()
+    }
+
+    // Status
+    const loading = ref(true)
+    const saving  = ref(false)
+    const err     = ref('')
+    const ok      = ref('')
+
+    // User
     const user = ref(null)
 
-    // ------------ form model -------------
-    const avatarUrl = ref('')
-    const avatarFile = ref(null)
-    const firstName = ref('')
-    const lastName = ref('')
-    const username = ref('')
-    const email = ref('')
-    const phone = ref('')
+    // Profile model
+    const avatarUrl   = ref('')
+    const avatarFile  = ref(null)
+    const firstName   = ref('')
+    const lastName    = ref('')
+    const username    = ref('')
+    const email       = ref('')
+    const phone       = ref('')
     const dateOfBirth = ref('')
-    const address = ref('')
+    const address     = ref('')
 
     const displayName = computed(() => {
       const f = (firstName.value || '').trim()
@@ -44,52 +53,45 @@ export default {
       return (f || l) ? `${f} ${l}`.trim() : (username.value || '—')
     })
 
-    // ------------ listings data -------------
-    const myListings = ref([])        // [{listingId, businessName,...}]
-    const myLoading = ref(false)
-    const likedListings = ref([])     // fully resolved listing docs
-    const likedLoading = ref(false)
+    // Listings data
+    const myListings     = ref([])   // from users/{uid}/myListings
+    const myLoading      = ref(false)
+    const likedListings  = ref([])   // resolved from allListings
+    const likedLoading   = ref(false)
 
-    // ------------ helpers -------------
-    function chunk(arr, size) {
-      const out = []
-      for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
-      return out
-    }
-    function normPhone(v) {
-      let s = (v || '').trim().replace(/\s+/g, '')
+    // Helpers
+    const chunk = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i*size, (i+1)*size))
+    const normPhone = (v) => {
+      const s = (v || '').trim().replace(/\s+/g, '')
       if (/^\+65\d{8}$/.test(s)) return s
       if (/^\d{8}$/.test(s)) return `+65${s}`
       return s
     }
 
-    // ------------ data loads -------------
+    // Load profile + my listings
     onMounted(async () => {
       try {
         const u = auth.currentUser
         if (!u) { err.value = 'You need to be logged in to view your profile.'; loading.value = false; return }
         user.value = u
 
-        // profile
         const snap = await getDoc(doc(db, 'users', u.uid))
         if (snap.exists()) {
           const d = snap.data()
           username.value = d.username || ''
           firstName.value = d.firstName || ''
-          lastName.value = d.lastName || ''
-          email.value = d.email || u.email || ''
-          phone.value = d.phone || ''
+          lastName.value  = d.lastName || ''
+          email.value     = d.email || u.email || ''
+          phone.value     = d.phone || ''
           dateOfBirth.value = d.dateOfBirth || ''
-          address.value = d.address || ''
+          address.value   = d.address || ''
           avatarUrl.value = d.photoURL || u.photoURL || ''
         } else {
-          email.value = u.email || ''
+          email.value   = u.email || ''
           avatarUrl.value = u.photoURL || ''
         }
 
-        // pre-load "My Listings" (fast, just your subcollection)
-        loadMyListings()
-        // pre-load "Liked" lazily once tab is opened to save reads
+        await loadMyListings()
       } catch (e) {
         console.error(e); err.value = 'Failed to load profile.'
       } finally {
@@ -114,31 +116,22 @@ export default {
       if (!user.value || likedLoading.value) return
       try {
         likedLoading.value = true
-        // Expecting docs in users/{uid}/likedListings with { listingId }
         const likesSnap = await getDocs(collection(db, 'users', user.value.uid, 'likedListings'))
         const ids = likesSnap.docs.map(d => d.data()?.listingId).filter(Boolean)
+        if (!ids.length) { likedListings.value = []; return }
 
-        // Resolve in batches of 10 (Firestore 'in' limit)
-        const batches = chunk(ids, 10)
+        const batches = chunk(ids, 10) // Firestore 'in' limit
         const resolved = []
         for (const group of batches) {
           const qRef = query(collection(db, 'allListings'), where('listingId', 'in', group))
           const snap = await getDocs(qRef)
           snap.forEach(docSnap => resolved.push({ id: docSnap.id, ...docSnap.data() }))
         }
-        // If some ids > 10*... left (or missing), fall back to per-doc fetch
-        // (skipped here for simplicity; most cases covered by 'in' batching)
         likedListings.value = resolved.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
       } finally { likedLoading.value = false }
     }
 
-    // load liked when user clicks the tab first time
-    function openTab(tab) {
-      activeTab.value = tab
-      if (tab === 'liked' && likedListings.value.length === 0) loadLikedListings()
-    }
-
-    // ------------ actions -------------
+    // Actions
     function onPickAvatar(e) {
       const f = e.target.files?.[0]
       if (!f || !/^image\//.test(f.type)) return
@@ -148,13 +141,8 @@ export default {
 
     async function saveProfile() {
       err.value = ''; ok.value = ''
-      const f = firstName.value.trim()
-      const l = lastName.value.trim()
       const u = username.value.trim()
       const ph = normPhone(phone.value)
-      const dob = (dateOfBirth.value || '').trim()
-      const addr = address.value.trim()
-
       if (!u) { err.value = 'Username is required.'; return }
       if (ph && !/^\+65\d{8}$/.test(ph)) { err.value = 'Phone must be +65 followed by 8 digits.'; return }
 
@@ -168,8 +156,14 @@ export default {
           photoURL = await getDownloadURL(sref)
         }
         await updateDoc(doc(db, 'users', user.value.uid), {
-          username: u, firstName: f, lastName: l, phone: ph, dateOfBirth: dob,
-          address: addr, email: email.value || user.value.email || '', photoURL,
+          username: u,
+          firstName: firstName.value.trim(),
+          lastName:  lastName.value.trim(),
+          phone: ph,
+          dateOfBirth: (dateOfBirth.value || '').trim(),
+          address: address.value.trim(),
+          email: email.value || user.value.email || '',
+          photoURL,
           updatedAt: serverTimestamp()
         })
         ok.value = 'Profile saved!'
@@ -179,14 +173,14 @@ export default {
     }
 
     return {
-      // tab
+      // tabs
       activeTab, openTab,
       // profile
       loading, saving, err, ok,
       avatarUrl, onPickAvatar,
-      firstName, lastName, username, email, phone, dateOfBirth, address,
-      displayName, saveProfile,
-      // listings tabs
+      firstName, lastName, username, email, phone, dateOfBirth, address, displayName,
+      saveProfile,
+      // listings
       myListings, myLoading, likedListings, likedLoading
     }
   }
@@ -203,35 +197,25 @@ export default {
           <!-- Tabs -->
           <ul class="nav nav-tabs rounded-3 overflow-hidden shadow-soft mb-4">
             <li class="nav-item">
-              <button class="nav-link" :class="{active: activeTab==='profile'}" @click="openTab('profile')">
-                Profile
-              </button>
+              <button class="nav-link" :class="{active: activeTab==='profile'}" @click="openTab('profile')">Profile</button>
             </li>
             <li class="nav-item">
-              <button class="nav-link" :class="{active: activeTab==='my'}" @click="openTab('my')">
-                My Listings
-              </button>
+              <button class="nav-link" :class="{active: activeTab==='my'}" @click="openTab('my')">My Listings</button>
             </li>
             <li class="nav-item">
-              <button class="nav-link" :class="{active: activeTab==='liked'}" @click="openTab('liked')">
-                Liked
-              </button>
+              <button class="nav-link" :class="{active: activeTab==='liked'}" @click="openTab('liked')">Liked</button>
             </li>
           </ul>
 
-          <!-- PROFILE TAB -->
+          <!-- PROFILE -->
           <div v-show="activeTab==='profile'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
             <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-4">
               <div class="position-relative">
                 <img
                   :src="avatarUrl || 'https://ui-avatars.com/api/?name=H&background=ECE8FF&color=5A43C5&size=128'"
-                  class="rounded-circle border object-fit-cover"
-                  style="width: 96px; height: 96px;"
-                  alt="Avatar"
-                />
+                  class="rounded-circle border object-fit-cover" style="width:96px;height:96px" alt="Avatar" />
                 <label class="btn btn-sm btn-light border position-absolute bottom-0 end-0 px-2 py-1">
-                  Change
-                  <input type="file" accept="image/*" class="d-none" @change="onPickAvatar" />
+                  Change <input type="file" accept="image/*" class="d-none" @change="onPickAvatar" />
                 </label>
               </div>
               <div class="flex-grow-1">
@@ -291,49 +275,31 @@ export default {
             </div>
           </div>
 
-          <!-- MY LISTINGS TAB -->
+          <!-- MY LISTINGS -->
           <div v-show="activeTab==='my'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
             <h4 class="mb-4">My Listings</h4>
             <div v-if="myLoading" class="text-center py-4"><div class="spinner-border"></div></div>
             <div v-else-if="!myListings.length" class="text-muted">You haven’t posted any listings yet.</div>
             <div v-else class="row g-3 g-md-4">
               <div v-for="l in myListings" :key="l.listingId" class="col-12 col-sm-6 col-lg-4">
-                <div class="card h-100 shadow-sm">
-                  <img
-                    :src="(l.photoUrls && l.photoUrls[0]) || 'https://placehold.co/600x400?text=No+Photo'"
-                    class="card-img-top" style="height:180px; object-fit:cover;"
+                  <ListingCard
+                    :listing="l"
+                    :liked="likedSet?.has(l.listingId)"
+                    @open="$router.push(`/listing/${l.listingId}`)"
+                    @toggle-like="onToggleLike"
                   />
-                  <div class="card-body d-flex flex-column">
-                    <h6 class="card-title mb-1">{{ l.businessName }}</h6>
-                    <div class="text-muted small mb-2">{{ l.businessCategory || '—' }}</div>
-                    <div class="mt-auto d-flex gap-2">
-                      <RouterLink class="btn btn-outline-secondary btn-sm" :to="`/listing/${l.listingId}`">View</RouterLink>
-                      <RouterLink class="btn btn-primary btn-sm" :to="`/edit/${l.listingId}`">Edit</RouterLink>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
 
-          <!-- LIKED TAB -->
+          <!-- LIKED -->
           <div v-show="activeTab==='liked'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
             <h4 class="mb-4">Liked Listings</h4>
             <div v-if="likedLoading" class="text-center py-4"><div class="spinner-border"></div></div>
             <div v-else-if="!likedListings.length" class="text-muted">No liked listings yet.</div>
             <div v-else class="row g-3 g-md-4">
               <div v-for="l in likedListings" :key="l.listingId" class="col-12 col-sm-6 col-lg-4">
-                <div class="card h-100 shadow-sm">
-                  <img
-                    :src="(l.photoUrls && l.photoUrls[0]) || 'https://placehold.co/600x400?text=No+Photo'"
-                    class="card-img-top" style="height:180px; object-fit:cover;"
-                  />
-                  <div class="card-body d-flex flex-column">
-                    <h6 class="card-title mb-1">{{ l.businessName }}</h6>
-                    <div class="text-muted small mb-2">{{ l.businessCategory || '—' }}</div>
-                    <RouterLink class="btn btn-outline-secondary btn-sm mt-auto" :to="`/listing/${l.listingId}`">Open</RouterLink>
-                  </div>
-                </div>
+                <ListingCard :listing="l" />
               </div>
             </div>
           </div>
@@ -345,31 +311,16 @@ export default {
 </template>
 
 <style scoped>
+.bg-page { background: var(--page-bg, rgb(245,239,239)); }
+.shadow-soft { box-shadow: 0 8px 28px rgba(0,0,0,.06); }
+.object-fit-cover { object-fit: cover; }
 
-.profile-container
-{
-    background-color: rgb(250, 194, 250);
+.nav-tabs .nav-link { border: none; padding: .75rem 1rem; }
+.nav-tabs .nav-link.active { background: #fff; border-bottom: 2px solid #7a5af8; color: #7a5af8; }
+.border { border-color: rgba(0,0,0,.06) !important; }
 
-    
-}
-
-button
-{
-    width: 15%;
-    padding: 20px;
-    background-color: rgb(250, 194, 250);
-    border: 1px solid black;
-    transition: transform 0.2s ease;
-}
-
-.container-button
-{
-    width: 50%;
-}
-
-.btn:hover {
-  background-color: rgb(211, 116, 211);
-  border: 1px solid black;
-  transform: translateY(-3px);
-}
+.form-label { color: #4b3f7f; }
+.form-control:focus { border-color: #a889ff; box-shadow: 0 0 0 .2rem rgba(168,137,255,.15); }
+.btn-primary { background: #7a5af8; border-color: #7a5af8; }
+.btn-primary:hover { background: #6948f2; border-color: #6948f2; }
 </style>

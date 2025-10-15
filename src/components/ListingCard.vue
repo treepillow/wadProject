@@ -1,51 +1,87 @@
 <script setup>
 import { computed } from 'vue'
 
-const props = defineProps({ listing: { type: Object, required: true } })
+const props = defineProps({
+  listing: { type: Object, required: true },
+  liked: { type: Boolean, default: false },
+  likesCount: { type: Number, default: 0 },
+  sellerNameOverride: { type: String, default: '' }  // <— new
+})
+const emit = defineEmits(['toggle-like'])
 
 const photo = computed(() =>
-  (props.listing.photoUrls && props.listing.photoUrls[0]) ||
-  (props.listing.photos && props.listing.photos[0]?.url) || null
+  (props.listing.photoUrls?.[0]) ||
+  (props.listing.photos?.[0]?.url) || null
 )
+
 const firstPrice = computed(() => props.listing.menu?.[0]?.price ?? null)
-const addr = computed(() =>
-  props.listing.locationFormatted ??
-  (props.listing.location
-    ? `BLK ${props.listing.location.blk} ${props.listing.location.street} Singapore ${props.listing.location.postal} ${props.listing.location.unit}`
-    : '')
+
+const sellerName = computed(() =>
+  props.sellerNameOverride ||                           // <— prefer live value
+  props.listing.userDisplayName ||
+  props.listing.username ||
+  props.listing.ownerName ||
+  (props.listing.userId ? `user_${props.listing.userId.slice(0,6)}` : 'Seller')
 )
 </script>
 
+
 <template>
   <div class="card h-100 shadow-sm">
-    <img v-if="photo" :src="photo" class="card-img-top object-fit-cover" style="height:180px" :alt="listing.businessName" />
-    <div v-else class="bg-light d-flex align-items-center justify-content-center" style="height:180px">
-      <span class="text-muted">No photo</span>
+    <!-- Header: username only -->
+    <div class="card-header bg-transparent border-0 pb-0 d-flex align-items-center gap-2">
+      <div class="rounded-circle bg-secondary-subtle d-inline-block" style="width:28px;height:28px"></div>
+      <span class="fw-semibold small">{{ sellerName }}</span>
+    </div>
+
+    <!-- Bigger image, full fit (contain) -->
+    <div class="px-3 pt-2">
+      <div class="img-box rounded" style="height: 220px; background:#f8f9fa;">
+        <img
+          v-if="photo"
+          :src="photo"
+          :alt="listing.businessName"
+          class="w-100 h-100"
+          style="object-fit: contain;"
+        />
+        <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+          No photo
+        </div>
+      </div>
     </div>
 
     <div class="card-body d-flex flex-column">
-      <div class="d-flex justify-content-between align-items-start">
-        <h5 class="card-title mb-1">{{ listing.businessName }}</h5>
+      <h6 class="card-title mb-1 text-truncate" :title="listing.businessName">{{ listing.businessName }}</h6>
+
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="fw-bold">
+          <span v-if="firstPrice">S${{ firstPrice }}</span>
+        </div>
         <span class="badge text-bg-primary">{{ listing.businessCategory }}</span>
       </div>
-      <p class="card-text text-muted mb-2">
-        {{ (listing.businessDesc || '').slice(0,90) }}<span v-if="(listing.businessDesc||'').length>90">…</span>
-      </p>
-      <div class="mt-auto">
-        <div v-if="firstPrice" class="fw-semibold mb-1">From ${{ firstPrice }}</div>
-        <div class="small text-secondary">{{ addr }}</div>
-      </div>
+
+      <!-- Optional: short address (hidden if you don't want it) -->
+      <div class="small text-secondary" v-if="addr">{{ addr }}</div>
+
+      <div class="mt-auto"></div>
     </div>
 
-    <div class="card-footer bg-white">
-      <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-outline-primary flex-grow-1" type="button">View</button>
-        <button class="btn btn-sm btn-outline-secondary" type="button">Share</button>
-      </div>
+    <div class="card-footer bg-transparent d-flex justify-content-end align-items-center gap-2">
+      <span class="small text-muted" v-if="likesCount">{{ likesCount }}</span>
+      <button
+        class="btn btn-sm"
+        :class="liked ? 'btn-danger' : 'btn-outline-danger'"
+        type="button"
+        @click="emit('toggle-like', listing)"
+        aria-label="Like"
+        title="Like"
+      >
+        ♥
+      </button>
     </div>
   </div>
 </template>
 
 <style scoped>
-.object-fit-cover{object-fit:cover}
+.img-box { overflow: hidden; }
 </style>

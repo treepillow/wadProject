@@ -20,6 +20,7 @@ export default {
 
       photos: [],
       isDragging: false,
+      photoError: '',                    // <-- NEW: inline error for photos
       menuItems: [{ name: '', price: '' }],
 
       addrError: '' // shown under address fields
@@ -50,6 +51,7 @@ export default {
         this.photos.push({ file: f, url: URL.createObjectURL(f) })
       })
       e.target.value = ''
+      if (this.photos.length > 0) this.photoError = ''   // clear error when we have photos
     },
     onDrop(e) {
       e.preventDefault()
@@ -61,6 +63,7 @@ export default {
     removePhoto(i) {
       const p = this.photos[i]; if (p?.url) URL.revokeObjectURL(p.url)
       this.photos.splice(i, 1)
+      if (this.photos.length === 0) this.photoError = 'Please upload at least 1 photo.'
     },
 
     /* ---------- Menu/Services ---------- */
@@ -68,7 +71,7 @@ export default {
     removeMenuItem(i) { if (this.menuItems.length > 1) this.menuItems.splice(i, 1) },
 
     /* ---------- Address utils & OneMap (strict) ---------- */
-    normalizeStr(s){ return (s||'').toString().trim().toUpperCase().replace(/\s+/g,' ').replace(/[.,']/g,'') },  // <-- comma fixed here
+    normalizeStr(s){ return (s||'').toString().trim().toUpperCase().replace(/\s+/g,' ').replace(/[.,']/g,'') },
     expandAbbrev(road){
       const A=[[' AVE ',' AVENUE '],[' RD ',' ROAD '],[' ST ',' STREET '],[' DR ',' DRIVE '],
                [' CRES ',' CRESCENT '],[' CTRL ',' CENTRAL '],[' PK ',' PARK '],[' PKWY ',' PARKWAY '],
@@ -189,12 +192,19 @@ export default {
       if(!/^[0-9]{6}$/.test(this.locationPostal.trim())){ alert('Postal Code must be a 6-digit number (Singapore).'); return }
       if(!/^#?[0-9]{2}-[0-9]{3}$/.test(this.locationUnit.trim())){ alert('Unit No must look like #09-142.'); return }
 
+      // REQUIRE at least 1 photo
+      if (this.photos.length < 1) {
+        this.photoError = 'Please upload at least 1 photo of your business.'
+        this.$nextTick(() => this.$refs.uploadZone?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+        return
+      }
+
       this.addrError = ''
       const check = await this.validateAddressWithOneMap({
         blk: this.locationBlk, street: this.locationStreet, postal: this.locationPostal
       }, 0.80)
 
-      if (!check.ok) {               // STRICT BLOCK
+      if (!check.ok) {
         this.addrError = check.reason || 'Invalid address.'
         return
       }
@@ -216,7 +226,7 @@ export default {
         const allListingsDocRef = doc(collection(db,'allListings'))
         const listingId = allListingsDocRef.id
 
-        // Upload photos (if any)
+        // Upload photos (guaranteed >=1 here)
         const photoObjs = await this.uploadAllPhotos(user.uid, listingId)
         const photoUrls = photoObjs.map(p=>p.url)
 
@@ -235,7 +245,6 @@ export default {
         }
 
         await setDoc(allListingsDocRef, payload)
-
         await addDoc(collection(doc(db,'users',user.uid),'myListings'), payload)
 
         alert('Listing Added Successfully!')
@@ -256,6 +265,7 @@ export default {
       this.locationUnit=''
       this.menuItems=[{name:'',price:''}]
       this.photos.forEach(p=>p.url && URL.revokeObjectURL(p.url)); this.photos=[]
+      this.photoError=''            // <-- reset photo error
       this.addrError=''
     }
   },
@@ -347,17 +357,24 @@ export default {
             <!-- Photos -->
             <div class="col-12">
               <label class="form-label fw-semibold">Photos</label>
-              <div class="upload-zone rounded-4 mb-3 d-flex flex-column align-items-center justify-content-center"
-                   :class="{ dragging: isDragging }"
-                   @drop="onDrop" @dragover="onDragOver" @dragleave="onDragLeave"
-                   @click="openFilePicker" role="button" tabindex="0">
+
+              <!-- Inline error for photos -->
+              <div v-if="photoError" class="text-danger small mb-2">{{ photoError }}</div>
+
+              <div
+                ref="uploadZone"
+                class="upload-zone rounded-4 mb-3 d-flex flex-column align-items-center justify-content-center"
+                :class="{ dragging: isDragging }"
+                @drop="onDrop" @dragover="onDragOver" @dragleave="onDragLeave"
+                @click="openFilePicker" role="button" tabindex="0">
                 <input ref="photoInput" type="file" accept="image/*" class="d-none" multiple @change="onPhotoPicked" />
                 <div class="text-center">
                   <div class="camera-icon mb-2">📷</div>
                   <div class="upload-title">Add Photos</div>
-                  <div class="upload-hint">Click or drag & drop (PNG, JPG, WEBP)</div>
+                  <div class="upload-hint">Minimum 1 photo (PNG, JPG, WEBP). We recommend 3+.</div>
                 </div>
               </div>
+
               <div class="thumbs d-flex flex-wrap gap-2 mb-1">
                 <div v-for="(p, i) in photos" :key="i" class="thumb rounded-3 overflow-hidden position-relative">
                   <img :src="p.url" alt="preview" />
@@ -394,4 +411,5 @@ export default {
 .form-control:focus,.form-select:focus{border-color:#a889ff;box-shadow:0 0 0 .2rem rgba(168,137,255,.15)}
 .btn-primary{background:#7a5af8;border-color:#7a5af8}.btn-primary:hover{background:#6948f2;border-color:#6948f2}
 .btn-outline-secondary{color:#55596a;border-color:#dedbea}.btn-outline-secondary:hover{background:#f3f1ff;border-color:#cfc9ee}
+.object-fit-cover{object-fit:cover}
 </style>

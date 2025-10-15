@@ -219,7 +219,6 @@ async uploadProfileImage() {
 .profile-container
 {
     background-color: rgb(250, 194, 250);
-    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
 
     
 }

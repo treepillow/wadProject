@@ -124,7 +124,7 @@ async function logout() {
   font-size: clamp(1.25rem, 1.2vw + 1rem, 2.25rem);
   font-weight: 800;
   letter-spacing: .2px;
-  color: #4b2aa6;
+  color: black;
 }
 
 .icon-24 { width: 24px; height: 24px; object-fit: contain; }

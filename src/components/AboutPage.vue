@@ -37,7 +37,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <NavBar :auth-ctas-only="true" />
+<NavBar :auth-ctas-only="true" />  <!-- shows Login / Sign up on About only -->
+
   <!-- HERO -->
   <div class="background-section position-relative d-flex align-items-center justify-content-center min-vh-100 w-100">
     <div class="video-background position-absolute top-0 start-0 w-100 h-100">

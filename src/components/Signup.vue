@@ -49,6 +49,19 @@
         <!-- Address -->
         <input type="text" placeholder="Address" v-model="signup.address" required />
 
+        <!-- Profile Picture -->
+        <div class="profile-picture-container">
+          <span class="profile-label">Set a profile picture:</span>
+          <label class="custom-file-upload" for="profilePicture">
+            Choose File
+          </label>
+          <input type="file" id="profilePicture" accept="image/*" @change="handleProfilePicture" />
+          <div v-if="profilePreview">
+            <p>Preview:</p>
+            <img :src="profilePreview" alt="Profile Preview" class="profile-preview"/>
+          </div>
+        </div>
+
         <button type="submit">Sign Up</button>
         <p><span class="toggle-link" @click="goToLogin">Already have an account? Login</span></p>
       </form>
@@ -321,5 +334,46 @@ input {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(5px); }
 }
+
+
+.profile-picture-container {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* space between text and button */
+  margin-top: 10px;
+}
+
+.profile-picture-container input[type="file"] {
+  display: none; /* hide native input */
+}
+
+.profile-label {
+  color: #fff;
+  font-weight: 500;
+}
+
+.custom-file-upload {
+  padding: 5px 10px;
+  border: 2px solid #fff;
+  border-radius: 5px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  cursor: pointer;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.custom-file-upload:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.profile-preview {
+  margin-top: 10px;
+  max-width: 100px;
+  max-height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 
 </style>

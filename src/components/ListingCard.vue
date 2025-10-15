@@ -8,17 +8,13 @@ const props = defineProps({
   likesCount: { type: Number, default: 0 },
   sellerNameOverride: { type: String, default: '' },
   sellerAvatarOverride: { type: String, default: '' },
-  /** Parent flips this to true (per listing) only when the entire batch is ready */
-  reveal: { type: Boolean, default: false }
+  reveal: { type: Boolean, default: true } // for batch reveal fade-in, if you use it
 })
-const emit = defineEmits(['toggle-like', 'image-loaded'])
-
-const listingId = computed(() => props.listing.listingId || props.listing.id)
+const emit = defineEmits(['toggle-like', 'image-loaded', 'open'])
 
 const photo = computed(() =>
   props.listing.photoUrls?.[0] || props.listing.photos?.[0]?.url || null
 )
-
 const firstPrice = computed(() => props.listing.menu?.[0]?.price ?? null)
 
 const sellerName = computed(() =>
@@ -28,7 +24,6 @@ const sellerName = computed(() =>
   props.listing.ownerName ||
   (props.listing.userId ? `user_${props.listing.userId.slice(0,6)}` : 'Seller')
 )
-
 const sellerAvatar = computed(() =>
   props.sellerAvatarOverride || props.listing.userPhotoURL || ''
 )
@@ -36,19 +31,16 @@ const sellerAvatar = computed(() =>
 /* ---- image loading ---- */
 const imgLoaded = ref(false)
 const imgErrored = ref(false)
-
-function onImgLoad() {
-  imgLoaded.value = true
-  emit('image-loaded', listingId.value)
-}
-function onImgError() {
-  imgErrored.value = true
-  emit('image-loaded', listingId.value) // still counts as “loaded” to parent
-}
+function onImgLoad () { imgLoaded.value = true; emit('image-loaded', props.listing.listingId || props.listing.id) }
+function onImgError() { imgErrored.value = true; emit('image-loaded', props.listing.listingId || props.listing.id) }
 </script>
 
 <template>
-  <div class="card h-100 shadow-sm">
+  <div
+    class="card h-100 shadow-sm selectable"
+    :class="{ 'reveal-in': reveal }"
+    @click="emit('open', listing)"
+  >
     <!-- Header -->
     <div class="card-header bg-transparent border-0 pb-0 d-flex align-items-center gap-2">
       <div class="avatar-box rounded-circle overflow-hidden d-inline-block" style="width:28px;height:28px;">
@@ -63,8 +55,8 @@ function onImgError() {
     <!-- Image box -->
     <div class="px-3 pt-2">
       <div class="img-box rounded-4 overflow-hidden position-relative">
-        <!-- Skeleton placeholder remains until BOTH the image loaded AND parent reveals the batch -->
-        <div v-if="(!imgLoaded || !reveal) && !imgErrored" class="skeleton"></div>
+        <!-- Skeleton placeholder -->
+        <div v-if="!imgLoaded && !imgErrored" class="skeleton"></div>
 
         <!-- Actual image -->
         <img
@@ -76,13 +68,11 @@ function onImgError() {
           decoding="async"
           @load="onImgLoad"
           @error="onImgError"
-          :class="{ 'img-visible': imgLoaded && reveal }"
+          :class="{ 'img-visible': imgLoaded }"
         />
 
-        <!-- Fallback (shown after parent reveal if the image failed or there is no photo) -->
-        <div v-if="(!photo || imgErrored) && reveal" class="img-fallback">
-          No photo
-        </div>
+        <!-- Fallback -->
+        <div v-if="!photo || imgErrored" class="img-fallback">No photo</div>
       </div>
     </div>
 
@@ -103,54 +93,26 @@ function onImgError() {
         <button
           class="btn btn-sm"
           :class="liked ? 'btn-danger' : 'btn-outline-danger'"
-          @click="$emit('toggle-like', listing)"
+          @click.stop="emit('toggle-like', listing)"
+          aria-label="Toggle like"
         >♥</button>
       </div>
       <div class="d-flex gap-2">
-        <StartChatButton :targetUserId="listing.userId" />
+        <StartChatButton :targetUserId="listing.userId" @click.stop />
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.img-box {
-  height: 220px;
-  position: relative;
-  background: #f8f9fa;
-  border-radius: 0.75rem;
-  overflow: hidden;
-}
-.img-cover {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-  opacity: 0;
-  transition: opacity 0.4s ease;
-}
-.img-visible {
-  opacity: 1;
-}
-.skeleton {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, #eee 0%, #f5f5f5 20%, #eee 40%, #eee 100%);
-  background-size: 200% 100%;
-  animation: shimmer 1.1s infinite;
-  z-index: 1;
-}
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-.img-fallback {
-  position: absolute;
-  inset: 0;
-  background: #f0f2f5;
-  color: #999;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+.selectable { cursor: pointer; }
+.reveal-in { animation: fadeIn .35s ease both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: none } }
+
+.img-box { height: 220px; position: relative; background: #f8f9fa; border-radius: 0.75rem; overflow: hidden; }
+.img-cover { width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: 0; transition: opacity 0.4s ease; }
+.img-visible { opacity: 1; }
+.skeleton { position: absolute; inset: 0; background: linear-gradient(90deg,#eee 0%,#f5f5f5 20%,#eee 40%,#eee 100%); background-size:200% 100%; animation: shimmer 1.1s infinite; }
+@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
+.img-fallback { position:absolute; inset:0; background:#f0f2f5; color:#999; display:flex; justify-content:center; align-items:center; }
 </style>

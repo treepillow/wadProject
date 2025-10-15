@@ -1,8 +1,8 @@
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, watch } from 'vue'
 import {
   collection, query, orderBy, limit, getDocs, startAfter,
-  doc, setDoc, deleteDoc, onSnapshot,
+  doc, setDoc, deleteDoc, onSnapshot, where,
   getCountFromServer
 } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -12,6 +12,7 @@ import NavBar from './NavBar.vue'
 import SearchBar from './SearchBar.vue'
 import Categories from './Categories.vue'
 import ListingCard from './ListingCard.vue'
+import ListingDrawer from './ListingDrawer.vue' // <-- ADDED
 
 /* ---------- state ---------- */
 const listings     = ref([])
@@ -21,6 +22,9 @@ const error        = ref('')
 const pageSize     = 12
 const lastDoc      = ref(null)
 const noMore       = ref(false)
+
+/* filters (multi-select categories) */
+const selectedCats = ref([])
 
 /* likes: state + listeners */
 const likedSet     = ref(new Set())
@@ -84,6 +88,28 @@ function attachProfileListeners(rows) {
   uids.forEach(startProfileListener)
 }
 
+/* ---------- reload helpers (for filters) ---------- */
+function resetPaging() {
+  listings.value = []
+  lastDoc.value = null
+  noMore.value = false
+  // reset reveal state
+  revealedIds.value = new Set()
+  currentBatchIds = []
+  batchTotalImages.value = 0
+  batchLoadedImages.value = 0
+}
+function reloadForFilters() {
+  loading.value = true
+  resetPaging()
+  fetchPage()
+}
+
+/* watch: whenever categories change, reload first page */
+watch(selectedCats, () => {
+  reloadForFilters()
+}, { deep: true })
+
 /* ---------- listings pagination ---------- */
 async function fetchPage () {
   const first = !lastDoc.value
@@ -91,10 +117,18 @@ async function fetchPage () {
   error.value = ''
   try {
     const base = collection(db, 'allListings')
-    const q = lastDoc.value
-      ? query(base, orderBy('createdAt','desc'), startAfter(lastDoc.value), limit(pageSize))
-      : query(base, orderBy('createdAt','desc'), limit(pageSize))
+    const parts = []
 
+    // Apply category filter if any (Firestore 'in' supports up to 10 items)
+    if (selectedCats.value.length > 0) {
+      parts.push(where('businessCategory', 'in', selectedCats.value.slice(0, 10)))
+    }
+
+    parts.push(orderBy('createdAt','desc'))
+    if (lastDoc.value) parts.push(startAfter(lastDoc.value))
+    parts.push(limit(pageSize))
+
+    const q = query(base, ...parts)
     const snap = await getDocs(q)
     if (snap.empty) {
       if (first) listings.value = []
@@ -184,6 +218,35 @@ async function onToggleLike(listing) {
   }
 }
 
+/* UI actions */
+function toggleCategory(name) {
+  const s = new Set(selectedCats.value)
+  s.has(name) ? s.delete(name) : s.add(name)
+  selectedCats.value = [...s]
+}
+function clearFilters() {
+  if (selectedCats.value.length === 0) return
+  selectedCats.value = []
+}
+
+/* ---------- drawer wiring (ADDED) ---------- */
+const drawerOpen          = ref(false)
+const drawerListing       = ref(null)
+const drawerSellerName    = ref('')
+const drawerSellerAvatar  = ref('')
+
+function openDrawer(l) {
+  drawerListing.value = l
+  const prof = l?.userId ? profileMap.value[l.userId] : null
+  drawerSellerName.value   = prof?.displayName || ''
+  drawerSellerAvatar.value = prof?.photoURL || ''
+  drawerOpen.value = true
+}
+function closeDrawer() {
+  drawerOpen.value = false
+  drawerListing.value = null
+}
+
 /* ---------- lifecycle ---------- */
 onMounted(() => {
   fetchPage()
@@ -204,7 +267,13 @@ onBeforeUnmount(() => {
     <div class="container py-3">
       <SearchBar />
       <div class="categories-row mt-3">
-        <Categories />
+        <Categories :selected="selectedCats" @toggle="toggleCategory" />
+      </div>
+
+      <!-- centered selected chips -->
+      <div v-if="selectedCats.length" class="chip-bar my-3">
+        <span v-for="c in selectedCats" :key="c" class="chip chip--selected">{{ c }}</span>
+        <button class="btn btn-sm chip-clear ms-2" @click="clearFilters">Clear</button>
       </div>
     </div>
 
@@ -228,7 +297,8 @@ onBeforeUnmount(() => {
                 :sellerAvatarOverride="profileMap[l.userId]?.photoURL || ''"
                 :reveal="revealedIds.has(l.listingId || l.id)"
                 @toggle-like="onToggleLike"
-                @image-loaded="handleImageLoaded"
+                @image-loaded="() => handleImageLoaded(l.listingId || l.id)"
+                @open="openDrawer(l)"  
               />
             </div>
           </div>
@@ -248,6 +318,15 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
+
+    <!-- Drawer (REUSED) -->
+    <ListingDrawer
+      :open="drawerOpen"
+      :listing="drawerListing"
+      :sellerName="drawerSellerName"
+      :sellerAvatar="drawerSellerAvatar"
+      @close="closeDrawer"
+    />
   </div>
 </template>
 
@@ -268,6 +347,39 @@ onBeforeUnmount(() => {
 }
 .categories-row :deep(.category-text) {
   font-size: 0.95rem !important;
+}
+
+/* centered chips */
+.chip-bar { text-align: center; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  margin: 4px;
+  border-radius: 999px;
+  font-weight: 600;
+  line-height: 1;
+  border: 1px solid transparent;
+  user-select: none;
+}
+.chip--selected {
+  background: #7a5af8;
+  color: #fff;
+  border-color: #7a5af8;
+  box-shadow: 0 2px 10px rgba(122,90,248,.25);
+}
+.chip-clear {
+  background: transparent;
+  border: 1px solid #d9c9ff;
+  color: #7a5af8;
+  padding: 6px 12px;
+  border-radius: 999px;
+  line-height: 1;
+}
+.chip-clear:hover {
+  background: #f3efff;
+  border-color: #c7b4ff;
+  color: #5b3fe8;
 }
 
 /* layout tweaks */

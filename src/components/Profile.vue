@@ -1,15 +1,17 @@
 <script>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getAuth } from 'firebase/auth'
 import {
   getFirestore, doc, getDoc, updateDoc, serverTimestamp,
-  collection, getDocs, query, orderBy, where
+  collection, getDocs, query, orderBy, where,
+  onSnapshot, getCountFromServer, setDoc, deleteDoc
 } from 'firebase/firestore'
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 import NavBar from './NavBar.vue'
-import ListingCard from '@/components/ListingCard.vue' // <-- integrate your card here
+import ListingCard from '@/components/ListingCard.vue'
+import ListingDrawer from '@/components/ListingDrawer.vue'  // <-- NEW
 
 const auth = getAuth()
 const db = getFirestore()
@@ -17,26 +19,25 @@ const storage = getStorage()
 
 export default {
   name: 'Profile',
-  components: { NavBar, RouterLink, ListingCard },
+  components: { NavBar, RouterLink, ListingCard, ListingDrawer }, // <-- add ListingDrawer
 
   setup() {
-    // Tabs
+    /* ---------------- Tabs ---------------- */
     const activeTab = ref('profile') // 'profile' | 'my' | 'liked'
     const openTab = (t) => {
       activeTab.value = t
       if (t === 'liked' && likedListings.value.length === 0) loadLikedListings()
     }
 
-    // Status
+    /* ---------------- Status ---------------- */
     const loading = ref(true)
     const saving  = ref(false)
     const err     = ref('')
     const ok      = ref('')
 
-    // User
+    /* ---------------- User + Profile ---------------- */
     const user = ref(null)
 
-    // Profile model
     const avatarUrl   = ref('')
     const avatarFile  = ref(null)
     const firstName   = ref('')
@@ -44,7 +45,7 @@ export default {
     const username    = ref('')
     const email       = ref('')
     const phone       = ref('')
-    const dateOfBirth = ref('')
+    const dateOfBirth = ref('')   // ISO for <input type="date">
     const address     = ref('')
 
     const displayName = computed(() => {
@@ -53,13 +54,109 @@ export default {
       return (f || l) ? `${f} ${l}`.trim() : (username.value || '—')
     })
 
-    // Listings data
-    const myListings     = ref([])   // from users/{uid}/myListings
+    /* ---------------- Listings + Likes ---------------- */
+    const myListings     = ref([])
     const myLoading      = ref(false)
-    const likedListings  = ref([])   // resolved from allListings
+    const likedListings  = ref([])
     const likedLoading   = ref(false)
 
-    // Helpers
+    const likedSet   = ref(new Set())
+    const likeCounts = ref({})
+
+    // Live seller profiles (username/avatar)
+    const profileMap = ref({})
+    const profileUnsubs = new Map()
+    function startProfileListener(uid) {
+      if (!uid || profileUnsubs.has(uid)) return
+      const unsub = onSnapshot(doc(db, 'users', uid), snap => {
+        const data = snap.data() || {}
+        const displayName = data.username || data.displayName || ''
+        const photoURL    = data.photoURL || data.avatarUrl || data.profilePhoto || ''
+        profileMap.value = { ...profileMap.value, [uid]: { displayName, photoURL } }
+      })
+      profileUnsubs.set(uid, unsub)
+    }
+    function attachProfileListeners(rows) {
+      const uids = new Set(rows.map(r => r.userId).filter(Boolean))
+      uids.forEach(startProfileListener)
+    }
+
+    /* ---------------- Batch reveal (My) ---------------- */
+    const revealedMy = ref(new Set())
+    let myBatchIds = []
+    const myBatchTotal = ref(0)
+    const myBatchLoaded = ref(0)
+    const myCounted = new Set()
+
+    /* ---------------- Batch reveal (Liked) ---------------- */
+    const revealedLiked = ref(new Set())
+    let likedBatchIds = []
+    const likedBatchTotal = ref(0)
+    const likedBatchLoaded = ref(0)
+    const likedCounted = new Set()
+
+    function hasPhoto(l) {
+      return Boolean(
+        (Array.isArray(l.photoUrls) && l.photoUrls[0]) ||
+        (Array.isArray(l.photos) && l.photos[0]?.url) ||
+        l.photoUrl || l.coverPhoto || l.image
+      )
+    }
+
+    function prepMyBatch(rows) {
+      myBatchIds = rows.map(r => r.listingId || r.id)
+      myBatchTotal.value = rows.filter(hasPhoto).length
+      myBatchLoaded.value = 0
+      myCounted.clear()
+      // Hide all until batch completes
+      revealedMy.value = new Set()
+      if (myBatchTotal.value === 0) revealMy(myBatchIds)
+    }
+    function revealMy(ids) {
+      const s = new Set(revealedMy.value)
+      ids.forEach(id => s.add(id))
+      revealedMy.value = s
+      myBatchIds = []
+      myBatchTotal.value = 0
+      myBatchLoaded.value = 0
+      myCounted.clear()
+    }
+    function handleMyImageLoaded(id) {
+      if (!myBatchIds.includes(id) || myCounted.has(id)) return
+      myCounted.add(id)
+      myBatchLoaded.value++
+      if (myBatchLoaded.value >= myBatchTotal.value && myBatchTotal.value > 0) {
+        revealMy(myBatchIds)
+      }
+    }
+
+    function prepLikedBatch(rows) {
+      likedBatchIds = rows.map(r => r.listingId || r.id)
+      likedBatchTotal.value = rows.filter(hasPhoto).length
+      likedBatchLoaded.value = 0
+      likedCounted.clear()
+      revealedLiked.value = new Set()
+      if (likedBatchTotal.value === 0) revealLiked(likedBatchIds)
+    }
+    function revealLiked(ids) {
+      const s = new Set(revealedLiked.value)
+      ids.forEach(id => s.add(id))
+      revealedLiked.value = s
+      likedBatchIds = []
+      likedBatchTotal.value = 0
+      likedBatchLoaded.value = 0
+      likedCounted.clear()
+    }
+    function handleLikedImageLoaded(id) {
+      if (!likedBatchIds.includes(id) || likedCounted.has(id)) return
+      likedCounted.add(id)
+      likedBatchLoaded.value++
+      if (likedBatchLoaded.value >= likedBatchTotal.value && likedBatchTotal.value > 0) {
+        revealLiked(likedBatchIds)
+      }
+    }
+
+    /* ---------------- Helpers ---------------- */
     const chunk = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i*size, (i+1)*size))
     const normPhone = (v) => {
       const s = (v || '').trim().replace(/\s+/g, '')
@@ -67,13 +164,53 @@ export default {
       if (/^\d{8}$/.test(s)) return `+65${s}`
       return s
     }
+      const normalizePhotos = (obj) => {
+        if (!obj) return obj
+        let urls = []
+        if (Array.isArray(obj.photoUrls) && obj.photoUrls.length) {
+          urls = [...obj.photoUrls]
+        } else if (Array.isArray(obj.photos) && obj.photos.length) {
+          urls = obj.photos.map(p => p?.url).filter(Boolean)
+        }
+        // de-dupe by URL
+        const seen = new Set()
+        obj.photoUrls = urls.filter(u => u && !seen.has(u) && (seen.add(u), true))
+        return obj
+      }
 
-    // Load profile + my listings
+    async function fetchLikesCount(listingId) {
+      try {
+        const colRef = collection(db, 'listingLikes', listingId, 'users')
+        const snap = await getCountFromServer(colRef)
+        likeCounts.value = { ...likeCounts.value, [listingId]: snap.data().count || 0 }
+      } catch (e) {
+        console.warn('likes count error:', listingId, e)
+      }
+    }
+
+    function startLikesListener(uid) {
+      if (unsubLikes) { unsubLikes(); unsubLikes = null }
+      likedSet.value = new Set()
+      if (!uid) return
+      const colRef = collection(db, 'users', uid, 'likedListings')
+      unsubLikes = onSnapshot(colRef, snap => {
+        const s = new Set()
+        snap.forEach(d => s.add(d.id))
+        likedSet.value = s
+      })
+    }
+
+    /* ---------------- Mount: load profile & my listings ---------------- */
+    let unsubLikes = null
+    let unsubMyListings = null
+
     onMounted(async () => {
       try {
         const u = auth.currentUser
         if (!u) { err.value = 'You need to be logged in to view your profile.'; loading.value = false; return }
         user.value = u
+
+        startLikesListener(u.uid)
 
         const snap = await getDoc(doc(db, 'users', u.uid))
         if (snap.exists()) {
@@ -99,39 +236,66 @@ export default {
       }
     })
 
+    /* ---------------- Live My Listings (with batch reveal) ---------------- */
     async function loadMyListings() {
       if (!user.value) return
-      try {
-        myLoading.value = true
-        const qRef = query(
-          collection(db, 'users', user.value.uid, 'myListings'),
-          orderBy('createdAt', 'desc')
-        )
-        const snap = await getDocs(qRef)
-        myListings.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      } finally { myLoading.value = false }
+      if (unsubMyListings) { unsubMyListings(); unsubMyListings = null }
+      myLoading.value = true
+
+      const qRef = query(
+        collection(db, 'users', user.value.uid, 'myListings'),
+        orderBy('createdAt', 'desc')
+      )
+
+      unsubMyListings = onSnapshot(qRef, async (snap) => {
+        const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        const verified = []
+        for (const r of rows) {
+          const id = r.listingId
+          if (!id) continue
+          const mainSnap = await getDoc(doc(db, 'allListings', id))
+          if (mainSnap.exists()) {
+            const full = normalizePhotos({ id: mainSnap.id, ...mainSnap.data() })
+            verified.push(full)
+            fetchLikesCount(id)
+          }
+        }
+        myListings.value = verified
+        attachProfileListeners(verified)
+        // prepare batch reveal AFTER list is set
+        prepMyBatch(verified)
+        myLoading.value = false
+      }, () => { myLoading.value = false })
     }
 
+    /* ---------------- Load Liked (with batch reveal) ---------------- */
     async function loadLikedListings() {
       if (!user.value || likedLoading.value) return
       try {
         likedLoading.value = true
         const likesSnap = await getDocs(collection(db, 'users', user.value.uid, 'likedListings'))
         const ids = likesSnap.docs.map(d => d.data()?.listingId).filter(Boolean)
-        if (!ids.length) { likedListings.value = []; return }
+        if (!ids.length) { likedListings.value = []; prepLikedBatch([]); return }
 
-        const batches = chunk(ids, 10) // Firestore 'in' limit
+        const batches = chunk(ids, 10)
         const resolved = []
         for (const group of batches) {
           const qRef = query(collection(db, 'allListings'), where('listingId', 'in', group))
           const snap = await getDocs(qRef)
-          snap.forEach(docSnap => resolved.push({ id: docSnap.id, ...docSnap.data() }))
+          snap.forEach(docSnap => {
+            const data = normalizePhotos({ id: docSnap.id, ...docSnap.data() })
+            resolved.push(data)
+            if (data.listingId) fetchLikesCount(data.listingId)
+          })
         }
-        likedListings.value = resolved.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+        resolved.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+        likedListings.value = resolved
+        attachProfileListeners(resolved)
+        prepLikedBatch(resolved)
       } finally { likedLoading.value = false }
     }
 
-    // Actions
+    /* ---------------- Profile actions ---------------- */
     function onPickAvatar(e) {
       const f = e.target.files?.[0]
       if (!f || !/^image\//.test(f.type)) return
@@ -172,16 +336,90 @@ export default {
       } finally { saving.value = false }
     }
 
+    async function onToggleLike(listing) {
+      const uid = auth.currentUser?.uid
+      if (!uid) return alert('Please log in to like.')
+
+      const id = listing.listingId || listing.id
+      const userLikeRef   = doc(db, 'users', uid, 'likedListings', id)
+      const publicLikeRef = doc(db, 'listingLikes', id, 'users', uid)
+
+      const isLiked = likedSet.value.has(id)
+      const s = new Set(likedSet.value)
+      if (isLiked) s.delete(id); else s.add(id)
+      likedSet.value = s
+
+      const prev = likeCounts.value[id] || 0
+      likeCounts.value = { ...likeCounts.value, [id]: Math.max(0, prev + (isLiked ? -1 : +1)) }
+
+      try {
+        if (isLiked) {
+          await Promise.all([ deleteDoc(userLikeRef), deleteDoc(publicLikeRef) ])
+        } else {
+          const payload = { at: new Date() }
+          await Promise.all([
+            setDoc(userLikeRef, { listingId: id, ...payload }),
+            setDoc(publicLikeRef, payload)
+          ])
+        }
+      } catch (e) {
+        const r = new Set(likedSet.value)
+        if (isLiked) r.add(id); else r.delete(id)
+        likedSet.value = r
+        likeCounts.value = { ...likeCounts.value, [id]: prev }
+        console.error('like toggle error:', e)
+        alert('Could not update like. Please try again.')
+      }
+    }
+
+    /* ---------------- Drawer wiring (NEW) ---------------- */
+    const drawerOpen    = ref(false)
+    const drawerListing = ref(null)
+
+    const drawerSellerName = computed(() => {
+      const uid = drawerListing.value?.userId
+      return (uid && profileMap.value[uid]?.displayName) || ''
+    })
+    const drawerSellerAvatar = computed(() => {
+      const uid = drawerListing.value?.userId
+      return (uid && profileMap.value[uid]?.photoURL) || ''
+    })
+
+    function openDrawer(listing) {
+      drawerListing.value = listing
+      // profileMap already live-syncs seller; computed props above will flow in
+      drawerOpen.value = true
+    }
+    function closeDrawer() {
+      drawerOpen.value = false
+      drawerListing.value = null
+    }
+
+    onUnmounted(() => {
+      if (unsubLikes) unsubLikes()
+      if (unsubMyListings) unsubMyListings()
+      profileUnsubs.forEach(unsub => unsub && unsub())
+      profileUnsubs.clear()
+    })
+
     return {
-      // tabs
+      /* tabs */
       activeTab, openTab,
-      // profile
+      /* profile */
       loading, saving, err, ok,
       avatarUrl, onPickAvatar,
       firstName, lastName, username, email, phone, dateOfBirth, address, displayName,
       saveProfile,
-      // listings
-      myListings, myLoading, likedListings, likedLoading
+      /* lists + likes + profiles */
+      myListings, myLoading, likedListings, likedLoading,
+      likedSet, likeCounts, onToggleLike,
+      profileMap,
+      /* batch reveal bindings */
+      revealedMy, revealedLiked,
+      handleMyImageLoaded, handleLikedImageLoaded,
+      /* drawer (NEW) */
+      drawerOpen, drawerListing, drawerSellerName, drawerSellerAvatar,
+      openDrawer, closeDrawer
     }
   }
 }
@@ -191,10 +429,8 @@ export default {
   <div class="container-fluid bg-page">
     <NavBar />
 
-    <!-- header spacer to match HomePage (no visible title) -->
     <div class="container py-3" aria-hidden="true"></div>
 
-    <!-- content zone mirrors HomePage’s container pb-5 -->
     <div class="container pb-5">
       <div class="row justify-content-center">
         <div class="col-12 col-xxl-10">
@@ -226,56 +462,47 @@ export default {
                 <h3 class="m-0">{{ displayName }}</h3>
                 <div class="text-muted">{{ email || '—' }}</div>
               </div>
-              <div class="ms-md-auto">
-                <button class="btn btn-primary" :disabled="saving" @click="saveProfile">
-                  <span v-if="!saving">Save changes</span>
-                  <span v-else class="spinner-border spinner-border-sm"></span>
-                </button>
-              </div>
             </div>
 
             <div v-if="err" class="alert alert-danger py-2">{{ err }}</div>
             <div v-if="ok" class="alert alert-success py-2">{{ ok }}</div>
-            <div v-if="loading" class="text-center py-4"><div class="spinner-border"></div></div>
 
-            <div v-if="!loading">
-              <div class="row g-4">
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold">Username</label>
-                  <input class="form-control" v-model="username" placeholder="aaron" />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold">Email</label>
-                  <input class="form-control" v-model="email" disabled />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold">First name</label>
-                  <input class="form-control" v-model="firstName" placeholder="John" />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold">Last name</label>
-                  <input class="form-control" v-model="lastName" placeholder="Doe" />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold">Phone</label>
-                  <input class="form-control" v-model="phone" placeholder="+6591234567" />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold">Date of birth</label>
-                  <input class="form-control" v-model="dateOfBirth" placeholder="4 May 2000" />
-                </div>
-                <div class="col-12">
-                  <label class="form-label fw-semibold">Address</label>
-                  <input class="form-control" v-model="address" placeholder="BLK 555B Tampines Ave 11" />
-                </div>
+            <div class="row g-4">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Username</label>
+                <input class="form-control" v-model="username" placeholder="aaron" />
               </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Email</label>
+                <input class="form-control" v-model="email" disabled />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">First name</label>
+                <input class="form-control" v-model="firstName" placeholder="John" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Last name</label>
+                <input class="form-control" v-model="lastName" placeholder="Doe" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Phone</label>
+                <input class="form-control" v-model="phone" placeholder="+6591234567" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Date of birth</label>
+                <input type="date" class="form-control" v-model="dateOfBirth" />
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Address</label>
+                <input class="form-control" v-model="address" placeholder="BLK 555B Tampines Ave 11" />
+              </div>
+            </div>
 
-              <div class="d-flex justify-content-end mt-4">
-                <button class="btn btn-primary" :disabled="saving" @click="saveProfile">
-                  <span v-if="!saving">Save changes</span>
-                  <span v-else class="spinner-border spinner-border-sm"></span>
-                </button>
-              </div>
+            <div class="d-flex justify-content-end mt-4">
+              <button class="btn btn-primary" :disabled="saving" @click="saveProfile">
+                <span v-if="!saving">Save changes</span>
+                <span v-else class="spinner-border spinner-border-sm"></span>
+              </button>
             </div>
           </div>
 
@@ -285,12 +512,17 @@ export default {
             <div v-if="myLoading" class="text-center py-4"><div class="spinner-border"></div></div>
             <div v-else-if="!myListings.length" class="text-muted">You haven’t posted any listings yet.</div>
             <div v-else class="row g-3 g-md-4">
-              <div v-for="l in myListings" :key="l.listingId" class="col-12 col-sm-6 col-lg-4">
+              <div v-for="l in myListings" :key="l.listingId || l.id" class="col-12 col-sm-6 col-lg-4">
                 <ListingCard
                   :listing="l"
-                  :liked="likedSet?.has(l.listingId)"
-                  @open="$router.push(`/listing/${l.listingId}`)"
+                  :liked="likedSet?.has(l.listingId || l.id)"
+                  :likesCount="likeCounts[l.listingId || l.id] || 0"
+                  :sellerNameOverride="profileMap[l.userId]?.displayName || ''"
+                  :sellerAvatarOverride="profileMap[l.userId]?.photoURL || ''"
+                  :reveal="revealedMy.has(l.listingId || l.id)"
                   @toggle-like="onToggleLike"
+                  @image-loaded="handleMyImageLoaded"
+                  @open="openDrawer(l)" 
                 />
               </div>
             </div>
@@ -302,8 +534,18 @@ export default {
             <div v-if="likedLoading" class="text-center py-4"><div class="spinner-border"></div></div>
             <div v-else-if="!likedListings.length" class="text-muted">No liked listings yet.</div>
             <div v-else class="row g-3 g-md-4">
-              <div v-for="l in likedListings" :key="l.listingId" class="col-12 col-sm-6 col-lg-4">
-                <ListingCard :listing="l" />
+              <div v-for="l in likedListings" :key="l.listingId || l.id" class="col-12 col-sm-6 col-lg-4">
+                <ListingCard
+                  :listing="l"
+                  :liked="likedSet?.has(l.listingId || l.id)"
+                  :likesCount="likeCounts[l.listingId || l.id] || 0"
+                  :sellerNameOverride="profileMap[l.userId]?.displayName || ''"
+                  :sellerAvatarOverride="profileMap[l.userId]?.photoURL || ''"
+                  :reveal="revealedLiked.has(l.listingId || l.id)"
+                  @toggle-like="onToggleLike"
+                  @image-loaded="handleLikedImageLoaded"
+                  @open="openDrawer(l)"  
+                />
               </div>
             </div>
           </div>
@@ -311,9 +553,17 @@ export default {
         </div>
       </div>
     </div>
+
+    <!-- LISTING DRAWER (REUSED) -->
+    <ListingDrawer
+      :open="drawerOpen"
+      :listing="drawerListing"
+      :sellerName="drawerSellerName"
+      :sellerAvatar="drawerSellerAvatar"
+      @close="closeDrawer"
+    />
   </div>
 </template>
-
 
 <style scoped>
 .bg-page { background: var(--page-bg, rgb(245,239,239)); }

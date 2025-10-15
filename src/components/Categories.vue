@@ -1,82 +1,90 @@
 <script>
-
-export default{
-
-    name: 'Categories'
+export default {
+  name: 'Categories',
+  props: {
+    /** Array of selected category names (multi-select) */
+    selected: { type: Array, default: () => [] }
+  },
+  emits: ['toggle'],
+  data() {
+    // Resolve images safely so paths never break
+    const src = (file) => new URL(`../assets/category_images/${file}`, import.meta.url).href
+    return {
+      options: [
+        'Food and Drinks',
+        'Beauty',
+        'Fitness',
+        'Arts & Craft',
+        'Education',
+        'Pets',
+        'Others'
+      ],
+      images: {
+        'Food and Drinks': src('food_drinks.png'),
+        'Beauty':          src('beauty.png'),
+        'Fitness':         src('fitness.png'),
+        'Arts & Craft':    src('arts_craft.png'),
+        'Education':       src('education.png'),
+        'Pets':            src('pets.png'),
+        'Others':          src('others.png')
+      }
+    }
+  },
+  methods: {
+    isActive(name) { return this.selected?.includes(name) },
+    toggle(name) { this.$emit('toggle', name) }
+  }
 }
-
 </script>
 
-
-
-
 <template>
-<div class="container-fluid">
-  <nav class="navbar">
-
-        <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/food_drinks.png" alt="FoodandDrinks">
-            <div class="category-text text-center fs-5">Food & Drinks</div>
-        </a>
-        <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/beauty.png" alt="Beauty" >
-            <div class="category-text text-center fs-5">Beauty</div>
-        </a>
-        <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/fitness.png" alt="FitnessAndWellness" >
-            <div class="category-text text-center fs-5">Fitness</div>
-        </a>
-        <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/arts_craft.png" alt="ArtsAndCraft">
-            <div class="category-text text-center fs-5">Arts & Craft</div>
-        </a>
-        <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/education.png" alt="Education">
-            <div class="category-text  text-center fs-5">Education</div>
-        </a>
-        <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/pets.png" alt="Pets">
-            <div class="category-text  text-center fs-5">Pets</div>
-        </a>
-        <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/others.png" alt="Others">
-            <div class="category-text text-center fs-5">Others</div>
-        </a>
-</nav>
-
-<hr></hr>
-
-</div>
-
-
-
+  <div class="container-fluid">
+    <nav class="navbar">
+      <button
+        v-for="opt in options" :key="opt"
+        type="button"
+        class="navbar-brand category btn-reset"
+        :class="{ active: isActive(opt) }"
+        @click="toggle(opt)"
+      >
+        <img :src="images[opt]" :alt="opt" />
+        <div class="category-text text-center fs-5">{{ opt }}</div>
+      </button>
+    </nav>
+    <hr />
+  </div>
 </template>
 
 <style scoped>
-    hr {
-        border: 1;
-        opacity: 0.25;
-    }
+hr { border: 1; opacity: 0.25; }
 
-    .category img
-    {
-        width: 150px;
-        height: 150px;
-        border: 1px solid black;
-        object-fit: cover;
-        border-radius: 100px;
-        
-    }
+/* make anchors behave like buttons but keep your look */
+.btn-reset {
+  background: none;
+  border: 0;
+  padding: 0;
+}
 
-    .category-text
-    {
-        color: black;
-    }
-    .category {
-        transition: transform 0.2s ease;
-    }
-    .category:hover {
-        transform: translateY(-3px);
-    }
+/* circle thumbnails */
+.category img {
+  width: 150px;
+  height: 150px;
+  border: 1px solid black;
+  object-fit: cover;
+  border-radius: 100px;
+}
 
+/* hover + active ring */
+.category {
+  transition: transform 0.2s ease;
+  text-decoration: none;
+  cursor: pointer;
+}
+.category:hover { transform: translateY(-3px); }
+.category.active img {
+  outline: 3px solid #7a5af8;
+  outline-offset: 2px;
+}
+
+.category-text { color: black; }
 </style>

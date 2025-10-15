@@ -3,6 +3,7 @@
     <div class="form-container signup-form">
       <h2>Sign Up</h2>
       <form @submit.prevent="handleSignup">
+        <button type="button" @click="handleGoogleSignup" class="signup-btn google-btn">Sign up with Google?</button>
         <input type="text" placeholder="Username" v-model="signup.username" required />
         <input type="email" placeholder="Email" v-model="signup.email" required />
 
@@ -90,6 +91,9 @@ import AuthLayout from "./AuthLayout.vue";
 import { auth, db } from "../firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+// import { auth } from "../firebase"; 
+
 
 export default {
   name: "Signup",
@@ -137,6 +141,28 @@ export default {
     isValidSGPhone(phone) {
       const pattern = /^(?:\+65)?[89]\d{7}$/;
       return pattern.test(phone);
+    },
+    async handleGoogleSignup() {
+      const provider = new GoogleAuthProvider();
+
+      try {
+        const result = await signInWithPopup(auth, provider);
+
+        const user = result.user;
+
+        // Optional: Save extra user info to Firestore if signing up for the first time
+        await setDoc(doc(db, "users", user.uid), {
+          username: user.displayName,
+          email: user.email,
+          profilePicture: user.photoURL,
+          createdAt: serverTimestamp(),
+        });
+
+        alert(`✅ Signed in as ${user.displayName}`);
+        this.$router.push("/home");
+      } catch (err) {
+        alert(`❌ Google sign-in failed: ${err.message}`);
+      }
     },
     async handleSignup() {
       const validEmailPattern = /^[\w.+-]+@(gmail|yahoo|hotmail|outlook)\.[a-z.]{2,}$/i;
@@ -440,5 +466,37 @@ input {
   from { transform: scale(0.8); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+
+.signup-btn {
+  background: linear-gradient(0deg, #aa67d1, #442569);
+  border: none;
+  padding: 8px 20px;       /* smaller, flexible padding */
+  border-radius: 20px;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+  width: 100%;              /* full width of form inputs */
+  max-width: 400px;         /* optional max width like main button */
+  text-align: center;
+  white-space: nowrap;      /* keeps text on one line */
+  display: inline-block;
+}
+
+.signup-btn:hover {
+  transform: scale(1.05);
+}
+
+.google-btn {
+  margin-bottom: 10px;      /* spacing between this and next input */
+}
+
+
+button {
+  background: linear-gradient(0deg, #aa67d1, #442569); border: none;
+  padding:  8px 200px; border-radius: 20px; color: #fff; font-weight: 600;
+  cursor: pointer; transition: transform 0.2s; width: auto; align-self: center;
+}
+button:hover { transform: scale(1.05); }
 
 </style>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import {
   collection, query, orderBy, limit, getDocs, startAfter,
   doc, setDoc, deleteDoc, onSnapshot,
@@ -27,11 +27,11 @@ const likedSet     = ref(new Set())      // which listings current user liked
 let unsubLikes     = null
 let unsubAuth      = null
 
-/* like counts per listing (aggregated) */
-const likeCounts   = ref(new Map())      // listingId -> number
+/* like counts per listing — use reactive object (not Map) */
+const likeCounts   = reactive({})        // { [listingId]: number }
 
-/* seller names (live), with unsub per uid */
-const profileMap   = ref({})             // uid -> { displayName }
+/* seller names/avatars (live), with unsub per uid */
+const profileMap   = ref({})             // uid -> { displayName, photoURL }
 const profileUnsubs = new Map()          // uid -> unsubscribe
 
 /* ---------- helpers ---------- */
@@ -40,7 +40,7 @@ async function fetchLikesCount(listingId) {
     const cg = collectionGroup(db, 'likedListings')
     const q = query(cg, where('listingId', '==', listingId))
     const snap = await getCountFromServer(q)
-    likeCounts.value.set(listingId, snap.data().count || 0)
+    likeCounts[listingId] = snap.data().count || 0  // <-- reactive write
   } catch (e) {
     // non-fatal; keep quiet in prod
     console.warn('likes count error:', listingId, e)
@@ -52,7 +52,8 @@ function startProfileListener(uid) {
   const unsub = onSnapshot(doc(db, 'users', uid), snap => {
     const data = snap.data() || {}
     const displayName = data.username || data.displayName || ''
-    profileMap.value = { ...profileMap.value, [uid]: { displayName } }
+    const photoURL    = data.photoURL || data.avatarUrl || data.profilePhoto || ''
+    profileMap.value = { ...profileMap.value, [uid]: { displayName, photoURL } }
   })
   profileUnsubs.set(uid, unsub)
 }
@@ -90,7 +91,8 @@ async function fetchPage () {
     attachProfileListeners(rows)
 
     // fetch like counts (non-blocking)
-    Promise.all(rows.map(r => fetchLikesCount(r.listingId || r.id))).catch(()=>{})
+    rows.forEach(r => fetchLikesCount(r.listingId || r.id))
+
     if (snap.size < pageSize) noMore.value = true
   } catch (e) {
     console.error(e)
@@ -124,8 +126,8 @@ async function onToggleLike(listing) {
 
   // optimistic state
   if (isLiked) likedSet.value.delete(id); else likedSet.value.add(id)
-  const prevCount = likeCounts.value.get(id) || 0
-  likeCounts.value.set(id, Math.max(0, prevCount + (isLiked ? -1 : +1)))
+  const prev = likeCounts[id] || 0
+  likeCounts[id] = Math.max(0, prev + (isLiked ? -1 : +1))
 
   try {
     if (isLiked) await deleteDoc(refDoc)
@@ -133,7 +135,7 @@ async function onToggleLike(listing) {
   } catch (e) {
     // revert
     if (isLiked) likedSet.value.add(id); else likedSet.value.delete(id)
-    likeCounts.value.set(id, prevCount)
+    likeCounts[id] = prev
     console.error('like toggle error:', e)
     alert('Could not update like. Please try again.')
   }
@@ -178,8 +180,9 @@ onBeforeUnmount(() => {
               <ListingCard
                 :listing="l"
                 :liked="likedSet.has(l.listingId || l.id)"
-                :likesCount="(likeCounts.get(l.listingId || l.id) || 0)"
+                :likesCount="likeCounts[l.listingId || l.id] || 0"
                 :sellerNameOverride="profileMap[l.userId]?.displayName || ''"
+                :sellerAvatarOverride="profileMap[l.userId]?.photoURL || ''"
                 @toggle-like="onToggleLike"
               />
             </div>
@@ -212,7 +215,7 @@ onBeforeUnmount(() => {
 
 /* make cards a bit denser without touching the Card component internals */
 .card-sm :deep(.img-box){ height:220px !important; }
-.card-sm :deep(.card-img-top){ height:220px !important; } /* fallback if used */
+.card-sm :deep(.card-img-top){ height:220px !important; }
 .card-sm :deep(.card-title){ font-size:1rem; }
 .card-sm :deep(.badge){ font-size:.7rem; }
 .card-sm :deep(.card-body){ padding:.75rem 1rem; }
@@ -225,3 +228,4 @@ onBeforeUnmount(() => {
   .categories-row::-webkit-scrollbar{ display:none; }
 }
 </style>
+  

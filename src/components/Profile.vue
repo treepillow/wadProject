@@ -345,19 +345,31 @@ export default {
 </template>
 
 <style scoped>
-.bg-page { background: var(--page-bg, rgb(245,239,239)); }
-.shadow-soft { box-shadow: 0 8px 28px rgba(0,0,0,.06); }
-.object-fit-cover { object-fit: cover; }
 
-/* Tabs look (Bootstrap nav-tabs already loaded) */
-.nav-tabs .nav-link { border: none; padding: .75rem 1rem; }
-.nav-tabs .nav-link.active {
-  background: #fff; border-bottom: 2px solid #7a5af8; color: #7a5af8;
+.profile-container
+{
+    background-color: rgb(250, 194, 250);
+
+    
 }
-.border { border-color: rgba(0,0,0,.06) !important; }
 
-.form-label { color: #4b3f7f; }
-.form-control:focus { border-color: #a889ff; box-shadow: 0 0 0 .2rem rgba(168,137,255,.15); }
-.btn-primary { background: #7a5af8; border-color: #7a5af8; }
-.btn-primary:hover { background: #6948f2; border-color: #6948f2; }
+button
+{
+    width: 15%;
+    padding: 20px;
+    background-color: rgb(250, 194, 250);
+    border: 1px solid black;
+    transition: transform 0.2s ease;
+}
+
+.container-button
+{
+    width: 50%;
+}
+
+.btn:hover {
+  background-color: rgb(211, 116, 211);
+  border: 1px solid black;
+  transform: translateY(-3px);
+}
 </style>

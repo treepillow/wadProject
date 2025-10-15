@@ -95,9 +95,10 @@ input::placeholder { color: rgba(255,255,255,0.7); opacity: 1; }
 
 button {
   background: linear-gradient(0deg, #aa67d1, #442569); border: none;
-  padding: 10px; border-radius: 20px; color: #fff; font-weight: 600;
-  cursor: pointer; transition: transform 0.2s;
-}
+  padding:  8px 200px; border-radius: 20px; color: #fff; font-weight: 600;
+  cursor: pointer; transition: transform 0.2s; width: auto; align-self: center;
+} 
+
 button:hover { transform: scale(1.05); }
 
 p { font-size: 0.9rem; text-align: center; }

@@ -4,13 +4,14 @@
       <div class="signup-card">
         <img src="@/assets/homes_logo.png" alt="Homes Logo" class="logo" />
         <h2>Sign Up</h2>
+        <button type="button" @click="handleGoogleSignup" class="signup-btn google-btn">Sign up with Google?</button>
         <form @submit.prevent="handleSignup">
-          <button type="button" @click="handleGoogleSignup" class="signup-btn google-btn">Sign up with Google?</button>
+          
           <input type="text" placeholder="Username" v-model="signup.username" required />
           <input type="email" placeholder="Email" v-model="signup.email" required />
 
           <!-- Password input with eye toggle -->
-          <div class="password-container">
+          <div class="password-container" v-if="!signup.isGoogle">
             <input
               :type="showPassword ? 'text' : 'password'"
               placeholder="Password"
@@ -96,8 +97,6 @@ import { auth, db } from "../firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-// import { auth } from "../firebase"; 
-
 
 export default {
   name: "Signup",
@@ -117,6 +116,7 @@ export default {
         phone: "",
         address: "",
         profilePreview: null,   // preview image URL
+        isGoogle: false, // <-- Added flag for Google signup
        },
         showImageModal: false, // <-- modal toggle
         months: [
@@ -148,22 +148,19 @@ export default {
     },
     async handleGoogleSignup() {
       const provider = new GoogleAuthProvider();
-
       try {
         const result = await signInWithPopup(auth, provider);
-
         const user = result.user;
 
-        // Optional: Save extra user info to Firestore if signing up for the first time
-        await setDoc(doc(db, "users", user.uid), {
-          username: user.displayName,
-          email: user.email,
-          profilePicture: user.photoURL,
-          createdAt: serverTimestamp(),
-        });
+        // Autofill form fields from Google account
+        this.signup.email = user.email || "";
+        this.signup.username = user.displayName || "";
+        this.signup.profilePreview = user.photoURL || null;
+        this.signup.isGoogle = true; // <-- flag to skip password creation
 
-        alert(`✅ Signed in as ${user.displayName}`);
-        this.$router.push("/home");
+        alert("✅ Google account detected! Please fill in the remaining details below to complete signup.");
+
+        // Do NOT redirect or create Firebase user yet
       } catch (err) {
         alert(`❌ Google sign-in failed: ${err.message}`);
       }
@@ -183,8 +180,16 @@ export default {
       }
 
       try {
-        const userCredential = await createUserWithEmailAndPassword(auth, this.signup.email, this.signup.password);
-        const user = userCredential.user;
+        let user;
+        if (!this.signup.isGoogle) {
+          // Normal email/password signup
+          const userCredential = await createUserWithEmailAndPassword(auth, this.signup.email, this.signup.password);
+          user = userCredential.user;
+        } else {
+          // Google signup: user is already signed in
+          user = auth.currentUser;
+        }
+
         await setDoc(doc(db, "users", user.uid), {
           username: this.signup.username,
           email: this.signup.email,
@@ -193,8 +198,10 @@ export default {
           dateOfBirth: `${this.signup.day} ${this.signup.month} ${this.signup.year}`,
           phone: this.signup.phone,
           address: this.signup.address,
+          profilePicture: this.signup.profilePreview || null,
           createdAt: serverTimestamp(),
         });
+
         alert(`✅ Account created for ${this.signup.username}`);
         this.$router.push("/login");
       } catch (err) { alert(`❌ Signup failed: ${err.message}`); }

@@ -4,9 +4,9 @@
       <!-- slot for login or signup form -->
       <slot></slot>
     </div>
-    <div class="image-box">
+    <!-- <div class="image-box">
       <img src="@/assets/homes_logo.png" alt="Homes Logo" />
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -25,13 +25,13 @@ export default {
   inset: 0;
   padding: 0;
   height: 100vh;
-  background: rgba(210, 124, 225, 0.792);
+  background-color: black;
   overflow: hidden;
   display: flex;
   transition: transform 1s ease-in-out;
 }
 
-.forms-wrapper { position: relative; width: 50%; height: 100%; overflow: hidden; }
+.forms-wrapper { position: relative; width: 100%; height: 100%; overflow: hidden; }
 
 .form-container {
   position: absolute;

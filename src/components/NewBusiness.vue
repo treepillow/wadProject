@@ -118,7 +118,7 @@ export default {
       const results = Array.isArray(json?.results) ? json.results : []
       const exact = results.filter(r => r.POSTAL === postal)
       const candidates = exact.length ? exact : results
-      if (!candidates.length) return { ok:false, reason:'Postal Code not found in OneMap.' }
+      if (!candidates.length) return { ok:false, reason:'Invalid address in Singapore.' }
 
       // best match by street similarity
       const userStreet = this.expandAbbrev(street || '')

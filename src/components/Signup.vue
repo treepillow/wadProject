@@ -165,7 +165,8 @@ export default {
       }
     },
     async handleSignup() {
-      const validEmailPattern = /^[\w.+-]+@(gmail|yahoo|hotmail|outlook)\.[a-z.]{2,}$/i;
+      // const validEmailPattern = /^[\w.+-]+@(gmail|yahoo|hotmail|outlook)\.[a-z.]{2,}$/i;
+      const validEmailPattern = /^[\w.+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/i;
 
       if (!validEmailPattern.test(this.signup.email)) {
         alert("❌ Please use a valid email (Gmail, Yahoo, Hotmail, or Outlook only).");

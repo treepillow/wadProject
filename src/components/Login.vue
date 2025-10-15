@@ -1,27 +1,32 @@
 <template>
   <AuthLayout :isSignup="false">
-    <div class="form-container login-form">
-      <h2>Login</h2>
-      <form @submit.prevent="handleLogin">
-        <input type="email" placeholder="Email" v-model="login.email" required />
-        <!-- <input type="password" placeholder="Password" v-model="login.password" required /> -->
-        <!-- Password input with eye toggle -->
-        <div class="password-container">
-          <input
-            :type="showPassword ? 'text' : 'password'"
-            placeholder="Password"
-            v-model="login.password"
-            required
-          />
-          <span class="toggle-password" @click="togglePassword">
-            <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
-          </span>
-        </div>
-        <button type="submit">Login</button>
-        <p><span class="toggle-link" @click="$router.push('/forgotpassword')">Forgot password?</span></p>
-        <p><span class="toggle-link" @click="goToSignup">Create an account</span></p>
-      </form>
+    <div class="login-wrapper">
+      <div class="login-card">
+        <img src="@/assets/homes_logo.png" alt="Homes Logo" class="logo" />
+      <!-- <div class="form-container login-form"> -->
+        <h2>Log in</h2>
+        <form @submit.prevent="handleLogin">
+          <input type="email" placeholder="Email" v-model="login.email" required />
+          <!-- <input type="password" placeholder="Password" v-model="login.password" required /> -->
+          <!-- Password input with eye toggle -->
+          <div class="password-container">
+            <input
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="Password"
+              v-model="login.password"
+              required
+            />
+            <span class="toggle-password" @click="togglePassword">
+              <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
+            </span>
+          </div>
+          <button type="submit">Log in</button>
+          <p><span class="toggle-link" @click="$router.push('/forgotpassword')">Forgot password?</span></p>
+          <p><span class="toggle-link" @click="goToSignup">Create an account</span></p>
+        </form>
+      </div>
     </div>
+    <!-- </div> -->
   </AuthLayout>
 </template>
 
@@ -68,7 +73,7 @@ body {
   inset: 0;
   padding: 0;
   height: 100vh;
-  background: rgba(165, 100, 179, 0.792); 
+  background-color: black;
   overflow: hidden; 
   display: flex;
   transition: transform 1s ease-in-out;
@@ -79,55 +84,33 @@ body {
 .form-container {
   position: absolute; width: 100%; height: 100%;
   background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(15px);
-  padding: 60px 40px; color: #fff; display: flex; flex-direction: column; justify-content: center;
+  padding: 60px 40px; color: black; display: flex; flex-direction: column; justify-content: center;
   transition: all 0.8s ease-in-out;
 }
 
-.form-container h2 { text-align: center; margin-bottom: 30px; }
+.form-container h2 { color:black; text-align: center; margin-bottom: 30px; }
 
 form { display: flex; flex-direction: column; gap: 20px; }
 
 input {
-  padding: 10px; border: none; outline: none; border-bottom: 2px solid #fff;
-  background: transparent; color: #fff;
+  padding: 10px; border: none; outline: none; border-bottom: 2px solid black;
+  background: transparent; color: black;
 }
-input::placeholder { color: rgba(255,255,255,0.7); opacity: 1; }
+input::placeholder { color: gray; opacity: 1; }
 
 button {
-  background: linear-gradient(0deg, #aa67d1, #442569); border: none;
-  padding: 10px; border-radius: 20px; color: #fff; font-weight: 600;
-  cursor: pointer; transition: transform 0.2s;
-}
+  background-color: rgb(245, 239, 239);
+  border: none;
+  padding:  10px 0px; border-radius: 20px; color: black; font-weight: 600;
+  cursor: pointer; transition: transform 0.2s; width: 100%; align-self: center;
+  /* border: 1px solid black; */
+} 
+
 button:hover { transform: scale(1.05); }
 
 p { font-size: 0.9rem; text-align: center; }
-a { color: #fff; text-decoration: underline; }
-.toggle-link { cursor: pointer; text-decoration: underline; color: #fff; }
-
-/* Image box */
-.image-box {
-  width: 50%; 
-
-  background: linear-gradient(0deg, #55296e, #1a0d2a);
-  display: flex;
-  justify-content: center;
-  align-items: center; 
-  transition: all 1s ease-in-out;
-}
-.image-box img { width: auto; animation: float 4s ease-in-out infinite; }
-
-@keyframes float { 0%,100%{transform:translateY(0px);}50%{transform:translateY(-10px);} }
-
-/* Toggle animations */
-.signup-form { transform: translateX(100%); opacity: 0; }
-.containers.sign-up-mode .signup-form 
-{ 
-  left: 0;
-  transform: translateX(0%); 
-  opacity: 1; 
-}
-.containers.sign-up-mode .login-form { left: 0;transform: translateX(-100%); opacity: 0; }
-.containers.sign-up-mode .image-box { order: 1; }
+a { color: black; text-decoration: underline; }
+.toggle-link { cursor: pointer; text-decoration: underline; color: black; }
 
 .password-container {
   position: relative;
@@ -145,11 +128,34 @@ a { color: #fff; text-decoration: underline; }
   top: 50%;
   transform: translateY(-50%);
   cursor: pointer;
-  color: #fff;
+  color: black;
   font-size: 1.1rem;
 }
 
 .toggle-password:hover {
   opacity: 0.8;
 }
+
+.login-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: rgb(245, 239, 239);
+}
+
+.login-card {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  width: 500px;
+  text-align: center;
+}
+
+.logo {
+  width: 80px;
+  margin-bottom: 20px;
+}
+
 </style>

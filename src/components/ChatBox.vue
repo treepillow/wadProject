@@ -1,134 +1,182 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { auth, db } from '@/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
+import {
+  collection, query, where, orderBy, onSnapshot,
+  addDoc, doc, setDoc, serverTimestamp, getDoc
+} from 'firebase/firestore'
 
-// 🔸 When Firebase is ready, uncomment these:
-// import { auth, db } from '@/firebase'
-// import { onAuthStateChanged } from 'firebase/auth'
-// import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore'
+const route = useRoute()
 
-const mode = ref('buyer')        // buyer or seller
-const chats = ref([])            // list of chats for sidebar
-const activeChat = ref(null)     // selected chat
-const messages = ref([])         // messages of selected chat
-const newMessage = ref('')       // input field
-const currentUserId = ref('mock-user-id') // Replace with Firebase auth UID later
+const chats = ref([])
+const activeChat = ref(null)
+const messages = ref([])
+const newMessage = ref('')
+const currentUserId = ref(null)
+const sidebarCollapsed = ref(false)
+const userCache = ref({}) // cache user data so we don't refetch unnecessarily
 
-watch(mode, () => {
-  fetchChats()
-})
+let unsubscribeMsgs = null
 
 onMounted(() => {
-  // 🔸 When Firebase is ready, replace with onAuthStateChanged(auth, user => ...)
-  fetchChats()
+  onAuthStateChanged(auth, (user) => {
+    if (!user) return
+    currentUserId.value = user.uid
+    subscribeMyChats()
+  })
 })
 
-function fetchChats() {
-  // 🔸 Replace this with Firestore query based on mode
-  chats.value = [
-    {
-      id: '1',
-      buyerId: 'user_1',
-      buyerName: 'Sarah Smith',
-      buyerImage: 'https://via.placeholder.com/80/888',
-      sellerId: 'biz_1',
-      sellerBusinessTitle: "Melly's Bakery",
-      sellerBusinessLogo: 'https://via.placeholder.com/80/7a4de8',
-      lastMessage: 'Thanks for your order!'
-    },
-    {
-      id: '2',
-      buyerId: 'user_2',
-      buyerName: 'James Lee',
-      buyerImage: 'https://via.placeholder.com/80/777',
-      sellerId: 'biz_2',
-      sellerBusinessTitle: 'Zen Yoga',
-      sellerBusinessLogo: 'https://via.placeholder.com/80/bdb4dd',
-      lastMessage: 'See you at class!'
+function subscribeMyChats() {
+  const q = query(
+    collection(db, 'chats'),
+    where('participants', 'array-contains', currentUserId.value),
+    orderBy('updatedAt', 'desc')
+  )
+  onSnapshot(q, async (snap) => {
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+    // fetch user meta for each chat
+    for (const chat of rows) {
+      await populateUserMeta(chat)
     }
-  ]
-  if (chats.value.length > 0 && !activeChat.value) {
-    selectChat(chats.value[0])
+
+    chats.value = rows
+
+    const targetId = route.query.chatId
+    if (targetId) {
+      const found = rows.find(c => c.id === targetId)
+      if (found) {
+        selectChat(found)
+        return
+      }
+    }
+
+    if (!activeChat.value && rows.length > 0) {
+      selectChat(rows[0])
+    }
+  })
+}
+
+async function populateUserMeta(chat) {
+  if (!chat.participants) return
+  chat.meta = chat.meta || {}
+
+  for (const uid of chat.participants) {
+    if (uid === currentUserId.value) continue
+
+    if (!userCache.value[uid]) {
+      const userSnap = await getDoc(doc(db, 'users', uid))
+      if (userSnap.exists()) {
+        userCache.value[uid] = userSnap.data()
+      }
+    }
+
+    chat.meta[uid] = userCache.value[uid]
   }
 }
 
 function selectChat(chat) {
   activeChat.value = chat
+  if (unsubscribeMsgs) { unsubscribeMsgs(); unsubscribeMsgs = null }
 
-  // 🔸 Replace with Firestore subcollection subscription for messages
-  messages.value = [
-    { id: 'm1', senderId: currentUserId.value, text: 'hello i book appointment to shave my chest tmr 1pm okay?' },
-    { id: 'm2', senderId: 'other-user', text: 'Yeap no problem. See You then 🦊🐰🐻🐿🐧!' }
-  ]
+  const q = query(
+    collection(db, `chats/${chat.id}/messages`),
+    orderBy('timestamp', 'asc')
+  )
+  unsubscribeMsgs = onSnapshot(q, (snap) => {
+    messages.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  })
 }
 
-function sendMessage() {
+async function sendMessage() {
   if (!newMessage.value.trim() || !activeChat.value) return
 
-  // 🔸 Replace with addDoc(...) to Firestore
-  messages.value.push({
-    id: `${Date.now()}`,
+  await addDoc(collection(db, `chats/${activeChat.value.id}/messages`), {
     senderId: currentUserId.value,
-    text: newMessage.value
+    text: newMessage.value,
+    timestamp: serverTimestamp()
   })
+
+  await setDoc(doc(db, 'chats', activeChat.value.id), {
+    lastMessage: newMessage.value,
+    updatedAt: serverTimestamp()
+  }, { merge: true })
+
   newMessage.value = ''
 }
 
-// Helper functions to switch between buyer & seller views
-function listTitle(chat) {
-  return mode.value === 'buyer' ? chat.sellerBusinessTitle : chat.buyerName
+/* ---- Helpers ---- */
+function getOtherUid(chat) {
+  if (!currentUserId.value || !chat?.participants) return ''
+  return chat.participants.find(u => u !== currentUserId.value) || ''
+}
+function getOtherName(chat) {
+  const otherUid = getOtherUid(chat)
+  return chat?.meta?.[otherUid]?.username || 'User'
+}
+function getOtherAvatar(chat) {
+  const otherUid = getOtherUid(chat)
+  return chat?.meta?.[otherUid]?.photoURL || 'https://via.placeholder.com/80/aaa'
+}
+function getActiveTitle() {
+  return activeChat.value ? getOtherName(activeChat.value) : ''
+}
+function getActiveAvatar() {
+  return activeChat.value ? getOtherAvatar(activeChat.value) : ''
 }
 
-function listAvatar(chat) {
-  return mode.value === 'buyer' ? chat.sellerBusinessLogo : chat.buyerImage
+/* ---- Timestamp formatting ---- */
+function formatTimestamp(ts) {
+  if (!ts) return ''
+  const d = ts.toDate()
+  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
 }
 </script>
 
 <template>
   <div class="chatbox container-fluid rounded-4 mt-4">
-    <!-- Toggle -->
-    <div class="text-center pt-3 pb-4">
-      <button
-        class="btn btn-xl btn-toggle me-3"
-        :class="{ active: mode === 'buyer' }"
-        @click="mode = 'buyer'"
-      >
-        👤 Buyer
+    <!-- Sticky top bar -->
+    <div class="chat-topbar d-flex justify-content-between align-items-center p-3">
+      <button class="toggle-btn" @click="sidebarCollapsed = !sidebarCollapsed">
+        {{ sidebarCollapsed ? '📂 Open Chats' : '✖ Close Chats' }}
       </button>
-      <button
-        class="btn btn-xl btn-toggle"
-        :class="{ active: mode === 'seller' }"
-        @click="mode = 'seller'"
-      >
-        🏪 Seller
-      </button>
+      <div v-if="activeChat" class="active-chat-header d-flex align-items-center">
+        <img :src="getActiveAvatar()" class="rounded-circle me-2" width="50" height="50" />
+        <h5 class="m-0">{{ getActiveTitle() }}</h5>
+      </div>
     </div>
 
     <div class="row g-0 shadow-lg rounded overflow-hidden chat-frame">
       <!-- Sidebar -->
-      <div class="col-12 col-md-4 sidebar p-0 overflow-auto">
+      <div :class="['sidebar col-md-4 p-0 overflow-auto', { collapsed: sidebarCollapsed }]">
         <div
           v-for="chat in chats"
           :key="chat.id"
           class="chat-item d-flex align-items-center p-4 border-bottom"
           @click="selectChat(chat)"
         >
-          <img :src="listAvatar(chat)" class="rounded-circle me-3 flex-shrink-0" width="84" height="84" />
+          <img :src="getOtherAvatar(chat)" class="rounded-circle me-3 flex-shrink-0" width="70" height="70" />
           <div class="flex-grow-1">
-            <div class="fw-bold fs-2 sidebar-title">{{ listTitle(chat) }}</div>
+            <div class="fw-bold fs-5 sidebar-title">{{ getOtherName(chat) }}</div>
             <div class="text-muted small text-truncate-2">{{ chat.lastMessage }}</div>
           </div>
         </div>
       </div>
 
       <!-- Conversation -->
-      <div class="col-12 col-md-8 d-flex flex-column p-0 chat-window">
+      <div :class="['chat-window d-flex flex-column p-0', { expanded: sidebarCollapsed }]">
         <div class="flex-grow-1 p-4 overflow-auto msg-scroll">
           <div
             v-for="msg in messages"
             :key="msg.id"
             :class="['bubble', msg.senderId === currentUserId ? 'out' : 'in']"
           >
-            {{ msg.text }}
+            <div>{{ msg.text }}</div>
+            <small class="d-block text-end mt-1" style="font-size:0.75rem;opacity:0.6;">
+              {{ formatTimestamp(msg.timestamp) }}
+            </small>
           </div>
         </div>
 
@@ -151,76 +199,73 @@ function listAvatar(chat) {
 
 <style scoped>
 .chatbox {
-  max-width: 1400px;
-  background: #23232d;
-  color: #e9e7f5;
-  padding: 0.5rem 1rem 1.5rem;
+  width: 100%;
+  max-width: 100%;
+  background: #f8f5fb;
+  color: #2d2d2d;
+  padding: 0;
 }
-
-.chat-frame {
-  height: 78vh;
+.chat-topbar {
+  background: #f3f0f8;
+  border-bottom: 1px solid #e1dbee;
 }
-
-/* Toggle */
-.btn-xl {
-  font-size: 1.6rem;
-  padding: 16px 42px;
-  border-radius: 48px;
-}
-.btn-toggle {
-  background: #c9c2e6;
-  color: #1f1f29;
-  border: none;
-  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
-}
-.btn-toggle:hover {
-  transform: translateY(-3px);
-}
-.btn-toggle.active {
+.toggle-btn {
   background: #7a4de8;
-  color: #fff;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
 }
-
+.toggle-btn:hover { background: #693ccc; }
+.chat-frame {
+  height: 80vh;
+  background: white;
+  border: 1px solid #e3e0ec;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+}
 /* Sidebar */
 .sidebar {
-  background: #2b2b37;
-  border-right: 1px solid #3e3e4c;
+  background: #f3f0f8;
+  border-right: 1px solid #e1dbee;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  max-width: 350px;
 }
-.chat-item {
-  cursor: pointer;
-  transition: background 0.2s ease;
-  min-height: 140px;
-}
-.chat-item:hover {
-  background: #343447;
-}
-.sidebar-title {
-  line-height: 1.25;
-  word-break: break-word;
-  margin-bottom: 4px;
-}
+.sidebar.collapsed { transform: translateX(-100%); width: 0; min-width: 0; }
+.chat-item { cursor: pointer; transition: background 0.2s ease; min-height: 100px; }
+.chat-item:hover { background: #e8e2f3; }
+.sidebar-title { line-height: 1.4; margin-bottom: 6px; }
 .text-truncate-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 /* Chat Window */
 .chat-window {
-  background: #242431;
+  background: #ffffff;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
 }
+.chat-window.expanded { width: 100%; }
 .bubble {
   max-width: 75%;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   padding: 12px 16px;
   border-radius: 16px;
   margin: 0 0 12px 0;
   word-break: break-word;
 }
 .in {
-  background: #eeeeff;
-  color: #242431;
+  background: #e9e4f5;
+  color: #3a2e5c;
   margin-right: auto;
 }
 .out {
@@ -229,24 +274,28 @@ function listAvatar(chat) {
   margin-left: auto;
 }
 .msg-scroll::-webkit-scrollbar { width: 10px; }
-.msg-scroll::-webkit-scrollbar-thumb { background: #3c3c4b; border-radius: 6px; }
-.msg-scroll::-webkit-scrollbar-thumb:hover { background: #56566b; }
-
+.msg-scroll::-webkit-scrollbar-thumb { background: #d4c8ee; border-radius: 6px; }
+.msg-scroll::-webkit-scrollbar-thumb:hover { background: #b7a5e5; }
 /* Composer */
-.composer {
-  background: #2d2d39;
-  border-top: 1px solid #3a3a49;
-}
+.composer { background: #f3f0f8; border-top: 1px solid #e1dbee; }
 .chat-input {
-  background: linear-gradient(145deg, #3a3946, #2f2e3a);
-  color: #e9e7f5;
-  border: 1px solid #57536d;
+  background: #fff;
+  color: #2d2d2d;
+  border: 1px solid #d5caee;
   border-radius: 14px;
 }
-.chat-input::placeholder { color: #c2bcdf; }
+.chat-input::placeholder { color: #9b8dc6; }
 .chat-input:focus {
   outline: none;
-  box-shadow: 0 0 0 0.2rem rgba(122, 77, 232, 0.35);
+  box-shadow: 0 0 0 0.2rem rgba(122, 77, 232, 0.25);
   border-color: #7a4de8;
+}
+.btn-primary {
+  background-color: #7a4de8;
+  border-color: #7a4de8;
+}
+.btn-primary:hover {
+  background-color: #693ccc;
+  border-color: #693ccc;
 }
 </style>

@@ -1,246 +1,326 @@
 <script>
-import NavBar from "./NavBar.vue";
-import { auth, db } from "@/firebase";
-import { doc, getDoc /* or onSnapshot for live updates */ } from "firebase/firestore";
-import { storage } from "@/firebase";
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { updateProfile } from "firebase/auth"; // to update auth photoURL
-import { setDoc } from "firebase/firestore";   // to save photoURL in users/{uid}
+import { onMounted, ref, computed } from 'vue'
+import { RouterLink } from 'vue-router'
+import { getAuth } from 'firebase/auth'
+import {
+  getFirestore, doc, getDoc, updateDoc, serverTimestamp,
+  collection, getDocs, query, orderBy, where
+} from 'firebase/firestore'
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
+
+import NavBar from './NavBar.vue'
+import ListingCard from '@/components/ListingCard.vue' // <-- integrate your card here
+
+const auth = getAuth()
+const db = getFirestore()
+const storage = getStorage()
 
 export default {
-  name: "Profile",
-  components: {NavBar},
-  methods: {
-  // Opens the hidden <input type="file" ref="fileInput">
-  openPicker() {
-    this.$refs.fileInput?.click();
-  },
+  name: 'Profile',
+  components: { NavBar, RouterLink, ListingCard },
 
-  // Handle file pick, validate, preview, then upload immediately
-  onFilePicked(e) {
-    this.error = "";
-    const f = e.target.files?.[0];
-    if (!f) return;
-
-    const ok = ["image/jpeg", "image/png", "image/webp"];
-    if (!ok.includes(f.type)) {
-      this.error = "Please choose a JPG, PNG, or WEBP image.";
-      return;
-    }
-    if (f.size > 2 * 1024 * 1024) {
-      this.error = "Max size is 2MB.";
-      return;
+  setup() {
+    // Tabs
+    const activeTab = ref('profile') // 'profile' | 'my' | 'liked'
+    const openTab = (t) => {
+      activeTab.value = t
+      if (t === 'liked' && likedListings.value.length === 0) loadLikedListings()
     }
 
-    this.file = f;
-    this.photoURL = URL.createObjectURL(f); // optional preview
-    this.uploadProfileImage();               // auto-upload after pick
-  },
+    // Status
+    const loading = ref(true)
+    const saving  = ref(false)
+    const err     = ref('')
+    const ok      = ref('')
 
-  // Uploads to Storage, updates Auth photoURL and Firestore users/{uid}.photoURL
-async uploadProfileImage() {
-  if (!this.file) { this.error = "Select an image first."; return; }
-  const user = auth.currentUser;
-  if (!user) { this.error = "Not signed in."; return; }
+    // User
+    const user = ref(null)
 
-  this.uploading = true;
-  this.progress = 0;
-  this.error = "";
+    // Profile model
+    const avatarUrl   = ref('')
+    const avatarFile  = ref(null)
+    const firstName   = ref('')
+    const lastName    = ref('')
+    const username    = ref('')
+    const email       = ref('')
+    const phone       = ref('')
+    const dateOfBirth = ref('')
+    const address     = ref('')
 
-  try {
-    // 1) Get existing photoPath (if any)
-    const userRef = doc(db, "users", user.uid);
-    const snap = await getDoc(userRef);
-    const oldPath = snap.exists() ? snap.data().photoPath : null;
+    const displayName = computed(() => {
+      const f = (firstName.value || '').trim()
+      const l = (lastName.value || '').trim()
+      return (f || l) ? `${f} ${l}`.trim() : (username.value || '—')
+    })
 
-    // 2) Compute extension from MIME (default to jpg)
-    const ext =
-      this.file.type === "image/png" ? "png" :
-      this.file.type === "image/webp" ? "webp" :
-      this.file.type === "image/jpeg" ? "jpg" : "jpg";
+    // Listings data
+    const myListings     = ref([])   // from users/{uid}/myListings
+    const myLoading      = ref(false)
+    const likedListings  = ref([])   // resolved from allListings
+    const likedLoading   = ref(false)
 
-    // 3) New unique path
-    const newPath = `avatars/${user.uid}/${Date.now()}.${ext}`;
-    const sref = storageRef(storage, newPath);
+    // Helpers
+    const chunk = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i*size, (i+1)*size))
+    const normPhone = (v) => {
+      const s = (v || '').trim().replace(/\s+/g, '')
+      if (/^\+65\d{8}$/.test(s)) return s
+      if (/^\d{8}$/.test(s)) return `+65${s}`
+      return s
+    }
 
-    // 4) Upload with metadata (cache-bust on overwrite not needed since unique name)
-    const task = uploadBytesResumable(sref, this.file, { contentType: this.file.type });
-    await new Promise((resolve, reject) => {
-      task.on("state_changed",
-        (snap) => { this.progress = Math.round((snap.bytesTransferred / snap.totalBytes) * 100); },
-        (err) => reject(err),
-        () => resolve()
-      );
-    });
-
-    // 5) Get URL, update Auth + Firestore
-    const url = await getDownloadURL(sref);
-
-    await updateProfile(user, { photoURL: url });
-    await setDoc(userRef, {
-      photoURL: url,
-      photoPath: newPath,       // <— store path so we can delete later
-      updatedAt: Date.now()
-    }, { merge: true });
-
-    // 6) Delete previous image (if any)
-    if (oldPath && oldPath !== newPath) {
+    // Load profile + my listings
+    onMounted(async () => {
       try {
-        await deleteObject(storageRef(storage, oldPath));
+        const u = auth.currentUser
+        if (!u) { err.value = 'You need to be logged in to view your profile.'; loading.value = false; return }
+        user.value = u
+
+        const snap = await getDoc(doc(db, 'users', u.uid))
+        if (snap.exists()) {
+          const d = snap.data()
+          username.value = d.username || ''
+          firstName.value = d.firstName || ''
+          lastName.value  = d.lastName || ''
+          email.value     = d.email || u.email || ''
+          phone.value     = d.phone || ''
+          dateOfBirth.value = d.dateOfBirth || ''
+          address.value   = d.address || ''
+          avatarUrl.value = d.photoURL || u.photoURL || ''
+        } else {
+          email.value   = u.email || ''
+          avatarUrl.value = u.photoURL || ''
+        }
+
+        await loadMyListings()
       } catch (e) {
-        console.warn("Old avatar delete failed:", e?.code || e?.message);
-        // non-fatal — continue
+        console.error(e); err.value = 'Failed to load profile.'
+      } finally {
+        loading.value = false
       }
+    })
+
+    async function loadMyListings() {
+      if (!user.value) return
+      try {
+        myLoading.value = true
+        const qRef = query(
+          collection(db, 'users', user.value.uid, 'myListings'),
+          orderBy('createdAt', 'desc')
+        )
+        const snap = await getDocs(qRef)
+        myListings.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      } finally { myLoading.value = false }
     }
 
-    // 7) Update UI
-    this.photoURL = url;
-    this.file = null;
-  } catch (err) {
-    console.error("Avatar upload error:", err?.code, err?.message);
-    this.error = err?.message || "Upload failed.";
-  } finally {
-    this.uploading = false;
-    this.progress = 0;
+    async function loadLikedListings() {
+      if (!user.value || likedLoading.value) return
+      try {
+        likedLoading.value = true
+        const likesSnap = await getDocs(collection(db, 'users', user.value.uid, 'likedListings'))
+        const ids = likesSnap.docs.map(d => d.data()?.listingId).filter(Boolean)
+        if (!ids.length) { likedListings.value = []; return }
+
+        const batches = chunk(ids, 10) // Firestore 'in' limit
+        const resolved = []
+        for (const group of batches) {
+          const qRef = query(collection(db, 'allListings'), where('listingId', 'in', group))
+          const snap = await getDocs(qRef)
+          snap.forEach(docSnap => resolved.push({ id: docSnap.id, ...docSnap.data() }))
+        }
+        likedListings.value = resolved.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+      } finally { likedLoading.value = false }
+    }
+
+    // Actions
+    function onPickAvatar(e) {
+      const f = e.target.files?.[0]
+      if (!f || !/^image\//.test(f.type)) return
+      avatarFile.value = f
+      avatarUrl.value = URL.createObjectURL(f)
+    }
+
+    async function saveProfile() {
+      err.value = ''; ok.value = ''
+      const u = username.value.trim()
+      const ph = normPhone(phone.value)
+      if (!u) { err.value = 'Username is required.'; return }
+      if (ph && !/^\+65\d{8}$/.test(ph)) { err.value = 'Phone must be +65 followed by 8 digits.'; return }
+
+      saving.value = true
+      try {
+        let photoURL = avatarUrl.value
+        if (avatarFile.value) {
+          const path = `avatars/${user.value.uid}/${Date.now()}-${avatarFile.value.name}`
+          const sref = storageRef(storage, path)
+          await uploadBytes(sref, avatarFile.value, { contentType: avatarFile.value.type })
+          photoURL = await getDownloadURL(sref)
+        }
+        await updateDoc(doc(db, 'users', user.value.uid), {
+          username: u,
+          firstName: firstName.value.trim(),
+          lastName:  lastName.value.trim(),
+          phone: ph,
+          dateOfBirth: (dateOfBirth.value || '').trim(),
+          address: address.value.trim(),
+          email: email.value || user.value.email || '',
+          photoURL,
+          updatedAt: serverTimestamp()
+        })
+        ok.value = 'Profile saved!'
+      } catch (e) {
+        console.error(e); err.value = 'Failed to save. Please try again.'
+      } finally { saving.value = false }
+    }
+
+    return {
+      // tabs
+      activeTab, openTab,
+      // profile
+      loading, saving, err, ok,
+      avatarUrl, onPickAvatar,
+      firstName, lastName, username, email, phone, dateOfBirth, address, displayName,
+      saveProfile,
+      // listings
+      myListings, myLoading, likedListings, likedLoading
+    }
   }
 }
-  },
-
-  data() {
-    return { 
-        loading: true, 
-        userEmail: "", 
-        username: "",
-        file: null,
-        uploading: false,
-        progress: 0,
-        error: "",
-        photoURL: "",
-     };
-
-  },
-  async mounted() {
-    // Because your router guard + main.js listener protect the page,
-    // auth.currentUser should be available here.
-    const user = auth.currentUser;
-
-    // Extra safety (should rarely happen if your guard is correct)
-    if (!user) {
-      this.$router.replace({ name: "loginsignup", query: { redirect: "/profile" } });
-      return;
-    }
-
-    // Email from Firebase Auth
-    this.userEmail = user.email || "";
-
-    // Username from Firestore (users/{uid})
-    try {
-      const snap = await getDoc(doc(db, "users", user.uid));
-      this.username = snap.exists() ? (snap.data().username || "") : "";
-    } catch (e) {
-      console.error("Failed to fetch profile:", e);
-      this.username = "";
-    } finally {
-      this.loading = false;
-    }
-    if (user) {
-  // Prefer Firestore photo if you stored it; fall back to Auth
-    try {
-        const snap = await getDoc(doc(db, "users", user.uid));
-    if (snap.exists() && snap.data().photoURL) {
-      this.photoURL = snap.data().photoURL;
-    } else if (user.photoURL) {
-      this.photoURL = user.photoURL;
-    }
-  } catch {}
-}
-  },
-};
 </script>
 
-
-
-
 <template>
-<div class="container-fluid">
-    <NavBar/>
-    <div class="row d-flex justify-content-center">
+  <NavBar />
 
-        <div class="profile-container d-flex rounded mb-5 col-lg-10">
-            <img v-if="photoURL" :src="photoURL" alt="Profile" class="w-25 m-5 rounded-circle" />
-            <div class="details my-auto fs-3">
-                <p>Username: {{ username }}</p>
-                <p>Email: {{ userEmail }}</p>
-            <button type="button" class="btn container-button" @click="openPicker">
-            Upload Profile Image
-            </button>
+  <section class="bg-page">
+    <div class="container-lg py-5">
+      <div class="row justify-content-center">
+        <div class="col-12 col-xxl-10">
+          <!-- Tabs -->
+          <ul class="nav nav-tabs rounded-3 overflow-hidden shadow-soft mb-4">
+            <li class="nav-item">
+              <button class="nav-link" :class="{active: activeTab==='profile'}" @click="openTab('profile')">Profile</button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" :class="{active: activeTab==='my'}" @click="openTab('my')">My Listings</button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" :class="{active: activeTab==='liked'}" @click="openTab('liked')">Liked</button>
+            </li>
+          </ul>
 
-
-            <!-- hidden file input right below the button -->
-            <input
-            ref="fileInput"
-            type="file"
-            class="d-none"
-            accept="image/png,image/jpeg,image/webp"
-            @change="onFilePicked"
-            />
-              <p v-if="uploading" class="mt-2">Uploading… {{ progress }}%</p>
-              <p v-if="error" class="text-danger mt-2">{{ error }}</p>
+          <!-- PROFILE -->
+          <div v-show="activeTab==='profile'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
+            <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-4">
+              <div class="position-relative">
+                <img
+                  :src="avatarUrl || 'https://ui-avatars.com/api/?name=H&background=ECE8FF&color=5A43C5&size=128'"
+                  class="rounded-circle border object-fit-cover" style="width:96px;height:96px" alt="Avatar" />
+                <label class="btn btn-sm btn-light border position-absolute bottom-0 end-0 px-2 py-1">
+                  Change <input type="file" accept="image/*" class="d-none" @change="onPickAvatar" />
+                </label>
+              </div>
+              <div class="flex-grow-1">
+                <h3 class="m-0">{{ displayName }}</h3>
+                <div class="text-muted">{{ email || '—' }}</div>
+              </div>
+              <div class="ms-md-auto">
+                <button class="btn btn-primary" :disabled="saving" @click="saveProfile">
+                  <span v-if="!saving">Save changes</span>
+                  <span v-else class="spinner-border spinner-border-sm"></span>
+                </button>
+              </div>
             </div>
 
-        </div>
-        <div class="post-button d-flex mb-4 px-0 col-lg-10">
-            <button type="button" class="btn">Post</button>
-        </div>
+            <div v-if="err" class="alert alert-danger py-2">{{ err }}</div>
+            <div v-if="ok" class="alert alert-success py-2">{{ ok }}</div>
+            <div v-if="loading" class="text-center py-4"><div class="spinner-border"></div></div>
 
-        <div class="likes-button mb-4 px-0 col-lg-10">
-            <button type="button" class="btn">Likes</button>
+            <div v-if="!loading">
+              <div class="row g-4">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Username</label>
+                  <input class="form-control" v-model="username" placeholder="aaron" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Email</label>
+                  <input class="form-control" v-model="email" disabled />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">First name</label>
+                  <input class="form-control" v-model="firstName" placeholder="John" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Last name</label>
+                  <input class="form-control" v-model="lastName" placeholder="Doe" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Phone</label>
+                  <input class="form-control" v-model="phone" placeholder="+6591234567" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Date of birth</label>
+                  <input class="form-control" v-model="dateOfBirth" placeholder="4 May 2000" />
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Address</label>
+                  <input class="form-control" v-model="address" placeholder="BLK 555B Tampines Ave 11" />
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-end mt-4">
+                <button class="btn btn-primary" :disabled="saving" @click="saveProfile">
+                  <span v-if="!saving">Save changes</span>
+                  <span v-else class="spinner-border spinner-border-sm"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- MY LISTINGS -->
+          <div v-show="activeTab==='my'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
+            <h4 class="mb-4">My Listings</h4>
+            <div v-if="myLoading" class="text-center py-4"><div class="spinner-border"></div></div>
+            <div v-else-if="!myListings.length" class="text-muted">You haven’t posted any listings yet.</div>
+            <div v-else class="row g-3 g-md-4">
+              <div v-for="l in myListings" :key="l.listingId" class="col-12 col-sm-6 col-lg-4">
+                  <ListingCard
+                    :listing="l"
+                    :liked="likedSet?.has(l.listingId)"
+                    @open="$router.push(`/listing/${l.listingId}`)"
+                    @toggle-like="onToggleLike"
+                  />
+              </div>
+            </div>
+          </div>
+
+          <!-- LIKED -->
+          <div v-show="activeTab==='liked'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
+            <h4 class="mb-4">Liked Listings</h4>
+            <div v-if="likedLoading" class="text-center py-4"><div class="spinner-border"></div></div>
+            <div v-else-if="!likedListings.length" class="text-muted">No liked listings yet.</div>
+            <div v-else class="row g-3 g-md-4">
+              <div v-for="l in likedListings" :key="l.listingId" class="col-12 col-sm-6 col-lg-4">
+                <ListingCard :listing="l" />
+              </div>
+            </div>
+          </div>
+
         </div>
-
-        <div class="analytics-button mb-4 px-0 col-lg-10">
-            <button type="button" class="btn ">Analytics</button>
-        </div>
-
-
+      </div>
     </div>
-
-
-
-
-</div>
-
+  </section>
 </template>
 
-
-
-
 <style scoped>
+.bg-page { background: var(--page-bg, rgb(245,239,239)); }
+.shadow-soft { box-shadow: 0 8px 28px rgba(0,0,0,.06); }
+.object-fit-cover { object-fit: cover; }
 
-.profile-container
-{
-    background-color: rgb(250, 194, 250);
-    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+.nav-tabs .nav-link { border: none; padding: .75rem 1rem; }
+.nav-tabs .nav-link.active { background: #fff; border-bottom: 2px solid #7a5af8; color: #7a5af8; }
+.border { border-color: rgba(0,0,0,.06) !important; }
 
-    
-}
-
-button
-{
-    width: 15%;
-    padding: 20px;
-    background-color: rgb(250, 194, 250);
-    border: 1px solid black;
-    transition: transform 0.2s ease;
-}
-
-.container-button
-{
-    width: 50%;
-}
-
-.btn:hover {
-  background-color: rgb(211, 116, 211);
-  border: 1px solid black;
-  transform: translateY(-3px);
-}
+.form-label { color: #4b3f7f; }
+.form-control:focus { border-color: #a889ff; box-shadow: 0 0 0 .2rem rgba(168,137,255,.15); }
+.btn-primary { background: #7a5af8; border-color: #7a5af8; }
+.btn-primary:hover { background: #6948f2; border-color: #6948f2; }
 </style>

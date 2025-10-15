@@ -15,32 +15,32 @@ export default{
   <nav class="navbar">
 
         <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/food_drinks.jpg" alt="FoodandDrinks">
-            <div class="category-text fs-2 text-center fs-4">Food & Drinks</div>
+            <img src="../assets/category_images/food_drinks.png" alt="FoodandDrinks">
+            <div class="category-text text-center fs-5">Food & Drinks</div>
         </a>
         <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/beauty.jpg" alt="Beauty" >
-            <div class="category-text fs-2 text-center fs-4">Beauty</div>
+            <img src="../assets/category_images/beauty.png" alt="Beauty" >
+            <div class="category-text text-center fs-5">Beauty</div>
         </a>
         <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/fitness.jpg" alt="FitnessAndWellness" >
-            <div class="category-text fs-2 text-center fs-4">Fitness</div>
+            <img src="../assets/category_images/fitness.png" alt="FitnessAndWellness" >
+            <div class="category-text text-center fs-5">Fitness</div>
         </a>
         <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/arts_craft.jpg" alt="ArtsAndCraft">
-            <div class="category-text fs-2 text-center fs-4">Arts & Craft</div>
+            <img src="../assets/category_images/arts_craft.png" alt="ArtsAndCraft">
+            <div class="category-text text-center fs-5">Arts & Craft</div>
         </a>
         <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/education.jpg" alt="Education">
-            <div class="category-text fs-2 text-center fs-4">Education</div>
+            <img src="../assets/category_images/education.png" alt="Education">
+            <div class="category-text  text-center fs-5">Education</div>
         </a>
         <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/pets.jpg" alt="Pets">
-            <div class="category-text fs-2 text-center fs-4">Pets</div>
+            <img src="../assets/category_images/pets.png" alt="Pets">
+            <div class="category-text  text-center fs-5">Pets</div>
         </a>
         <a class="navbar-brand category" href="#">
-            <img src="../assets/category_images/others.jpg" alt="Others">
-            <div class="category-text fs-2 text-center fs-4">Others</div>
+            <img src="../assets/category_images/others.png" alt="Others">
+            <div class="category-text text-center fs-5">Others</div>
         </a>
 </nav>
 
@@ -63,11 +63,14 @@ export default{
         width: 150px;
         height: 150px;
         border: 1px solid black;
+        object-fit: cover;
         border-radius: 100px;
+        
     }
+
     .category-text
     {
-        color: white;
+        color: black;
     }
     .category {
         transition: transform 0.2s ease;

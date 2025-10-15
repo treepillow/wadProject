@@ -5,7 +5,6 @@
       <form @submit.prevent="handleSignup">
         <input type="text" placeholder="Username" v-model="signup.username" required />
         <input type="email" placeholder="Email" v-model="signup.email" required />
-        <!-- <input type="password" placeholder="Password" v-model="signup.password" required /> -->
 
         <!-- Password input with eye toggle -->
         <div class="password-container">
@@ -20,9 +19,46 @@
           </span>
         </div>
 
+        <!-- First and Last Name -->
+        <input type="text" placeholder="First Name" v-model="signup.firstName" required />
+        <input type="text" placeholder="Last Name" v-model="signup.lastName" required />
+
+        <!-- Date of Birth Dropdowns -->
+        <div class="dob-container">
+          <label style="color: #fff; font-weight: 500; margin-bottom: 5px;">Date of Birth:</label>
+          <div style="display: flex; gap: 10px;">
+            <select v-model="signup.day" required>
+              <option disabled value="">Day</option>
+              <option v-for="d in 31" :key="d" :value="d">{{ d }}</option>
+            </select>
+
+            <select v-model="signup.month" required>
+              <option disabled value="">Month</option>
+              <option v-for="(m, i) in months" :key="i" :value="m">{{ m }}</option>
+            </select>
+
+            <select v-model="signup.year" required>
+              <option disabled value="">Year</option>
+              <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Phone Number -->
+        <input type="text" placeholder="Phone Number (+65 XXXXXXXX)" v-model="signup.phone" required />
+        <!-- Address -->
+        <input type="text" placeholder="Address" v-model="signup.address" required />
+
         <button type="submit">Sign Up</button>
         <p><span class="toggle-link" @click="goToLogin">Already have an account? Login</span></p>
       </form>
+
+      <!-- Scroll indicator -->
+      <div class="scroll-indicator">
+        <i class="fa fa-chevron-down"></i>
+        <span>Scroll for more</span>
+      </div>
+
     </div>
   </AuthLayout>
 </template>
@@ -36,17 +72,65 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 export default {
   name: "Signup",
   components: { AuthLayout },
-  data() { return { signup: { username: "", email: "", password: "" },
-  showPassword: false, }; },
+  data() { 
+    const currentYear = new Date().getFullYear();
+    return { 
+      signup: { 
+        username: "",
+        email: "",
+        password: "",
+        firstName: "",
+        lastName: "",
+        day: "",
+        month: "",
+        year: "",
+        phone: "",
+        address: "",
+       },
+      months: [
+        "January","February","March","April","May","June",
+        "July","August","September","October","November","December"
+      ],
+      years: Array.from({ length: 100 }, (_, i) => currentYear - i), // last 100 years
+      showPassword: false,
+    }; 
+  },
   methods: {
     togglePassword() {
       this.showPassword = !this.showPassword;
     },
+    // validate Singapore number (8 digits starting with 8 or 9, optional +65)
+    isValidSGPhone(phone) {
+      const pattern = /^(?:\+65)?[89]\d{7}$/;
+      return pattern.test(phone);
+    },
     async handleSignup() {
+      const validEmailPattern = /^[\w.+-]+@(gmail|yahoo|hotmail|outlook)\.[a-z.]{2,}$/i;
+
+      if (!validEmailPattern.test(this.signup.email)) {
+        alert("❌ Please use a valid email (Gmail, Yahoo, Hotmail, or Outlook only).");
+        return;
+      }
+
+      if (!this.isValidSGPhone(this.signup.phone)) {
+        alert("❌ Please enter a valid Singapore phone number (e.g., +6591234567 or 91234567).");
+        return;
+      }
+
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, this.signup.email, this.signup.password);
         const user = userCredential.user;
-        await setDoc(doc(db, "users", user.uid), { username: this.signup.username, email: this.signup.email, createdAt: serverTimestamp() });
+        // await setDoc(doc(db, "users", user.uid), { username: this.signup.username, email: this.signup.email, createdAt: serverTimestamp() });
+        await setDoc(doc(db, "users", user.uid), {
+          username: this.signup.username,
+          email: this.signup.email,
+          firstName: this.signup.firstName,
+          lastName: this.signup.lastName,
+          dateOfBirth: `${this.signup.day} ${this.signup.month} ${this.signup.year}`,
+          phone: this.signup.phone,
+          address: this.signup.address,
+          createdAt: serverTimestamp(),
+        });
         alert(`✅ Account created for ${this.signup.username}`);
         this.$router.push("/login");
       } catch (err) { alert(`❌ Signup failed: ${err.message}`); }
@@ -86,9 +170,42 @@ body {
   transition: all 0.8s ease-in-out;
 }
 
-.form-container h2 { text-align: center; margin-bottom: 30px; }
+.form-container::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 40px; /* height of fade */
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 100%);
+}
 
-form { display: flex; flex-direction: column; gap: 20px; }
+.form-container::-webkit-scrollbar {
+  width: 6px;
+}
+.form-container::-webkit-scrollbar-thumb {
+  background-color: rgba(255,255,255,0.4);
+  border-radius: 10px;
+}
+
+.form-container h2 { text-align: center; margin-bottom: 30px; }
+form { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 15px;
+  width: 100%;
+  max-height: 100%; 
+  overflow-y: scroll;
+
+  /* hide scrollbar for all browsers */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+form::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
 
 input {
   padding: 10px; border: none; outline: none; border-bottom: 2px solid #fff;
@@ -98,8 +215,8 @@ input::placeholder { color: rgba(255,255,255,0.7); opacity: 1; }
 
 button {
   background: linear-gradient(0deg, #aa67d1, #442569); border: none;
-  padding: 10px; border-radius: 20px; color: #fff; font-weight: 600;
-  cursor: pointer; transition: transform 0.2s;
+  padding:  8px 200px; border-radius: 20px; color: #fff; font-weight: 600;
+  cursor: pointer; transition: transform 0.2s; width: auto; align-self: center;
 }
 button:hover { transform: scale(1.05); }
 
@@ -107,7 +224,6 @@ p { font-size: 0.9rem; text-align: center; }
 a { color: #fff; text-decoration: underline; }
 .toggle-link { cursor: pointer; text-decoration: underline; color: #fff; }
 
-/* Image box */
 .image-box {
   width: 50%; 
 
@@ -155,4 +271,55 @@ a { color: #fff; text-decoration: underline; }
 .toggle-password:hover {
   opacity: 0.8;
 }
+
+input {
+  padding: 10px; 
+  border: none; 
+  outline: none; 
+  border-bottom: 2px solid #fff;
+  background: transparent; 
+  color: #fff;
+}
+
+.dob-container select {
+  padding: 5px;
+  text-align: center;
+  border: 2px solid #fff;
+  border-radius: 5px;
+  background-color: rgba(255, 255, 255, 0.2); 
+  color: #fff; 
+  outline: none;
+  cursor: pointer;
+}
+
+.dob-container select option {
+  background-color: #55296e; /* dropdown menu background */
+  color: #fff; /* option text color */
+}
+
+.scroll-indicator {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #fff;
+  font-size: 0.8rem;
+  text-align: center;
+  pointer-events: none; /* doesn’t block clicks */
+}
+
+.scroll-indicator i {
+  font-size: 1.2rem;
+  margin-bottom: 3px;
+  animation: bounce 1.5s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(5px); }
+}
+
 </style>

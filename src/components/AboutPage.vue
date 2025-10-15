@@ -145,7 +145,6 @@ onBeforeUnmount(() => {
 button{ background-color: transparent; border:1px solid black; }
 
 .about-section {
-  background-color: black;
   position: relative;
   padding: 0 6%;
   width: 100%;
@@ -223,7 +222,6 @@ button{ background-color: transparent; border:1px solid black; }
 .mission h3{ font-family: "Figtree", sans-serif; }
 .mission h3 .green{ color: green; }
 
-.description{ background-color: black; }
 .container-description,
 .container-description2{
   font-family: "Figtree", sans-serif;

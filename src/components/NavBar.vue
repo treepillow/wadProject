@@ -117,6 +117,6 @@ async function logout() {
     a
     {
         text-decoration: none;
-        color: purple;
+        color: black;
     }
 </style>

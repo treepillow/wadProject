@@ -67,7 +67,7 @@ export default{
     }
     .category-text
     {
-        color: white;
+        color: black;
     }
     .category {
         transition: transform 0.2s ease;

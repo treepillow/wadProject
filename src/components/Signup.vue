@@ -470,16 +470,16 @@ input {
 .signup-btn {
   background: linear-gradient(0deg, #aa67d1, #442569);
   border: none;
-  padding: 8px 20px;       /* smaller, flexible padding */
+  padding: 8px 20px;      
   border-radius: 20px;
   color: #fff;
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s;
-  width: 100%;              /* full width of form inputs */
-  max-width: 400px;         /* optional max width like main button */
+  width: 100%;          
+  max-width: 400px;         
   text-align: center;
-  white-space: nowrap;      /* keeps text on one line */
+  white-space: nowrap;  
   display: inline-block;
 }
 
@@ -488,15 +488,6 @@ input {
 }
 
 .google-btn {
-  margin-bottom: 10px;      /* spacing between this and next input */
+  margin-bottom: 10px;     
 }
-
-
-button {
-  background: linear-gradient(0deg, #aa67d1, #442569); border: none;
-  padding:  8px 200px; border-radius: 20px; color: #fff; font-weight: 600;
-  cursor: pointer; transition: transform 0.2s; width: auto; align-self: center;
-}
-button:hover { transform: scale(1.05); }
-
 </style>

@@ -1,38 +1,43 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { useRouter, RouterLink } from 'vue-router'
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
 import { getFirestore, doc, getDoc } from 'firebase/firestore'
-import userPng from '../assets/user.png' // Vite will give you a URL
+import userPng from '../assets/user.png'
 
+/** Only AboutPage will pass this as true */
+const props = defineProps({
+  authCtasOnly: { type: Boolean, default: false } // show Login/Sign up only on this page
+})
+
+const router = useRouter()
 const auth = getAuth()
 const db = getFirestore()
-const router = useRouter()
 
+const user = ref(null)
+const avatarUrl = ref(userPng)
 const loggingOut = ref(false)
-const avatarUrl = ref(userPng) // default placeholder
 let unsubAuth = null
 
 onMounted(() => {
-  unsubAuth = onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      avatarUrl.value = userPng
-      return
-    }
+  unsubAuth = onAuthStateChanged(auth, async (u) => {
+    user.value = u
+    if (!u) { avatarUrl.value = userPng; return }
     try {
-      // Prefer Firestore photoURL you stored; fallback to Auth.photoURL; else placeholder
-      const snap = await getDoc(doc(db, 'users', user.uid))
-      const url = snap.exists() && snap.data().photoURL
-        ? snap.data().photoURL
-        : (user.photoURL || userPng)
+      const snap = await getDoc(doc(db, 'users', u.uid))
+      const url = snap.exists() && snap.data().photoURL ? snap.data().photoURL : (u.photoURL || userPng)
       avatarUrl.value = url || userPng
     } catch {
-      avatarUrl.value = user.photoURL || userPng
+      avatarUrl.value = u.photoURL || userPng
     }
   })
 })
-
 onBeforeUnmount(() => { unsubAuth && unsubAuth() })
+
+const isLoggedIn = computed(() => !!user.value)
+
+/** Show Login/Sign up ONLY when AboutPage asks for it */
+const showAuthCtas = computed(() => props.authCtasOnly)
 
 async function logout() {
   try {
@@ -46,77 +51,101 @@ async function logout() {
 </script>
 
 <template>
-<div class="container-fluid">
-    <nav class="navbar navbar-expand-lg">
+  <header class="sticky-top elevate">
+    <nav class="navbar navbar-expand-lg navbar-light bg-page shadow-sm border-bottom">
+      <div class="container-fluid px-3 px-lg-4">
 
-    <a class="navbar-brand">
-        <RouterLink to ='/home'><img src="../assets/homes_logo.png"></img>Homes</RouterLink></a>
+        <!-- Brand -->
+        <RouterLink to="/" class="navbar-brand d-flex align-items-center gap-2 text-decoration-none">
+          <img src="../assets/homes_logo.png" alt="Homes" class="brand-logo" />
+          <span class="brand-name">Homes</span>
+        </RouterLink>
 
+        <!-- Toggler -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+                aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
 
-    <div class="d-flex ms-auto">
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <RouterLink to="/chat">
-                    <img src="../assets/message.png" />
-                    </RouterLink>
-                </li>
-                <li class="nav-item">
-                    <div class="dropdown show">
-                        <a class="btn dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        <img :src="avatarUrl" class="profile-icon" alt="User avatar" />
-                        </a>
-                        <div class="dropdown-menu dropdown-menu-end m-0" aria-labelledby="dropdownMenuLink">
-                            <RouterLink to ='/profile'><a class="dropdown-item">Profile</a></RouterLink>
-                            <RouterLink to="/"><a @click="logout" class="dropdown-item" id="logoutButton">Sign out</a></RouterLink>
-                        </div>
-                    </div>
-                </li>
-            </ul>
+        <!-- Right side -->
+        <div id="mainNav" class="collapse navbar-collapse">
+          <ul class="navbar-nav ms-auto align-items-center gap-lg-2">
+
+            <!-- About page only -->
+            <template v-if="showAuthCtas">
+              <li class="nav-item">
+                <RouterLink to="/login" class="btn btn-outline-primary me-2">Login</RouterLink>
+              </li>
+              <li class="nav-item">
+                <RouterLink to="/signup" class="btn btn-primary">Sign up</RouterLink>
+              </li>
+            </template>
+
+            <!-- Everywhere else, only if logged in -->
+            <template v-else-if="isLoggedIn">
+              <li class="nav-item">
+                <RouterLink to="/chat" class="nav-link d-flex align-items-center">
+                  <img src="../assets/message.png" alt="Messages" class="icon-24 me-1" />
+                  <span class="d-none d-sm-inline">Messages</span>
+                </RouterLink>
+              </li>
+
+              <li class="nav-item dropdown">
+                <button class="btn p-0 dropdown-toggle avatar-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                  <img :src="avatarUrl" alt="User avatar" class="avatar-36" />
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><RouterLink to="/profile" class="dropdown-item">Profile</RouterLink></li>
+                  <li><hr class="dropdown-divider" /></li>
+                  <li>
+                    <button class="dropdown-item text-danger" @click="logout" :disabled="loggingOut">
+                      {{ loggingOut ? 'Signing out…' : 'Sign out' }}
+                    </button>
+                  </li>
+                </ul>
+              </li>
+            </template>
+
+            <!-- If not logged in on other pages: show nothing (your guards handle redirects) -->
+
+          </ul>
         </div>
-    </div>
-
+      </div>
     </nav>
-</div>
-
-
+  </header>
 </template>
 
-
-
 <style scoped>
-    .navbar{
-        background-color: transparent;
+.bg-page { background: var(--page-bg, rgb(245,239,239)) !important; }
+.elevate { z-index: 1045; }
 
-    }
+.brand-logo { height: 40px; width: auto; }
+.brand-name {
+  font-size: clamp(1.25rem, 1.2vw + 1rem, 2.25rem);
+  font-weight: 800;
+  letter-spacing: .2px;
+  color: #4b2aa6;
+}
 
-    .navbar img
-    {
-        width: 100px;
-    }
+.icon-24 { width: 24px; height: 24px; object-fit: contain; }
+.avatar-36 {
+  width: 36px; height: 36px; object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08);
+  background: #fff;
+}
+.avatar-btn { background: transparent; border: 0; border-radius: 999px; }
 
-    .navbar-brand
-    {
-        font-size: 50px;
-        font-weight: bold;
-        color: white;
-    }
+.navbar-light .nav-link { color: #2b2b2b; }
+.navbar-light .nav-link:hover { color: #4b2aa6; }
 
-    .profile-icon
-    {
-        border: 3px solid black;
-        border-radius: 50px;
-        background-color: white;
-    }
+.dropdown-menu {
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,.06);
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+}
 
-    .nav-item img
-    {
-        width: 50px;
-        margin-right: 10px;
-    }
-    a
-    {
-        text-decoration: none;
-        color: black;
-    }
+.navbar-toggler { border-color: rgba(0,0,0,.15); }
+.navbar-toggler:focus { box-shadow: 0 0 0 .15rem rgba(75,42,166,.15); }
 </style>

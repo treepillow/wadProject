@@ -145,7 +145,7 @@ async function logout() {
 
 /* Brand button */
 .btn-brand {
-  --brand: #4b2aa6;
+  --brand: #4b2aa6d7;
   --brand-contrast: #fff;
   background: var(--brand);
   color: var(--brand-contrast);
@@ -153,11 +153,13 @@ async function logout() {
   padding: .45rem .85rem;
   border-radius: .75rem;
   font-weight: 600;
+  transition: transform 0.2s ease;
 }
 .btn-brand:hover {
   filter: brightness(1.05);
-  color: var(--brand-contrast);
+  background-color: #4b2aa6;
   text-decoration: none;
+  transform: translateY(-1px);
 }
 
 /* Link color on light bg */

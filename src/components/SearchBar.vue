@@ -34,14 +34,16 @@
     .btn
     {
         color: white;
-        background-color: rgba(223, 107, 249, 0.753);
+        background-color: #4b2aa6d7;
+        /* background-color: #4b2aa6; */
         width: 10%;
         transition: transform 0.2s ease;
         border: 1px solid white;
         font-weight: bold;
     }
     .btn:hover {
-        background-color: rgba(223, 107, 249, 0.55);
-        transform: translateY(-3px);
+        /* background-color: rgba(223, 107, 249, 0.55); */
+        background-color: #4b2aa6;
+        transform: translateY(-1px);
     }
 </style>

@@ -218,7 +218,7 @@ async uploadProfileImage() {
 
 .profile-container
 {
-    background-color: rgb(250, 194, 250);
+    background-color: #baa2fc89;
 
     
 }
@@ -227,7 +227,7 @@ button
 {
     width: 15%;
     padding: 20px;
-    background-color: rgb(250, 194, 250);
+    background-color: #7f61d193;
     border: 1px solid black;
     transition: transform 0.2s ease;
 }
@@ -238,8 +238,8 @@ button
 }
 
 .btn:hover {
-  background-color: rgb(211, 116, 211);
+  background-color: #7f61d1bd;
   border: 1px solid black;
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }
 </style>

@@ -139,9 +139,11 @@ export default {
         alert('Unit No must look like #09-142 (2 digits, hyphen, 3 digits).')
         return
       }
+
+      // Validate the list (Menu/Services)
       for (const m of this.menuItems) {
         if (!m.name.trim() || !m.price.trim()) {
-          alert('Please ensure each menu item has a name and price.')
+          alert(this.emptyLineAlertText)
           return
         }
       }
@@ -151,6 +153,10 @@ export default {
           .filter(m => (m.name || '').trim())
           .map(m => ({ name: m.name.trim(), price: (m.price || '').trim() }))
 
+        // Compose formatted SG address
+        const unitFormatted = unit.startsWith('#') ? unit : `#${unit}`
+        const locationFormatted = `BLK ${blk} ${street} Singapore ${postal} ${unitFormatted}`
+
         const allListingsColl = collection(db, 'allListings')
         const allListingsDocRef = doc(allListingsColl)
         const listingId = allListingsDocRef.id
@@ -158,28 +164,40 @@ export default {
         const photoObjs = await this.uploadAllPhotos(user.uid, listingId)
         const photoUrls = photoObjs.map(p => p.url)
 
+        // Save to master collection
         await setDoc(allListingsDocRef, {
           businessName: this.businessName.trim(),
           businessDesc: this.businessDesc.trim(),
-          businessLocation: this.businessLocation.trim(),
           businessCategory: this.businessCategory.trim(),
-          isActive: this.toggleBtn,
           userId: user.uid,
           listingId,
-          photos: photoObjs,
+          // store structured + formatted location
+          location: {
+            country: 'Singapore',
+            blk,
+            street,
+            postal,
+            unit: unitFormatted
+          },
+          locationFormatted,
+          photos: photoObjs,   // [{ url, path }]
           photoUrls,
-          menu,
+          menu,                // still stored under "menu" to avoid breaking other code
           createdAt: new Date()
         })
 
+        // Save to user's subcollection
         await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), {
           businessName: this.businessName.trim(),
           businessDesc: this.businessDesc.trim(),
-          businessLocation: this.businessLocation.trim(),
           businessCategory: this.businessCategory.trim(),
-          isActive: this.toggleBtn,
           userId: user.uid,
           listingId,
+          location: {
+            country: 'Singapore',
+            blk, street, postal, unit: unitFormatted
+          },
+          locationFormatted,
           photos: photoObjs,
           photoUrls,
           menu,
@@ -197,14 +215,17 @@ export default {
     clearForm() {
       this.businessName = ''
       this.businessDesc = ''
-      this.businessLocation = ''
       this.businessCategory = ''
-      this.toggleBtn = false
+      this.locationBlk = ''
+      this.locationStreet = ''
+      this.locationPostal = ''
+      this.locationUnit = ''
       this.menuItems = [{ name: '', price: '' }]
       this.photos.forEach(p => p.url && URL.revokeObjectURL(p.url))
       this.photos = []
     }
   },
+
   beforeUnmount() {
     this.photos.forEach(p => p.url && URL.revokeObjectURL(p.url))
   }
@@ -218,56 +239,14 @@ export default {
       <div class="listing-card shadow-soft rounded-4 p-4 p-md-5">
         <form @submit="handleSubmit">
           <div class="row g-4">
-            <!-- Left -->
+            <!-- Left column -->
             <div class="col-lg-6">
-              <!-- Upload zone -->
-              <div
-                class="upload-zone rounded-4 mb-3 d-flex flex-column align-items-center justify-content-center"
-                :class="{'dragging': isDragging}"
-                @drop="onDrop" @dragover="onDragOver" @dragleave="onDragLeave"
-                @click="openFilePicker" role="button" tabindex="0"
-              >
-                <input ref="photoInput" type="file" accept="image/*" class="d-none" multiple @change="onPhotoPicked" />
-                <div class="text-center">
-                  <div class="camera-icon mb-2">📷</div>
-                  <div class="upload-title">Upload Photos</div>
-                  <div class="upload-hint">Click or drag & drop (PNG, JPG, WEBP)</div>
-                </div>
-              </div>
-
-              <!-- Thumbnails -->
-              <div class="thumbs d-flex flex-wrap gap-2 mb-4">
-                <div v-for="(p, i) in photos" :key="i" class="thumb rounded-3 overflow-hidden position-relative">
-                  <img :src="p.url" alt="preview" />
-                  <button type="button" class="btn btn-sm btn-light remove-btn" @click.stop="removePhoto(i)">×</button>
-                </div>
-              </div>
-
               <div class="mb-3">
-                <label class="form-label fw-semibold">Business Name</label>
+                <label class="form-label fw-semibold">Service Name</label>
                 <input type="text" class="form-control form-control-lg" v-model="businessName"
                        placeholder="Sweet Bakes by Anna" />
               </div>
 
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Location</label>
-                <input type="text" class="form-control" v-model="businessLocation" placeholder="123 Maple St" />
-              </div>
-
-              <div class="d-flex align-items-center justify-content-between mt-3">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="chatToggle" disabled />
-                  <label class="form-check-label" for="chatToggle">Enable chat with customers</label>
-                </div>
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="activeToggle" v-model="toggleBtn" />
-                  <label class="form-check-label" for="activeToggle">Active</label>
-                </div>
-              </div>
-            </div>
-
-            <!-- Right -->
-            <div class="col-lg-6">
               <div class="mb-3">
                 <label class="form-label fw-semibold">Description</label>
                 <textarea class="form-control" rows="4" v-model="businessDesc"
@@ -278,28 +257,58 @@ export default {
                 <label class="form-label fw-semibold">Category</label>
                 <select class="form-select" v-model="businessCategory">
                   <option disabled value="">-- select category --</option>
-                  <option>Bakery</option>
-                  <option>F&amp;B</option>
-                  <option>Retail</option>
-                  <option>Service</option>
+                  <option>Food and Drinks</option>
+                  <option>Beauty</option>
+                  <option>Fitness</option>
+                  <option>Arts & Craft</option>
+                  <option>Education</option>
+                  <option>Pets</option>
+                  <option>Others</option>
                 </select>
+              </div>
+            </div>
+
+            <!-- Right column -->
+            <div class="col-lg-6">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Block</label>
+                <input type="text" class="form-control" v-model="locationBlk" placeholder="485B" />
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Street Address</label>
+                <input type="text" class="form-control" v-model="locationStreet"
+                       placeholder="Tampines Ave 9" />
+              </div>
+
+              <div class="row">
+                <div class="col-6 mb-3">
+                  <label class="form-label fw-semibold">Postal Code</label>
+                  <input type="text" class="form-control" v-model="locationPostal"
+                         inputmode="numeric" pattern="\\d{6}" maxlength="6" placeholder="521485" />
+                </div>
+                <div class="col-6 mb-3">
+                  <label class="form-label fw-semibold">Unit No</label>
+                  <input type="text" class="form-control" v-model="locationUnit"
+                         placeholder="#09-142" />
+                </div>
               </div>
 
               <div class="mb-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                  <label class="form-label fw-semibold m-0">Menu</label>
-                  <button type="button" class="btn btn-link p-0" @click="addMenuItem">Add Item</button>
+                  <label class="form-label fw-semibold m-0">{{ listLabel }}</label>
+                  <button type="button" class="btn btn-link p-0" @click="addMenuItem">{{ addItemBtnText }}</button>
                 </div>
 
                 <div class="menu-list d-flex flex-column gap-2">
                   <div class="row g-2" v-for="(m, i) in menuItems" :key="i">
                     <div class="col-8">
-                      <input class="form-control" placeholder="Item name" v-model="m.name" />
+                      <input class="form-control" :placeholder="itemNamePlaceholder" v-model="m.name" />
                     </div>
                     <div class="col-3">
                       <div class="input-group">
                         <span class="input-group-text">$</span>
-                        <input class="form-control" placeholder="Price" v-model="m.price" />
+                        <input class="form-control" :placeholder="pricePlaceholder" v-model="m.price" />
                       </div>
                     </div>
                     <div class="col-1 d-flex align-items-center">
@@ -310,10 +319,37 @@ export default {
                 </div>
               </div>
             </div>
+
+            <!-- Photos at the bottom (before buttons) -->
+            <div class="col-12">
+              <label class="form-label fw-semibold">Photos</label>
+              <div
+                class="upload-zone rounded-4 mb-3 d-flex flex-column align-items-center justify-content-center"
+                :class="{'dragging': isDragging}"
+                @drop="onDrop" @dragover="onDragOver" @dragleave="onDragLeave"
+                @click="openFilePicker" role="button" tabindex="0"
+              >
+                <input ref="photoInput" type="file" accept="image/*" class="d-none" multiple @change="onPhotoPicked" />
+                <div class="text-center">
+                  <div class="camera-icon mb-2">📷</div>
+                  <div class="upload-title">Add Photos</div>
+                  <div class="upload-hint">Click or drag & drop (PNG, JPG, WEBP)</div>
+                </div>
+              </div>
+
+              <!-- Thumbnails -->
+              <div class="thumbs d-flex flex-wrap gap-2 mb-1">
+                <div v-for="(p, i) in photos" :key="i" class="thumb rounded-3 overflow-hidden position-relative">
+                  <img :src="p.url" alt="preview" />
+                  <button type="button" class="btn btn-sm btn-light remove-btn" @click.stop="removePhoto(i)">×</button>
+                </div>
+              </div>
+              <div class="text-muted small mb-3">Tip: upload at least 3 photos for a better listing.</div>
+            </div>
           </div>
 
           <!-- CTA -->
-          <div class="mt-4 d-flex justify-content-center gap-3">
+          <div class="mt-3 d-flex justify-content-center gap-3">
             <button type="submit" class="btn btn-primary px-4 py-2">Publish Listing</button>
             <button type="button" class="btn btn-outline-secondary px-4 py-2" @click="clearForm">Clear Form</button>
           </div>
@@ -335,13 +371,13 @@ export default {
 .listing-card {
   max-width: 920px;
   width: 100%;
-  background: #ffffff;                  /* white surface on light page bg */
-  border: 1px solid rgba(0,0,0,.05);    /* subtle border */
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,.05);
 }
 
 /* ========= Upload zone ========= */
 .upload-zone {
-  border: 2px dashed #d7ccff;           /* gentle purple tint */
+  border: 2px dashed #d7ccff;
   background: #fff;
   min-height: 180px;
   cursor: pointer;

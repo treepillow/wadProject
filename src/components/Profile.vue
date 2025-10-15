@@ -188,10 +188,14 @@ export default {
 </script>
 
 <template>
-  <NavBar />
+  <div class="container-fluid bg-page">
+    <NavBar />
 
-  <section class="bg-page">
-    <div class="container-lg py-5">
+    <!-- header spacer to match HomePage (no visible title) -->
+    <div class="container py-3" aria-hidden="true"></div>
+
+    <!-- content zone mirrors HomePage’s container pb-5 -->
+    <div class="container pb-5">
       <div class="row justify-content-center">
         <div class="col-12 col-xxl-10">
           <!-- Tabs -->
@@ -282,12 +286,12 @@ export default {
             <div v-else-if="!myListings.length" class="text-muted">You haven’t posted any listings yet.</div>
             <div v-else class="row g-3 g-md-4">
               <div v-for="l in myListings" :key="l.listingId" class="col-12 col-sm-6 col-lg-4">
-                  <ListingCard
-                    :listing="l"
-                    :liked="likedSet?.has(l.listingId)"
-                    @open="$router.push(`/listing/${l.listingId}`)"
-                    @toggle-like="onToggleLike"
-                  />
+                <ListingCard
+                  :listing="l"
+                  :liked="likedSet?.has(l.listingId)"
+                  @open="$router.push(`/listing/${l.listingId}`)"
+                  @toggle-like="onToggleLike"
+                />
               </div>
             </div>
           </div>
@@ -307,8 +311,9 @@ export default {
         </div>
       </div>
     </div>
-  </section>
+  </div>
 </template>
+
 
 <style scoped>
 .bg-page { background: var(--page-bg, rgb(245,239,239)); }

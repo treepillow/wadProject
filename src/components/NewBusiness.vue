@@ -20,10 +20,10 @@ export default {
 
       photos: [],
       isDragging: false,
-      photoError: '',                    // <-- NEW: inline error for photos
+      photoError: '',
       menuItems: [{ name: '', price: '' }],
 
-      addrError: '' // shown under address fields
+      addrError: ''
     }
   },
 
@@ -51,7 +51,7 @@ export default {
         this.photos.push({ file: f, url: URL.createObjectURL(f) })
       })
       e.target.value = ''
-      if (this.photos.length > 0) this.photoError = ''   // clear error when we have photos
+      if (this.photos.length > 0) this.photoError = ''
     },
     onDrop(e) {
       e.preventDefault()
@@ -123,7 +123,6 @@ export default {
       const candidates = exact.length ? exact : results
       if (!candidates.length) return { ok:false, reason:'Invalid address in Singapore.' }
 
-      // best match by street similarity
       const userStreet = this.expandAbbrev(street || '')
       let best=null,score=-1
       for(const r of candidates){ const s=this.similarity(userStreet,r.ROAD_NAME||''); if(s>score){best=r;score=s} }
@@ -167,10 +166,8 @@ export default {
         return new Promise((resolve,reject)=>{
           const task=uploadBytesResumable(sref,file,{contentType:file.type})
           task.on('state_changed', null, reject, async ()=>{
-            try {
-              const url = await getDownloadURL(task.snapshot.ref)
-              resolve({ url, path })
-            } catch (e) { reject(e) }
+            try { const url = await getDownloadURL(task.snapshot.ref); resolve({ url, path }) }
+            catch (e) { reject(e) }
           })
         })
       })
@@ -192,7 +189,6 @@ export default {
       if(!/^[0-9]{6}$/.test(this.locationPostal.trim())){ alert('Postal Code must be a 6-digit number (Singapore).'); return }
       if(!/^#?[0-9]{2}-[0-9]{3}$/.test(this.locationUnit.trim())){ alert('Unit No must look like #09-142.'); return }
 
-      // REQUIRE at least 1 photo
       if (this.photos.length < 1) {
         this.photoError = 'Please upload at least 1 photo of your business.'
         this.$nextTick(() => this.$refs.uploadZone?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
@@ -203,13 +199,8 @@ export default {
       const check = await this.validateAddressWithOneMap({
         blk: this.locationBlk, street: this.locationStreet, postal: this.locationPostal
       }, 0.80)
+      if (!check.ok) { this.addrError = check.reason || 'Invalid address.'; return }
 
-      if (!check.ok) {
-        this.addrError = check.reason || 'Invalid address.'
-        return
-      }
-
-      // Validated, use canonical values
       const { blk, road: street, postal } = check.data
       for(const m of this.menuItems){ if(!m.name.trim() || !m.price.trim()){ alert(this.emptyLineAlertText); return } }
 
@@ -222,11 +213,9 @@ export default {
           .filter(m=>(m.name||'').trim())
           .map(m=>({name:m.name.trim(), price:(m.price||'').trim()}))
 
-        // Pre-create listing doc id
         const allListingsDocRef = doc(collection(db,'allListings'))
         const listingId = allListingsDocRef.id
 
-        // Upload photos (guaranteed >=1 here)
         const photoObjs = await this.uploadAllPhotos(user.uid, listingId)
         const photoUrls = photoObjs.map(p=>p.url)
 
@@ -265,7 +254,7 @@ export default {
       this.locationUnit=''
       this.menuItems=[{name:'',price:''}]
       this.photos.forEach(p=>p.url && URL.revokeObjectURL(p.url)); this.photos=[]
-      this.photoError=''            // <-- reset photo error
+      this.photoError=''
       this.addrError=''
     }
   },
@@ -275,124 +264,129 @@ export default {
 </script>
 
 <template>
-  <NavBar />
-  <section class="page-section bg-page">
-    <div class="container-lg py-5 d-flex justify-content-center">
-      <div class="listing-card shadow-soft rounded-4 p-4 p-md-5">
-        <form @submit.prevent="handleSubmit" novalidate>
-          <div class="row g-4">
-            <!-- Left -->
-            <div class="col-lg-6">
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Service Name</label>
-                <input class="form-control form-control-lg" v-model="businessName" placeholder="Sweet Bakes by Anna" />
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Description</label>
-                <textarea class="form-control" rows="4" v-model="businessDesc" placeholder="Describe your service"></textarea>
-              </div>
-              <div class="mb-4">
-                <label class="form-label fw-semibold">Category</label>
-                <select class="form-select" v-model="businessCategory">
-                  <option disabled value="">-- select category --</option>
-                  <option>Food and Drinks</option><option>Beauty</option><option>Fitness</option>
-                  <option>Arts & Craft</option><option>Education</option><option>Pets</option><option>Others</option>
-                </select>
-              </div>
-            </div>
+  <!-- ⬇️ Same scaffold as HomePage.vue -->
+  <div class="container-fluid bg-page">
+    <NavBar />
 
-            <!-- Right -->
-            <div class="col-lg-6">
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Block</label>
-                <input class="form-control" v-model.trim="locationBlk" placeholder="485B" />
-              </div>
-              <div class="mb-1">
-                <label class="form-label fw-semibold">Street Address</label>
-                <input class="form-control" v-model.trim="locationStreet" placeholder="Tampines Ave 9" />
-              </div>
-              <div class="row">
-                <div class="col-6 mb-3">
-                  <label class="form-label fw-semibold">Postal Code</label>
-                  <input class="form-control" v-model.trim="locationPostal"
-                         inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
-                         placeholder="521485" title="Enter a 6-digit Singapore postal code"
-                         @input="handlePostalInput" />
+
+    <!-- content zone (mirrors HomePage’s container pb-5) -->
+    <div class="container pb-5 mt-5">
+      <div class="d-flex justify-content-center">
+        <div class="listing-card shadow-soft rounded-4 p-4 p-md-5">
+          <form @submit.prevent="handleSubmit" novalidate>
+            <div class="row g-4">
+              <!-- Left -->
+              <div class="col-lg-6">
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Service Name</label>
+                  <input class="form-control form-control-lg" v-model="businessName" placeholder="Sweet Bakes by Anna" />
                 </div>
-                <div class="col-6 mb-3">
-                  <label class="form-label fw-semibold">Unit No</label>
-                  <input class="form-control" v-model.trim="locationUnit"
-                         pattern="#?[0-9]{2}-[0-9]{3}" placeholder="#09-142"
-                         title="Format like #09-142" @input="handleUnitInput" />
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Description</label>
+                  <textarea class="form-control" rows="4" v-model="businessDesc" placeholder="Describe your service"></textarea>
+                </div>
+                <div class="mb-4">
+                  <label class="form-label fw-semibold">Category</label>
+                  <select class="form-select" v-model="businessCategory">
+                    <option disabled value="">-- select category --</option>
+                    <option>Food and Drinks</option><option>Beauty</option><option>Fitness</option>
+                    <option>Arts & Craft</option><option>Education</option><option>Pets</option><option>Others</option>
+                  </select>
                 </div>
               </div>
 
-              <div v-if="addrError" class="text-danger small mt-n2 mb-2">{{ addrError }}</div>
-
-              <div class="mb-3">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                  <label class="form-label fw-semibold m-0">{{ listLabel }}</label>
-                  <button type="button" class="btn btn-link p-0" @click="addMenuItem">{{ addItemBtnText }}</button>
+              <!-- Right -->
+              <div class="col-lg-6">
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Block</label>
+                  <input class="form-control" v-model.trim="locationBlk" placeholder="485B" />
                 </div>
-                <div class="menu-list d-flex flex-column gap-2">
-                  <div class="row g-2" v-for="(m, i) in menuItems" :key="i">
-                    <div class="col-8">
-                      <input class="form-control" :placeholder="itemNamePlaceholder" v-model.trim="m.name" />
-                    </div>
-                    <div class="col-3">
-                      <div class="input-group">
-                        <span class="input-group-text">$</span>
-                        <input class="form-control" :placeholder="pricePlaceholder" v-model.trim="m.price" />
+                <div class="mb-1">
+                  <label class="form-label fw-semibold">Street Address</label>
+                  <input class="form-control" v-model.trim="locationStreet" placeholder="Tampines Ave 9" />
+                </div>
+                <div class="row">
+                  <div class="col-6 mb-3">
+                    <label class="form-label fw-semibold">Postal Code</label>
+                    <input class="form-control" v-model.trim="locationPostal"
+                           inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                           placeholder="521485" title="Enter a 6-digit Singapore postal code"
+                           @input="handlePostalInput" />
+                  </div>
+                  <div class="col-6 mb-3">
+                    <label class="form-label fw-semibold">Unit No</label>
+                    <input class="form-control" v-model.trim="locationUnit"
+                           pattern="#?[0-9]{2}-[0-9]{3}" placeholder="#09-142"
+                           title="Format like #09-142" @input="handleUnitInput" />
+                  </div>
+                </div>
+
+                <div v-if="addrError" class="text-danger small mt-n2 mb-2">{{ addrError }}</div>
+
+                <div class="mb-3">
+                  <div class="d-flex align-items-center justify-content-between mb-2">
+                    <label class="form-label fw-semibold m-0">{{ listLabel }}</label>
+                    <button type="button" class="btn btn-link p-0" @click="addMenuItem">{{ addItemBtnText }}</button>
+                  </div>
+                  <div class="menu-list d-flex flex-column gap-2">
+                    <div class="row g-2" v-for="(m, i) in menuItems" :key="i">
+                      <div class="col-8">
+                        <input class="form-control" :placeholder="itemNamePlaceholder" v-model.trim="m.name" />
                       </div>
-                    </div>
-                    <div class="col-1 d-flex align-items-center">
-                      <button class="btn btn-outline-secondary btn-sm" type="button"
-                              @click="removeMenuItem(i)" :disabled="menuItems.length === 1">—</button>
+                      <div class="col-3">
+                        <div class="input-group">
+                          <span class="input-group-text">$</span>
+                          <input class="form-control" :placeholder="pricePlaceholder" v-model.trim="m.price" />
+                        </div>
+                      </div>
+                      <div class="col-1 d-flex align-items-center">
+                        <button class="btn btn-outline-secondary btn-sm" type="button"
+                                @click="removeMenuItem(i)" :disabled="menuItems.length === 1">—</button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+
+              <!-- Photos -->
+              <div class="col-12">
+                <label class="form-label fw-semibold">Photos</label>
+
+                <div v-if="photoError" class="text-danger small mb-2">{{ photoError }}</div>
+
+                <div
+                  ref="uploadZone"
+                  class="upload-zone rounded-4 mb-3 d-flex flex-column align-items-center justify-content-center"
+                  :class="{ dragging: isDragging }"
+                  @drop="onDrop" @dragover="onDragOver" @dragleave="onDragLeave"
+                  @click="openFilePicker" role="button" tabindex="0">
+                  <input ref="photoInput" type="file" accept="image/*" class="d-none" multiple @change="onPhotoPicked" />
+                  <div class="text-center">
+                    <div class="camera-icon mb-2">📷</div>
+                    <div class="upload-title">Add Photos</div>
+                    <div class="upload-hint">Minimum 1 photo (PNG, JPG, WEBP). We recommend 3+.</div>
+                  </div>
+                </div>
+
+                <div class="thumbs d-flex flex-wrap gap-2 mb-1">
+                  <div v-for="(p, i) in photos" :key="i" class="thumb rounded-3 overflow-hidden position-relative">
+                    <img :src="p.url" alt="preview" />
+                    <button type="button" class="btn btn-sm btn-light remove-btn" @click.stop="removePhoto(i)">×</button>
+                  </div>
+                </div>
+                <div class="text-muted small mb-3">Tip: upload at least 3 photos for a better listing.</div>
+              </div>
             </div>
 
-            <!-- Photos -->
-            <div class="col-12">
-              <label class="form-label fw-semibold">Photos</label>
-
-              <!-- Inline error for photos -->
-              <div v-if="photoError" class="text-danger small mb-2">{{ photoError }}</div>
-
-              <div
-                ref="uploadZone"
-                class="upload-zone rounded-4 mb-3 d-flex flex-column align-items-center justify-content-center"
-                :class="{ dragging: isDragging }"
-                @drop="onDrop" @dragover="onDragOver" @dragleave="onDragLeave"
-                @click="openFilePicker" role="button" tabindex="0">
-                <input ref="photoInput" type="file" accept="image/*" class="d-none" multiple @change="onPhotoPicked" />
-                <div class="text-center">
-                  <div class="camera-icon mb-2">📷</div>
-                  <div class="upload-title">Add Photos</div>
-                  <div class="upload-hint">Minimum 1 photo (PNG, JPG, WEBP). We recommend 3+.</div>
-                </div>
-              </div>
-
-              <div class="thumbs d-flex flex-wrap gap-2 mb-1">
-                <div v-for="(p, i) in photos" :key="i" class="thumb rounded-3 overflow-hidden position-relative">
-                  <img :src="p.url" alt="preview" />
-                  <button type="button" class="btn btn-sm btn-light remove-btn" @click.stop="removePhoto(i)">×</button>
-                </div>
-              </div>
-              <div class="text-muted small mb-3">Tip: upload at least 3 photos for a better listing.</div>
+            <div class="mt-3 d-flex justify-content-center gap-3">
+              <button type="submit" class="btn btn-primary px-4 py-2">Publish Listing</button>
+              <button type="button" class="btn btn-outline-secondary px-4 py-2" @click="clearForm">Clear Form</button>
             </div>
-          </div>
-
-          <div class="mt-3 d-flex justify-content-center gap-3">
-            <button type="submit" class="btn btn-primary px-4 py-2">Publish Listing</button>
-            <button type="button" class="btn btn-outline-secondary px-4 py-2" @click="clearForm">Clear Form</button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
 </template>
 
 <style scoped>
@@ -400,12 +394,18 @@ export default {
 .bg-page { background: var(--page-bg, rgb(245,239,239)); }
 .shadow-soft { box-shadow: 0 8px 28px rgba(0,0,0,.06); }
 .listing-card { max-width: 920px; width: 100%; background:#fff; border:1px solid rgba(0,0,0,.05); }
+
+/* matches your HomePage spacing rhythm */
+.container.py-3 h2 { line-height: 1.2; }
+
+/* upload UI */
 .upload-zone { border:2px dashed #d7ccff; background:#fff; min-height:180px; cursor:pointer; transition:background .2s,border-color .2s; }
 .upload-zone.dragging { background:#f7f3ff; border-color:#bda8ff; }
 .camera-icon{font-size:28px}.upload-title{font-weight:600;color:var(--brand)}.upload-hint{font-size:.9rem;color:#7a7a7a}
 .thumbs .thumb{width:88px;height:88px;background:#fff;border:1px solid #eee}
 .thumbs .thumb img{width:100%;height:100%;object-fit:cover}
 .remove-btn{position:absolute;top:6px;right:6px;line-height:1;padding:2px 8px;border-radius:999px}
+
 .form-label{color:#4b3f7f}.form-control,.form-select{background:#fff;border-color:#e6e3f4}
 .input-group-text{background:#f5f3ff;border-color:#e6e3f4}
 .form-control:focus,.form-select:focus{border-color:#a889ff;box-shadow:0 0 0 .2rem rgba(168,137,255,.15)}

@@ -53,7 +53,7 @@ async function logout() {
 <template>
   <header class="sticky-top elevate">
     <nav class="navbar navbar-expand-lg navbar-light bg-page shadow-sm border-bottom">
-      <div class="container-fluid px-3 px-lg-4">
+<div class="container">
 
         <!-- Brand -->
         <RouterLink to="/" class="navbar-brand d-flex align-items-center gap-2 text-decoration-none">

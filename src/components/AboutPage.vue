@@ -37,7 +37,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+
+  
 <NavBar :auth-ctas-only="true" />  <!-- shows Login / Sign up on About only -->
+
+
+
 
   <!-- HERO -->
   <div class="background-section position-relative d-flex align-items-center justify-content-center min-vh-100 w-100">

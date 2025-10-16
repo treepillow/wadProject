@@ -86,8 +86,8 @@ async function logout() {
 
 
               <li class="nav-item">
-                <RouterLink to="/chat" class="nav-link d-flex align-items-center">
-                  <img src="../assets/message.png" alt="Messages" class="icon-24 me-1" />
+                <RouterLink to="/chat" class="btn btn-brand d-flex align-items-center">
+                  <img src="../assets/message2.png" alt="Messages" class="icon-24 me-1" />
                   <span class="d-none d-sm-inline">Messages</span>
                 </RouterLink>
               </li>
@@ -122,58 +122,137 @@ async function logout() {
 </template>
 
 <style scoped>
-.bg-page { background: var(--page-bg, rgb(245,239,239)) !important; }
-.elevate { z-index: 1045; }
+.bg-page { 
+  background: var(--page-bg, rgb(245, 239, 239)) !important; 
+}
 
-.brand-logo { height: 40px; width: auto; }
+.elevate { 
+  z-index: 1045; 
+}
+
+.brand-logo { 
+  height: 40px; 
+  width: auto; 
+}
+
 .brand-name {
   font-size: clamp(1.25rem, 1.2vw + 1rem, 2.25rem);
   font-weight: 800;
-  letter-spacing: .2px;
+  letter-spacing: 0.2px;
   color: black;
 }
 
-.icon-24 { width: 24px; height: 24px; object-fit: contain; }
+.icon-24 {
+  width: auto;              /* Fixed width for button */
+  height: auto;             /* Fixed height for button */
+  object-fit: cover;        /* Ensure the image covers the whole area */
+  background-color: white;  /* Optional: background behind the icon */
+  padding: 0;               /* No extra padding around the image */
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.1); /* Optional: shadow for contrast */
+  border-radius: 20%;       /* Make it circular */
+  display: inline-block;    /* Ensure it behaves like an icon */
+}
+
+/* Avatar image styles */
 .avatar-36 {
-  width: 36px; height: 36px; object-fit: cover;
+  width: 36px; 
+  height: 36px; 
+  object-fit: cover;  /* Ensures the image covers the circular area */
   border-radius: 50%;
   border: 2px solid #fff;
-  box-shadow: 0 1px 2px rgba(0,0,0,.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   background: #fff;
 }
-.avatar-btn { background: transparent; border: 0; border-radius: 999px; }
 
-/* Brand button */
-.btn-brand {
-  --brand: #4b2aa6d7;
-  --brand-contrast: #fff;
-  background: var(--brand);
-  color: var(--brand-contrast);
-  border: 1px solid var(--brand);
-  padding: .45rem .85rem;
-  border-radius: .75rem;
+.avatar-btn { 
+  background: transparent; 
+  border: 0; 
+  border-radius: 999px; 
+}
+
+/* Button styling */
+.btn-brand, 
+.btn-outline-primary, 
+.btn-primary, 
+.btn-common {
+  font-size: 0.875rem;  /* Standard font size for all buttons */
+  padding: 0.5rem 1rem;  /* Consistent padding */
+  height: 40px;  /* Ensure uniform button height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;  /* Rounded corners */
   font-weight: 600;
-  transition: transform 0.2s ease;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;  /* Transparent border */
+  min-width: 120px; /* Ensure buttons have a consistent width */
+  width: auto;  /* Allow width to adapt based on content */
 }
-.btn-brand:hover {
+
+/* Specific styles for .btn-brand */
+.btn-brand {
+  --brand: #4b2aa6d7;  /* Purple background */
+  --brand-contrast: #fff;  /* White text */
+  background: var(--brand);  /* Set purple background */
+  color: var(--brand-contrast);  /* Set text to white */
+  border-color: var(--brand);  /* Set purple border */
+}
+
+/* Icon Styling for Buttons */
+.btn-brand img, 
+.icon-24 {
+  width: 18px;  /* Standard icon size */
+  height: 18px; /* Standard icon size */
+  margin-right: 8px; /* Consistent spacing between icon and text */
+  object-fit: contain;  /* Ensures icons fit properly */
+}
+
+/* Message Button Specific Styles */
+.btn-common {
+  width: auto;  /* Ensures buttons don't have fixed widths */
+}
+
+/* Hover Effects for Buttons */
+.btn-brand:hover, 
+.btn-outline-primary:hover, 
+.btn-primary:hover, 
+.btn-common:hover {
   filter: brightness(1.05);
-  background-color: #4b2aa6;
-  text-decoration: none;
-  transform: translateY(-1px);
+  transform: translateY(-1px);  /* Lift effect on hover */
 }
 
-/* Link color on light bg */
-.navbar-light .nav-link { color: #2b2b2b; }
-.navbar-light .nav-link:hover { color: #4b2aa6; }
+/* Focus Effects */
+.btn-brand:focus, 
+.btn-outline-primary:focus, 
+.btn-primary:focus, 
+.btn-common:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(75,42,166,.5);  /* Adds focus ring on button */
+}
 
-/* Dropdown look */
+/* Link colors for light backgrounds */
+.navbar-light .nav-link { 
+  color: #2b2b2b; 
+}
+
+.navbar-light .nav-link:hover { 
+  color: #4b2aa6; 
+}
+
+/* Dropdown Menu */
 .dropdown-menu {
   border-radius: 12px;
   border: 1px solid rgba(0,0,0,.06);
   box-shadow: 0 8px 24px rgba(0,0,0,.08);
 }
 
-/* Toggler */
-.navbar-toggler { border-color: rgba(0,0,0,.15); }
-.navbar-toggler:focus { box-shadow: 0 0 0 .15rem rgba(75,42,166,.15); }
+/* Navbar Toggler */
+.navbar-toggler { 
+  border-color: rgba(0,0,0,.15); 
+}
+
+.navbar-toggler:focus { 
+  box-shadow: 0 0 0 .15rem rgba(75,42,166,.15); 
+}
+
 </style>

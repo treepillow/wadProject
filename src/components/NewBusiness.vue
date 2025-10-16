@@ -309,7 +309,7 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
               <div class="col-lg-6">
                 <div class="mb-3">
                   <label class="form-label fw-semibold">Service Name</label>
-                  <input class="form-control form-control-lg" v-model="businessName" placeholder="Sweet Bakes by Anna" />
+                  <input class="form-control form-control-lg" v-model="businessName" placeholder="Enter your business name here" />
                 </div>
                 <div class="mb-3">
                   <label class="form-label fw-semibold">Description</label>
@@ -329,24 +329,24 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
               <div class="col-lg-6">
                 <div class="mb-3">
                   <label class="form-label fw-semibold">Block</label>
-                  <input class="form-control" v-model.trim="locationBlk" placeholder="485B" />
+                  <input class="form-control" v-model.trim="locationBlk" placeholder="e.g 485B" />
                 </div>
                 <div class="mb-1">
                   <label class="form-label fw-semibold">Street Address</label>
-                  <input class="form-control" v-model.trim="locationStreet" placeholder="Tampines Ave 9" />
+                  <input class="form-control" v-model.trim="locationStreet" placeholder="e.g Tampines Ave 9" />
                 </div>
                 <div class="row">
                   <div class="col-6 mb-3">
                     <label class="form-label fw-semibold">Postal Code</label>
                     <input class="form-control" v-model.trim="locationPostal"
                            inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
-                           placeholder="521485" title="Enter a 6-digit Singapore postal code"
+                           placeholder="6-digit postal code" title="Enter a 6-digit Singapore postal code"
                            @input="handlePostalInput" />
                   </div>
                   <div class="col-6 mb-3">
                     <label class="form-label fw-semibold">Unit No</label>
                     <input class="form-control" v-model.trim="locationUnit"
-                           pattern="#?[0-9]{2}-[0-9]{3}" placeholder="#09-142"
+                           pattern="#?[0-9]{2}-[0-9]{3}" placeholder="#01-234"
                            title="Format like #09-142" @input="handleUnitInput" />
                   </div>
                 </div>
@@ -356,7 +356,7 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
                 <div class="mb-3">
                   <div class="d-flex align-items-center justify-content-between mb-2">
                     <label class="form-label fw-semibold m-0">{{ listLabel }}</label>
-                    <button type="button" class="btn btn-link p-0" @click="addMenuItem">{{ addItemBtnText }}</button>
+                    <button type="button" class="btn btn-primary px-4 py-2" @click="addMenuItem">{{ addItemBtnText }}</button>
                   </div>
                   <div class="menu-list d-flex flex-column gap-2">
                     <div class="row g-2" v-for="(m, i) in menuItems" :key="i">
@@ -420,26 +420,163 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 </template>
 
 <style scoped>
-:root { --brand:#4b2aa6; }
-.bg-page { background: var(--page-bg, rgb(245,239,239)); }
-.shadow-soft { box-shadow: 0 8px 28px rgba(0,0,0,.06); }
-.listing-card { max-width: 920px; width: 100%; background:#fff; border:1px solid rgba(0,0,0,.05); }
+:root {
+  --brand: #4b2aa6;
+  --font-family: 'Arial', sans-serif; /* Global font-family */
+  --font-size-base: 1rem; /* Base font size (16px) */
+  --font-size-large: 1.125rem; /* Large font size for headings/labels */
+  --font-size-input: 1rem; /* Input text size */
+  --font-size-placeholder: 0.875rem; /* Placeholder text size */
+}
 
-/* matches your HomePage spacing rhythm */
-.container.py-3 h2 { line-height: 1.2; }
+.bg-page {
+  background: var(--page-bg, rgb(245, 239, 239));
+}
 
-/* upload UI */
-.upload-zone { border:2px dashed #d7ccff; background:#fff; min-height:180px; cursor:pointer; transition:background .2s,border-color .2s; }
-.upload-zone.dragging { background:#f7f3ff; border-color:#bda8ff; }
-.camera-icon{font-size:28px}.upload-title{font-weight:600;color:var(--brand)}.upload-hint{font-size:.9rem;color:#7a7a7a}
-.thumbs .thumb{width:88px;height:88px;background:#fff;border:1px solid #eee}
-.thumbs .thumb img{width:100%;height:100%;object-fit:cover}
-.remove-btn{position:absolute;top:6px;right:6px;line-height:1;padding:2px 8px;border-radius:999px}
+.shadow-soft {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .06);
+}
 
-.form-label{color:#4b3f7f}.form-control,.form-select{background:#fff;border-color:#e6e3f4}
-.input-group-text{background:#f5f3ff;border-color:#e6e3f4}
-.form-control:focus,.form-select:focus{border-color:#a889ff;box-shadow:0 0 0 .2rem rgba(168,137,255,.15)}
-.btn-primary{background:#7a5af8;border-color:#7a5af8}.btn-primary:hover{background:#6948f2;border-color:#6948f2}
-.btn-outline-secondary{color:#55596a;border-color:#dedbea}.btn-outline-secondary:hover{background:#f3f1ff;border-color:#cfc9ee}
-.object-fit-cover{object-fit:cover}
+.listing-card {
+  max-width: 920px;
+  width: 100%;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, .05);
+}
+
+/* Global font styles */
+* {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+}
+
+.container.py-3 h2 {
+  line-height: 1.2;
+}
+
+/* Labels */
+.form-label {
+  font-size: var(--font-size-large);
+  color: #4b3f7f;
+  font-weight: 600;
+}
+
+/* Inputs and Textareas */
+.form-control,
+.form-select {
+  font-size: var(--font-size-input);
+  font-family: var(--font-family);
+  background: #fff;
+  border-color: #e6e3f4;
+  color: #55596a;
+}
+
+/* Placeholder styling for form-control (input) and form-select (select) */
+.form-control::placeholder,
+.form-select::placeholder,
+.form-select option:disabled {
+  font-size: var(--font-size-placeholder);
+  color: #a8a8a8; /* Lighter placeholder color */
+  opacity: 1; /* Override default opacity of placeholder */
+}
+
+/* The first option (which acts as a placeholder) for select elements */
+.form-select option:first-child {
+  color: #a8a8a8; /* Lighter placeholder color */
+}
+
+/* Input focus state */
+.form-control:focus,
+.form-select:focus {
+  border-color: #a889ff;
+  box-shadow: 0 0 0 .2rem rgba(168, 137, 255, .15);
+}
+
+/* Input group */
+.input-group-text {
+  font-size: var(--font-size-input);
+  background: #f5f3ff;
+  border-color: #e6e3f4;
+}
+
+/* Button Styles */
+.btn-primary {
+  background: #7a5af8;
+  border-color: #7a5af8;
+  font-size: var(--font-size-base);
+}
+
+.btn-primary:hover {
+  background: #6948f2;
+  border-color: #6948f2;
+}
+
+.btn-outline-secondary {
+  color: #55596a;
+  border-color: #dedbea;
+}
+
+.btn-outline-secondary:hover {
+  background: #f3f1ff;
+  border-color: #cfc9ee;
+}
+
+/* Upload Zone */
+.upload-zone {
+  border: 2px dashed #d7ccff;
+  background: #fff;
+  min-height: 180px;
+  cursor: pointer;
+  transition: background .2s, border-color .2s;
+}
+
+.upload-zone.dragging {
+  background: #f7f3ff;
+  border-color: #bda8ff;
+}
+
+.camera-icon {
+  font-size: 28px;
+}
+
+.upload-title {
+  font-weight: 600;
+  color: var(--brand);
+}
+
+.upload-hint {
+  font-size: 0.875rem;
+  color: #7a7a7a;
+}
+
+/* Thumbnails */
+.thumbs .thumb {
+  width: 88px;
+  height: 88px;
+  background: #fff;
+  border: 1px solid #eee;
+}
+
+.thumbs .thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* Form styling */
+.form-control:focus,
+.form-select:focus {
+  border-color: #a889ff;
+  box-shadow: 0 0 0 .2rem rgba(168, 137, 255, .15);
+}
+
 </style>

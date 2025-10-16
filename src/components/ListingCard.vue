@@ -1,6 +1,8 @@
 <script setup>
 import StartChatButton from './StartChatButton.vue'
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { db } from '@/firebase'
+import { collection, query, getDocs } from 'firebase/firestore'
 
 const props = defineProps({
   listing: { type: Object, required: true },
@@ -11,6 +13,10 @@ const props = defineProps({
   reveal: { type: Boolean, default: true } // for batch reveal fade-in, if you use it
 })
 const emit = defineEmits(['toggle-like', 'image-loaded', 'open'])
+
+// Rating state
+const avgRating = ref(0)
+const totalReviews = ref(0)
 
 const photo = computed(() =>
   props.listing.photoUrls?.[0] || props.listing.photos?.[0]?.url || null
@@ -33,6 +39,38 @@ const imgLoaded = ref(false)
 const imgErrored = ref(false)
 function onImgLoad () { imgLoaded.value = true; emit('image-loaded', props.listing.listingId || props.listing.id) }
 function onImgError() { imgErrored.value = true; emit('image-loaded', props.listing.listingId || props.listing.id) }
+
+/* ---- Fetch rating on mount ---- */
+async function fetchRating() {
+  try {
+    const listingId = props.listing.listingId || props.listing.id
+    if (!listingId) return
+
+    const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
+    const snapshot = await getDocs(query(reviewsRef))
+
+    if (snapshot.empty) {
+      avgRating.value = 0
+      totalReviews.value = 0
+      return
+    }
+
+    let totalRating = 0
+    snapshot.forEach(doc => {
+      const data = doc.data()
+      totalRating += (data.rating || 0)
+    })
+
+    totalReviews.value = snapshot.size
+    avgRating.value = totalReviews.value > 0 ? totalRating / totalReviews.value : 0
+  } catch (e) {
+    console.warn('Failed to fetch rating for listing:', e)
+  }
+}
+
+onMounted(() => {
+  fetchRating()
+})
 </script>
 
 <template>
@@ -78,6 +116,18 @@ function onImgError() { imgErrored.value = true; emit('image-loaded', props.list
 
     <div class="card-body d-flex flex-column">
       <h6 class="card-title mb-1 text-truncate" :title="listing.businessName">{{ listing.businessName }}</h6>
+
+      <!-- Rating Display -->
+      <div v-if="totalReviews > 0" class="rating-display mb-2">
+        <div class="stars-small">
+          <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(avgRating) }">★</span>
+        </div>
+        <span class="rating-text">{{ avgRating.toFixed(1) }} ({{ totalReviews }})</span>
+      </div>
+      <div v-else class="rating-display mb-2">
+        <span class="text-muted small">No reviews yet</span>
+      </div>
+
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="fw-bold">
           <span v-if="firstPrice">S${{ firstPrice }}</span>
@@ -120,4 +170,31 @@ function onImgError() { imgErrored.value = true; emit('image-loaded', props.list
 .skeleton { position: absolute; inset: 0; background: linear-gradient(90deg,#eee 0%,#f5f5f5 20%,#eee 40%,#eee 100%); background-size:200% 100%; animation: shimmer 1.1s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
 .img-fallback { position:absolute; inset:0; background:#f0f2f5; color:#999; display:flex; justify-content:center; align-items:center; }
+
+/* Rating Display */
+.rating-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stars-small {
+  display: flex;
+  gap: 1px;
+}
+
+.stars-small .star {
+  color: #ddd;
+  font-size: 14px;
+}
+
+.stars-small .star.filled {
+  color: #ffc107;
+}
+
+.rating-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #666;
+}
 </style>

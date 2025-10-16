@@ -23,7 +23,20 @@ export default {
       photoError: '',
       menuItems: [{ name: '', price: '' }],
 
-      addrError: ''
+      addrError: '',
+
+      // Booking system
+      acceptsBookings: false,
+      bookingDuration: 60, // default 1 hour in minutes
+      availableSlots: {
+        mon: { enabled: false, start: '09:00', end: '17:00' },
+        tue: { enabled: false, start: '09:00', end: '17:00' },
+        wed: { enabled: false, start: '09:00', end: '17:00' },
+        thu: { enabled: false, start: '09:00', end: '17:00' },
+        fri: { enabled: false, start: '09:00', end: '17:00' },
+        sat: { enabled: false, start: '09:00', end: '17:00' },
+        sun: { enabled: false, start: '09:00', end: '17:00' }
+      }
     }
   },
 
@@ -239,7 +252,7 @@ const listingId = allListingsDocRef.id;
 const photoObjs = await this.uploadAllPhotos(user.uid, listingId);
 const photoUrls = photoObjs.map(p => p.url);
 
-// Prepare the final payload with photos
+// Prepare the final payload with photos and booking settings
 const payload = {
   businessName: this.businessName.trim(),
   businessDesc: this.businessDesc.trim(),
@@ -248,9 +261,9 @@ const payload = {
   listingId,
   location: {
     country: 'Singapore',
-    blk, 
-    street, 
-    postal, 
+    blk,
+    street,
+    postal,
     unit: unitFormatted
   },
   locationFormatted,
@@ -258,7 +271,11 @@ const payload = {
   photoUrls,
   menu,
   createdAt: serverTimestamp(),
-  viewCount: 0
+  viewCount: 0,
+  // Booking settings
+  acceptsBookings: this.acceptsBookings,
+  bookingDuration: this.bookingDuration,
+  availableSlots: this.availableSlots
 };
 
 // Now you can save the payload to the correct collections
@@ -286,6 +303,17 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
       this.photos.forEach(p=>p.url && URL.revokeObjectURL(p.url)); this.photos=[]
       this.photoError=''
       this.addrError=''
+      this.acceptsBookings = false
+      this.bookingDuration = 60
+      this.availableSlots = {
+        mon: { enabled: false, start: '09:00', end: '17:00' },
+        tue: { enabled: false, start: '09:00', end: '17:00' },
+        wed: { enabled: false, start: '09:00', end: '17:00' },
+        thu: { enabled: false, start: '09:00', end: '17:00' },
+        fri: { enabled: false, start: '09:00', end: '17:00' },
+        sat: { enabled: false, start: '09:00', end: '17:00' },
+        sun: { enabled: false, start: '09:00', end: '17:00' }
+      }
     }
   },
 
@@ -405,6 +433,62 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
                   </div>
                 </div>
                 <div class="text-muted small mb-3">Tip: upload at least 3 photos for a better listing.</div>
+              </div>
+
+              <!-- BOOKING SYSTEM -->
+              <div class="col-12">
+                <div class="booking-section card p-4 mb-3">
+                  <h5 class="mb-3">📅 Booking System (Optional)</h5>
+
+                  <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="acceptsBookings" v-model="acceptsBookings">
+                    <label class="form-check-label fw-semibold" for="acceptsBookings">
+                      Enable Booking System for this Service
+                    </label>
+                    <div class="text-muted small">Allow customers to book appointments in advance</div>
+                  </div>
+
+                  <div v-if="acceptsBookings" class="booking-settings">
+                    <!-- Booking Duration -->
+                    <div class="mb-3">
+                      <label class="form-label fw-semibold">Typical Session Duration</label>
+                      <select class="form-select" v-model.number="bookingDuration">
+                        <option :value="30">30 minutes</option>
+                        <option :value="60">1 hour</option>
+                        <option :value="90">1.5 hours</option>
+                        <option :value="120">2 hours</option>
+                        <option :value="180">3 hours</option>
+                      </select>
+                    </div>
+
+                    <!-- Available Days & Times -->
+                    <div class="mb-3">
+                      <label class="form-label fw-semibold">Available Days & Hours</label>
+                      <div class="days-grid">
+                        <div v-for="(day, key) in availableSlots" :key="key" class="day-row card p-3 mb-2">
+                          <div class="d-flex align-items-center gap-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" :id="`day-${key}`" v-model="day.enabled">
+                              <label class="form-check-label fw-semibold text-capitalize" :for="`day-${key}`">
+                                {{ key === 'mon' ? 'Monday' : key === 'tue' ? 'Tuesday' : key === 'wed' ? 'Wednesday' : key === 'thu' ? 'Thursday' : key === 'fri' ? 'Friday' : key === 'sat' ? 'Saturday' : 'Sunday' }}
+                              </label>
+                            </div>
+
+                            <div v-if="day.enabled" class="flex-grow-1 d-flex align-items-center gap-2">
+                              <input type="time" class="form-control form-control-sm" v-model="day.start">
+                              <span>to</span>
+                              <input type="time" class="form-control form-control-sm" v-model="day.end">
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="alert alert-info small">
+                      💡 Customers will be able to request bookings during these times. You can accept or reject each request.
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -577,6 +661,44 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 .form-select:focus {
   border-color: #a889ff;
   box-shadow: 0 0 0 .2rem rgba(168, 137, 255, .15);
+}
+
+/* Booking System Styles */
+.booking-section {
+  background: #f8f9fa;
+  border: 2px solid #e6e3f4;
+}
+
+.booking-section h5 {
+  color: #4b2aa6;
+  font-weight: 600;
+}
+
+.form-check-input:checked {
+  background-color: #7a5af8;
+  border-color: #7a5af8;
+}
+
+.form-switch .form-check-input {
+  width: 3em;
+  height: 1.5em;
+}
+
+.day-row {
+  background: white;
+  border: 1px solid #e6e3f4;
+  transition: all 0.2s ease;
+}
+
+.day-row:hover {
+  border-color: #a889ff;
+  box-shadow: 0 2px 8px rgba(122, 90, 248, 0.1);
+}
+
+.alert-info {
+  background-color: #e7f3ff;
+  border-color: #b3d9ff;
+  color: #004085;
 }
 
 </style>

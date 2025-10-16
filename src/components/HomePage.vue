@@ -23,8 +23,9 @@ const pageSize     = 12
 const lastDoc      = ref(null)
 const noMore       = ref(false)
 
-/* filters (multi-select categories) */
+/* filters (multi-select categories + search) */
 const selectedCats = ref([])
+const searchFilters = ref({ business: '', location: '' })
 
 /* likes: state + listeners */
 const likedSet     = ref(new Set())
@@ -105,10 +106,19 @@ function reloadForFilters() {
   fetchPage()
 }
 
-/* watch: whenever categories change, reload first page */
+/* watch: whenever categories or search changes, reload first page */
 watch(selectedCats, () => {
   reloadForFilters()
 }, { deep: true })
+
+watch(searchFilters, () => {
+  reloadForFilters()
+}, { deep: true })
+
+/* handle search from SearchBar component */
+function handleSearch(filters) {
+  searchFilters.value = filters
+}
 
 /* ---------- listings pagination ---------- */
 async function fetchPage () {
@@ -137,7 +147,24 @@ async function fetchPage () {
     }
 
     lastDoc.value = snap.docs[snap.docs.length - 1]
-    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    let rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+    // ----- Client-side filtering by search terms -----
+    const bizQuery = searchFilters.value.business.toLowerCase()
+    const locQuery = searchFilters.value.location.toLowerCase()
+
+    if (bizQuery || locQuery) {
+      rows = rows.filter(r => {
+        const name = (r.businessName || '').toLowerCase()
+        const desc = (r.businessDesc || '').toLowerCase()
+        const location = (r.locationFormatted || r.location?.street || '').toLowerCase()
+
+        const matchesBusiness = !bizQuery || name.includes(bizQuery) || desc.includes(bizQuery)
+        const matchesLocation = !locQuery || location.includes(locQuery)
+
+        return matchesBusiness && matchesLocation
+      })
+    }
 
     // ----- Batch reveal prep (for *new* rows only) -----
     currentBatchIds = rows.map(r => r.listingId || r.id)
@@ -311,7 +338,7 @@ onBeforeUnmount(() => {
     <NavBar />
 
     <div class="container py-3">
-      <SearchBar />
+      <SearchBar @search="handleSearch" />
       <div class="categories-row mt-3">
         <Categories :selected="selectedCats" @toggle="toggleCategory" />
       </div>

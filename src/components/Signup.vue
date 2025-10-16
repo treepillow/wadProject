@@ -44,6 +44,51 @@
             required
           />
 
+          <!-- OTP Verification Section -->
+          <div class="otp-container">
+            <!-- Send OTP Button -->
+            <button
+              v-if="!otpSent"
+              type="button"
+              class="btn-otp"
+              @click="sendOTP"
+              :disabled="sendingOTP || !signup.phone"
+            >
+              {{ sendingOTP ? 'Sending...' : 'Send OTP' }}
+            </button>
+
+            <!-- OTP Input and Verify Button -->
+            <div v-if="otpSent && !otpVerified" class="otp-verify-group">
+              <input
+                type="text"
+                placeholder="Enter 6-digit OTP"
+                v-model="enteredOTP"
+                maxlength="6"
+                class="otp-input"
+              />
+              <button
+                type="button"
+                class="btn-verify"
+                @click="verifyOTP"
+                :disabled="enteredOTP.length !== 6"
+              >
+                Verify
+              </button>
+              <button
+                type="button"
+                class="btn-resend"
+                @click="resendOTP"
+              >
+                Resend OTP
+              </button>
+            </div>
+
+            <!-- Verification Status -->
+            <div v-if="otpVerified" class="otp-verified">
+              <span class="checkmark">✓</span> Phone verified
+            </div>
+          </div>
+
           <!-- Address -->
           <div class="address-container">
             <label class="address-label">Address:</label>
@@ -201,6 +246,13 @@ export default {
       addrWarning: "",
       showScrollHint: false,
       notification: { show: false, message: "", type: "" }, // For Bootstrap toast notifications
+
+      // OTP verification
+      otpSent: false,
+      otpCode: '',
+      enteredOTP: '',
+      otpVerified: false,
+      sendingOTP: false,
     };
   },
   methods: {
@@ -232,6 +284,50 @@ export default {
     isValidSGPhone(phone) {
       const pattern = /^(?:\+65)?[89]\d{7}$/;
       return pattern.test(phone);
+    },
+
+    /* ---------- OTP Functions ---------- */
+    async sendOTP() {
+      if (!this.isValidSGPhone(this.signup.phone)) {
+        this.showNotification("Please enter a valid Singapore phone number first.", "danger");
+        return;
+      }
+
+      this.sendingOTP = true;
+
+      // Generate 6-digit OTP
+      this.otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // In a real app, you would send this via SMS API (Twilio, AWS SNS, etc.)
+      // For demo purposes, we'll show it in console and as a notification
+      console.log(`[OTP] Code for ${this.signup.phone}: ${this.otpCode}`);
+
+      // Simulate API call delay
+      setTimeout(() => {
+        this.otpSent = true;
+        this.sendingOTP = false;
+        this.showNotification(`OTP sent to ${this.signup.phone} (Check console for demo)`, "success");
+
+        // For demo: also show OTP in notification (remove in production!)
+        setTimeout(() => {
+          this.showNotification(`Demo OTP: ${this.otpCode}`, "info");
+        }, 1000);
+      }, 1500);
+    },
+
+    verifyOTP() {
+      if (this.enteredOTP === this.otpCode) {
+        this.otpVerified = true;
+        this.showNotification("Phone number verified successfully!", "success");
+      } else {
+        this.showNotification("Invalid OTP. Please try again.", "danger");
+      }
+    },
+
+    resendOTP() {
+      this.otpSent = false;
+      this.enteredOTP = '';
+      this.sendOTP();
     },
 
     /* ---------- Local normalizers ---------- */
@@ -410,7 +506,13 @@ export default {
       this.addrError = "";
       this.addrWarning = "";
 
-      // 0) Check if block is required (non-landed properties)
+      // 0) Check OTP verification
+      if (!this.otpVerified) {
+        this.showNotification("Please verify your phone number with OTP first.", "danger");
+        return;
+      }
+
+      // 0.5) Check if block is required (non-landed properties)
       if (!this.signup.isLanded && !this.signup.blk.trim()) {
         this.addrError = "Block number is required for HDB/Condo. Toggle 'Landed Property' if you live in a landed house.";
         this.showNotification(this.addrError, "danger");
@@ -726,6 +828,127 @@ input::placeholder { color: gray; opacity: 1; }
   to {
     transform: translateX(0);
     opacity: 1;
+  }
+}
+
+/* OTP Verification Styles */
+.otp-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.btn-otp {
+  padding: 12px 20px;
+  background: #4b2aa6;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-otp:hover:not(:disabled) {
+  background: #3d2287;
+  transform: scale(1.02);
+}
+
+.btn-otp:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.otp-verify-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.otp-input {
+  flex: 1;
+  min-width: 150px;
+  padding: 10px;
+  border: none;
+  border-bottom: 2px solid #4b2aa6 !important;
+  background: transparent;
+  color: black;
+  font-size: 16px;
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+.otp-input:focus {
+  outline: none;
+  border-bottom-color: #3d2287 !important;
+}
+
+.btn-verify {
+  padding: 10px 20px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-verify:hover:not(:disabled) {
+  background: #218838;
+  transform: scale(1.02);
+}
+
+.btn-verify:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-resend {
+  padding: 10px 20px;
+  background: transparent;
+  color: #4b2aa6;
+  border: 1px solid #4b2aa6;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-resend:hover {
+  background: #4b2aa6;
+  color: white;
+  transform: scale(1.02);
+}
+
+.otp-verified {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  background: #d4edda;
+  color: #155724;
+  border-radius: 20px;
+  font-weight: 600;
+  animation: fadeIn 0.5s ease;
+}
+
+.checkmark {
+  font-size: 20px;
+  font-weight: bold;
+  color: #28a745;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

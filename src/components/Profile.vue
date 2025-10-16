@@ -480,7 +480,7 @@ export default {
                   <span class="fw-semibold">{{ averageRating.toFixed(1) }}</span>
                   <span class="text-muted small">({{ totalReviews }} {{ totalReviews === 1 ? 'review' : 'reviews' }})</span>
                 </div>
-                <div v-else class="text-muted small mt-2">No reviews yet</div>
+                <div v-else class="text-muted small mt-2">No rating yet</div>
               </div>
             </div>
 

@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { db } from '@/firebase'
+import { db, auth } from '@/firebase'
 import {
   collection, query, where, limit as fsLimit, getDocs,
-  doc, updateDoc
+  doc, updateDoc, addDoc, serverTimestamp, getDoc, orderBy
 } from 'firebase/firestore'
 
 const props = defineProps({
@@ -233,6 +233,25 @@ function escapeHtml(s){
   return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))
 }
 
+function formatDate(timestamp) {
+  if (!timestamp) return ''
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+  const now = new Date()
+  const diff = now - date
+  const seconds = Math.floor(diff / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
+  const days = Math.floor(hours / 24)
+
+  if (days > 7) {
+    return date.toLocaleDateString('en-SG', { year: 'numeric', month: 'short', day: 'numeric' })
+  }
+  if (days > 0) return `${days}d ago`
+  if (hours > 0) return `${hours}h ago`
+  if (minutes > 0) return `${minutes}m ago`
+  return 'Just now'
+}
+
 /* Orchestration */
 async function refreshAll() {
   if (!props.open || !props.listing) return
@@ -274,6 +293,209 @@ onBeforeUnmount(() => {
   markers.forEach(m => m.setMap(null))
   markers = []
   map = null
+})
+
+/* ========== REVIEWS & RATING SYSTEM ========== */
+const reviews = ref([])
+const loadingReviews = ref(false)
+const avgRating = ref(0)
+const totalReviews = ref(0)
+
+// Review form state
+const userRating = ref(0)
+const userReviewText = ref('')
+const submittingReview = ref(false)
+const reviewError = ref('')
+const reviewSuccess = ref('')
+
+// Fetch reviews for current listing
+async function fetchReviews() {
+  if (!props.listing?.listingId && !props.listing?.id) {
+    reviews.value = []
+    avgRating.value = 0
+    totalReviews.value = 0
+    return
+  }
+
+  loadingReviews.value = true
+  reviewError.value = ''
+
+  try {
+    const listingId = props.listing.listingId || props.listing.id
+    console.log('[Reviews] Fetching reviews for listing:', listingId)
+    const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
+    const q = query(reviewsRef, orderBy('createdAt', 'desc'))
+    const snapshot = await getDocs(q)
+    console.log('[Reviews] Found', snapshot.size, 'reviews')
+
+    const reviewsList = []
+    let totalRating = 0
+
+    for (const docSnap of snapshot.docs) {
+      const reviewData = docSnap.data()
+
+      // Fetch reviewer info
+      let reviewerName = 'Anonymous'
+      let reviewerAvatar = ''
+
+      if (reviewData.userId) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', reviewData.userId))
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            reviewerName = userData.username || userData.displayName || 'Anonymous'
+            reviewerAvatar = userData.photoURL || userData.profilePicture || ''
+          }
+        } catch (e) {
+          console.warn('Could not fetch reviewer info:', e)
+        }
+      }
+
+      reviewsList.push({
+        id: docSnap.id,
+        ...reviewData,
+        reviewerName,
+        reviewerAvatar
+      })
+
+      totalRating += (reviewData.rating || 0)
+    }
+
+    reviews.value = reviewsList
+    totalReviews.value = reviewsList.length
+    avgRating.value = totalReviews.value > 0 ? totalRating / totalReviews.value : 0
+
+  } catch (e) {
+    console.error('Failed to fetch reviews:', e)
+    reviewError.value = 'Failed to load reviews.'
+  } finally {
+    loadingReviews.value = false
+  }
+}
+
+// Submit a new review
+async function submitReview() {
+  reviewError.value = ''
+  reviewSuccess.value = ''
+
+  const user = auth.currentUser
+  console.log('[Reviews] Current user:', user?.uid)
+
+  if (!user) {
+    reviewError.value = 'Please log in to leave a review.'
+    return
+  }
+
+  if (userRating.value === 0) {
+    reviewError.value = 'Please select a star rating.'
+    return
+  }
+
+  if (!userReviewText.value.trim()) {
+    reviewError.value = 'Please write a review.'
+    return
+  }
+
+  // Check if this is the user's own listing
+  const listingUserId = props.listing?.userId
+  console.log('[Reviews] Listing owner:', listingUserId, 'Current user:', user.uid)
+
+  if (listingUserId === user.uid) {
+    reviewError.value = 'You cannot review your own listing.'
+    return
+  }
+
+  submittingReview.value = true
+
+  try {
+    const listingId = props.listing.listingId || props.listing.id
+    console.log('[Reviews] Submitting review for listing:', listingId)
+    const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
+
+    await addDoc(reviewsRef, {
+      userId: user.uid,
+      rating: userRating.value,
+      reviewText: userReviewText.value.trim(),
+      createdAt: serverTimestamp()
+    })
+
+    console.log('[Reviews] Review submitted successfully')
+
+    // Update the seller's average rating
+    await updateSellerRating(listingUserId, userRating.value)
+
+    reviewSuccess.value = 'Review submitted successfully!'
+    userRating.value = 0
+    userReviewText.value = ''
+
+    // Refresh reviews
+    await fetchReviews()
+
+    setTimeout(() => {
+      reviewSuccess.value = ''
+    }, 3000)
+
+  } catch (e) {
+    console.error('Failed to submit review:', e)
+    reviewError.value = 'Failed to submit review. Please try again.'
+  } finally {
+    submittingReview.value = false
+  }
+}
+
+// Update seller's overall rating
+async function updateSellerRating(sellerId, newRating) {
+  if (!sellerId) return
+
+  try {
+    const sellerRef = doc(db, 'users', sellerId)
+    const sellerDoc = await getDoc(sellerRef)
+
+    if (sellerDoc.exists()) {
+      const data = sellerDoc.data()
+      const currentRating = data.averageRating || 0
+      const currentCount = data.totalReviews || 0
+
+      const newTotalReviews = currentCount + 1
+      const newAverageRating = ((currentRating * currentCount) + newRating) / newTotalReviews
+
+      await updateDoc(sellerRef, {
+        averageRating: newAverageRating,
+        totalReviews: newTotalReviews
+      })
+    } else {
+      // First review for this seller
+      await updateDoc(sellerRef, {
+        averageRating: newRating,
+        totalReviews: 1
+      })
+    }
+  } catch (e) {
+    console.warn('Could not update seller rating:', e)
+  }
+}
+
+// Watch for listing changes to fetch reviews
+watch(() => props.listing?.listingId || props.listing?.id, (newId) => {
+  if (newId && props.open) {
+    fetchReviews()
+  }
+}, { immediate: true })
+
+// Fetch reviews when drawer opens
+watch(() => props.open, (isOpen) => {
+  if (isOpen && props.listing) {
+    fetchReviews()
+  } else {
+    // Reset state when closing
+    reviews.value = []
+    avgRating.value = 0
+    totalReviews.value = 0
+    userRating.value = 0
+    userReviewText.value = ''
+    reviewError.value = ''
+    reviewSuccess.value = ''
+  }
 })
 </script>
 
@@ -385,13 +607,112 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Location -->
-          <div v-if="active?.locationFormatted || active?.location" class="mb-2">
+          <div v-if="active?.locationFormatted || active?.location" class="mb-3">
             <h6 class="section-title">Location</h6>
             <div class="small">
               {{ active.locationFormatted ||
                  `BLK ${active.location?.blk} ${active.location?.street} Singapore ${active.location?.postal} ${active.location?.unit || ''}` }}
             </div>
           </div>
+
+          <!-- REVIEWS & RATING SECTION -->
+          <div class="reviews-section mt-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <h6 class="section-title m-0">Reviews & Ratings</h6>
+              <div class="d-flex align-items-center gap-2">
+                <div class="stars-display">
+                  <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(avgRating) }">★</span>
+                </div>
+                <span class="fw-semibold">{{ avgRating.toFixed(1) }}</span>
+                <span class="text-muted small">({{ totalReviews }} {{ totalReviews === 1 ? 'review' : 'reviews' }})</span>
+              </div>
+            </div>
+
+            <!-- Write Review Form -->
+            <div class="review-form card mb-3">
+              <div class="card-body p-3">
+                <h6 class="mb-2">Write a Review</h6>
+
+                <!-- Star Rating Input -->
+                <div class="mb-2">
+                  <label class="form-label small mb-1">Your Rating:</label>
+                  <div class="stars-input">
+                    <span v-for="i in 5" :key="i"
+                          class="star"
+                          :class="{ filled: i <= userRating, hover: i <= userRating }"
+                          @click="userRating = i"
+                          @mouseenter="userRating = i">★</span>
+                  </div>
+                </div>
+
+                <!-- Review Text -->
+                <div class="mb-2">
+                  <label class="form-label small mb-1">Your Review:</label>
+                  <textarea
+                    v-model="userReviewText"
+                    class="form-control form-control-sm"
+                    rows="3"
+                    placeholder="Share your experience with this service..."
+                  ></textarea>
+                </div>
+
+                <!-- Alerts -->
+                <div v-if="reviewError" class="alert alert-danger alert-sm py-1 px-2 small mb-2">{{ reviewError }}</div>
+                <div v-if="reviewSuccess" class="alert alert-success alert-sm py-1 px-2 small mb-2">{{ reviewSuccess }}</div>
+
+                <!-- Submit Button -->
+                <button
+                  class="btn btn-primary btn-sm w-100"
+                  :disabled="submittingReview"
+                  @click="submitReview">
+                  <span v-if="!submittingReview">Submit Review</span>
+                  <span v-else>
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                    Submitting...
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Reviews List -->
+            <div class="reviews-list">
+              <div v-if="loadingReviews" class="text-center py-3">
+                <div class="spinner-border spinner-border-sm"></div>
+              </div>
+
+              <div v-else-if="reviews.length === 0" class="text-muted text-center py-3 small">
+                No reviews yet. Be the first to review!
+              </div>
+
+              <div v-else>
+                <div v-for="review in reviews" :key="review.id" class="review-item card mb-2">
+                  <div class="card-body p-3">
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                      <!-- Reviewer Avatar -->
+                      <div class="reviewer-avatar rounded-circle overflow-hidden">
+                        <img v-if="review.reviewerAvatar" :src="review.reviewerAvatar" class="w-100 h-100" style="object-fit:cover" alt="">
+                        <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary fw-bold small">
+                          {{ (review.reviewerName || 'A').charAt(0).toUpperCase() }}
+                        </div>
+                      </div>
+
+                      <div class="flex-grow-1">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                          <span class="fw-semibold small">{{ review.reviewerName }}</span>
+                          <div class="stars-display-small">
+                            <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= review.rating }">★</span>
+                          </div>
+                        </div>
+                        <p class="mb-1 small">{{ review.reviewText }}</p>
+                        <span class="text-muted xsmall">{{ formatDate(review.createdAt) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </section>
       </div>
     </aside>
@@ -443,4 +764,79 @@ onBeforeUnmount(() => {
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 .slide-enter-active, .slide-leave-active { transition: transform .22s ease; }
 .slide-enter-from, .slide-leave-to { transform: translateX(100%); }
+
+/* Reviews & Rating Styles */
+.reviews-section { border-top: 2px solid #e9ecef; padding-top: 20px; }
+
+.stars-display .star,
+.stars-display-small .star,
+.stars-input .star {
+  color: #ddd;
+  font-size: 20px;
+  transition: color 0.2s ease;
+}
+
+.stars-display-small .star { font-size: 14px; }
+
+.stars-display .star.filled,
+.stars-display-small .star.filled {
+  color: #ffc107;
+}
+
+.stars-input {
+  display: flex;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.stars-input .star {
+  font-size: 28px;
+  transition: all 0.2s ease;
+}
+
+.stars-input .star:hover,
+.stars-input .star.hover {
+  color: #ffc107;
+  transform: scale(1.1);
+}
+
+.stars-input .star.filled {
+  color: #ffc107;
+}
+
+.review-form {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+}
+
+.review-form .card-body h6 {
+  color: #495057;
+  font-size: 0.95rem;
+}
+
+.review-item {
+  border: 1px solid #e9ecef;
+  transition: box-shadow 0.2s ease;
+}
+
+.review-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.reviewer-avatar {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e9ecef;
+  flex-shrink: 0;
+}
+
+.reviews-list {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.alert-sm {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
 </style>

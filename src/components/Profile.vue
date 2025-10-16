@@ -47,6 +47,8 @@ export default {
     const phone       = ref('')
     const dateOfBirth = ref('')   // ISO for <input type="date">
     const address     = ref('')
+    const averageRating = ref(0)
+    const totalReviews = ref(0)
 
     const displayName = computed(() => {
       const f = (firstName.value || '').trim()
@@ -223,6 +225,13 @@ export default {
           dateOfBirth.value = d.dateOfBirth || ''
           address.value   = d.address || ''
           avatarUrl.value = d.photoURL || u.photoURL || ''
+          averageRating.value = d.averageRating || 0
+          totalReviews.value = d.totalReviews || 0
+
+          console.log('[Profile] User rating data:', {
+            averageRating: averageRating.value,
+            totalReviews: totalReviews.value
+          })
         } else {
           email.value   = u.email || ''
           avatarUrl.value = u.photoURL || ''
@@ -409,6 +418,7 @@ export default {
       loading, saving, err, ok,
       avatarUrl, onPickAvatar,
       firstName, lastName, username, email, phone, dateOfBirth, address, displayName,
+      averageRating, totalReviews,
       saveProfile,
       /* lists + likes + profiles */
       myListings, myLoading, likedListings, likedLoading,
@@ -461,6 +471,16 @@ export default {
               <div class="flex-grow-1">
                 <h3 class="m-0">{{ displayName }}</h3>
                 <div class="text-muted">{{ email || '—' }}</div>
+
+                <!-- Rating Display -->
+                <div v-if="totalReviews > 0" class="d-flex align-items-center gap-2 mt-2">
+                  <div class="stars-display">
+                    <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(averageRating) }">★</span>
+                  </div>
+                  <span class="fw-semibold">{{ averageRating.toFixed(1) }}</span>
+                  <span class="text-muted small">({{ totalReviews }} {{ totalReviews === 1 ? 'review' : 'reviews' }})</span>
+                </div>
+                <div v-else class="text-muted small mt-2">No reviews yet</div>
               </div>
             </div>
 
@@ -578,4 +598,20 @@ export default {
 .form-control:focus { border-color: #a889ff; box-shadow: 0 0 0 .2rem rgba(168,137,255,.15); }
 .btn-primary { background: #7a5af8; border-color: #7a5af8; }
 .btn-primary:hover { background: #6948f2; border-color: #6948f2; }
+
+/* Star Rating Display */
+.stars-display {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.stars-display .star {
+  color: #ddd;
+  font-size: 18px;
+  transition: color 0.2s ease;
+}
+
+.stars-display .star.filled {
+  color: #ffc107;
+}
 </style>

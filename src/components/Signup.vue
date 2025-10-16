@@ -82,11 +82,11 @@
           <img :src="signup.profilePreview" alt="Full Image Preview"/>
         </div>
 
-        <!-- Scroll indicator -->
-        <!-- <div class="scroll-indicator">
+        <!-- Scroll hint -->
+        <div class="scroll-hint" v-show="showScrollHint">
           <i class="fa fa-chevron-down"></i>
           <span>Scroll for more</span>
-        </div> -->
+        </div>
       </div>
     </div>
   </AuthLayout>
@@ -126,7 +126,16 @@ export default {
         ],
         years: Array.from({ length: 100 }, (_, i) => currentYear - i), // last 100 years
         showPassword: false,
+        showScrollHint: true,
     }; 
+  },
+  mounted() {
+    const card = this.$el.querySelector('.signup-card');
+    card.addEventListener('scroll', this.handleScroll);
+  },
+  beforeUnmount() {
+    const card = this.$el.querySelector('.signup-card');
+    card.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
     togglePassword() {
@@ -215,7 +224,11 @@ export default {
         this.$router.push("/login");
       } catch (err) { alert(`❌ Signup failed: ${err.message}`); }
     },
-    goToLogin() { this.$router.push("/login"); }
+    goToLogin() { this.$router.push("/login"); },
+    handleScroll(e) {
+      const el = e.target;
+      this.showScrollHint = el.scrollTop < 30; // hide once scrolled
+    },
   }
 };
 </script>
@@ -254,25 +267,31 @@ body {
   padding-bottom: 40px; 
   /* max-height: none;
   overflow: visible; */
+
+  /* hide scrollbar visually but keep scroll */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }
 
+.signup-card::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
 
-.scroll-indicator {
+.scroll-hint {
   position: sticky;
-  bottom: 10px; /* 10px from bottom of card */
-  /* left: 50%; */
-  transform: translateX(-50%);
+  bottom: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: #442569; /* visible */
-  font-size: 0.8rem;
-  text-align: center;
+  color: #888;
+  font-size: 0.85rem;
+  opacity: 0.9;
+  animation: fadeUp 2s ease-in-out infinite;
   pointer-events: none;
 }
 
-.scroll-indicator i {
-  font-size: 1.2rem;
+.scroll-hint i {
+  font-size: 1rem;
   margin-bottom: 3px;
   animation: bounce 1.5s infinite;
 }
@@ -282,6 +301,10 @@ body {
   50% { transform: translateY(5px); }
 }
 
+@keyframes fadeUp {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0.4; }
+}
 
 
 .signup-card h2 {

@@ -30,7 +30,8 @@
           <!-- Date of Birth Dropdowns -->
           <div class="dob-container">
             <label style="color: #000; font-weight: 500; margin-bottom: 5px;">Date of Birth:</label>
-            <div style="display: flex; gap: 10px;">
+            <input type="date" v-model="signup.dateOfBirth" required />
+            <!-- <div style="display: flex; gap: 10px;">
 
               <select v-model="signup.day" required>
                 <option disabled value="">Day</option>
@@ -46,11 +47,11 @@
                 <option disabled value="">Year</option>
                 <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
               </select>
-            </div>
+            </div> -->
           </div>
 
           <!-- Phone Number -->
-          <input type="text" placeholder="Phone Number (+65 XXXXXXXX)" v-model="signup.phone" required />
+          <input type="text" placeholder="Phone Number (include +65, e.g. +65 XXXXXXXX)" v-model="signup.phone" required />
           <!-- Address -->
           <input type="text" placeholder="Address" v-model="signup.address" required />
 
@@ -169,6 +170,12 @@ export default {
       // const validEmailPattern = /^[\w.+-]+@(gmail|yahoo|hotmail|outlook)\.[a-z.]{2,}$/i;
       const validEmailPattern = /^[\w.+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/i;
 
+      // don't allow spaces in username
+      if (/\s/.test(this.signup.username)) {
+          alert("❌ Username cannot contain spaces. Please choose a username without spaces.");
+          return;
+        }
+
       if (!validEmailPattern.test(this.signup.email)) {
         alert("❌ Please use a valid email (Gmail, Yahoo, Hotmail, or Outlook only).");
         return;
@@ -195,7 +202,9 @@ export default {
           email: this.signup.email,
           firstName: this.signup.firstName,
           lastName: this.signup.lastName,
-          dateOfBirth: `${this.signup.day} ${this.signup.month} ${this.signup.year}`,
+          // dateOfBirth: `${this.signup.day} ${this.signup.month} ${this.signup.year}`,
+          // dateOfBirth: `${this.signup.year}-${String(this.months.indexOf(this.signup.month) + 1).padStart(2, '0')}-${String(this.signup.day).padStart(2, '0')}`,
+          dateOfBirth: this.signup.dateOfBirth,
           phone: this.signup.phone,
           address: this.signup.address,
           profilePicture: this.signup.profilePreview || null,

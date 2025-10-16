@@ -4,11 +4,10 @@
       <div class="signup-card">
         <img src="@/assets/homes_logo.png" alt="Homes Logo" class="logo" />
         <h2>Sign Up</h2>
-
-        <button type="button" @click="handleGoogleSignup" class="signup-btn google-btn">
-          Sign up with Google?
+        <button type="button" @click="handleGoogleSignup" class="google-btn">
+          <img src="@/assets/google-logo.png" alt="Google Logo" class="google-icon" />
+          <span>Sign up with Google</span>
         </button>
-
         <form @submit.prevent="handleSignup">
           <!-- Username / Email -->
           <input type="text" placeholder="Username" v-model="signup.username" required />
@@ -576,74 +575,106 @@ button.signup-btn:hover { transform: scale(1.05); }
 .image-modal {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background-color: rgba(0,0,0,0.8);
-  display: flex; justify-content: center; align-items: center;
-  cursor: zoom-out; z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: zoom-out;
+  z-index: 1000;
 }
-.image-modal img { max-width: 90%; max-height: 90%; border-radius: 10px; }
 
-.toggle-link { cursor: pointer; color: black; text-decoration: underline; font-size: .9rem; }
+.image-modal img {
+  max-width: 90%;
+  max-height: 90%;
+  border-radius: 10px;
+}
 
-input { padding: 10px; border: none; outline: none; border-bottom: 2px solid black; background: transparent; color: black; }
+.toggle-link {
+  cursor: pointer;
+  color: black;
+  text-decoration: underline;
+  font-size: 0.9rem;
+}
+
+
+input {
+  padding: 10px; border: none; outline: none; border-bottom: 2px solid black;
+  background: transparent; color: black;
+}
 input::placeholder { color: gray; opacity: 1; }
 
-.login-link { bottom: 10px; text-align: center; }
+.login-link {
+  /* position: sticky; */
+  bottom: 10px;
+  text-align: center;
+}
 
-.logo { width: 80px; margin-bottom: 20px; }
+.dob-container select {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  background-color: rgb(245, 239, 239);
+  color: black;              /* text color */
+}
+
+.custom-file-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 15px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+  background-color: rgb(245, 239, 239);
+  color: black;       
+  transition: background 0.2s;
+}
+
+.logo {
+  width: 80px;
+  margin-bottom: 20px;
+}
 
 .address-container input {
-  display: block; width: 100%; margin-bottom: 10px; padding: 10px;
-  border-bottom: 2px solid black; background: transparent; color: black;
-}
-.address-label { font-weight: 500; color: #000; text-align: left; width: 100%; margin-bottom: 5px; }
-
-/* Property Type Toggle */
-.property-type-toggle {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
+  display: block;
   width: 100%;
-}
-.toggle-btn {
-  flex: 1;
-  padding: 10px 15px;
-  border: 2px solid #ddd;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-bottom: 2px solid black;
   background: transparent;
-  color: #666;
-  border-radius: 10px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-.toggle-btn:hover {
-  border-color: #999;
-  background: rgba(0, 0, 0, 0.02);
-}
-.toggle-btn.active {
-  border-color: #000;
-  background: rgb(245, 239, 239);
-  color: #000;
-  font-weight: 600;
+  color: black;
 }
 
-/* Toast Notification */
-.toast {
-  min-width: 250px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  animation: slideIn 0.3s ease-out;
-}
-.toast-body {
-  padding: 15px;
+.address-label {
   font-weight: 500;
+  color: #000;
+  text-align: left; /* left-align the text */
+  width: 100%;
+  margin-bottom: 5px;
 }
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: white;
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  width: 100%;
+  font-weight: 600;
+  margin-bottom: 15px;
+  transition: background 0.2s;
+}
+
+.google-btn:hover {
+  background-color: #f7f7f7;
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 </style>

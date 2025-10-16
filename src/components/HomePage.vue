@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount, watch } from 'vue'
 import {
-  collection, query, orderBy, limit, getDocs, startAfter,
+  getFirestore, collection, query, orderBy, limit, getDoc, getDocs, startAfter,
   doc, setDoc, updateDoc, increment, deleteDoc, onSnapshot, where,
   getCountFromServer
 } from 'firebase/firestore'
@@ -248,16 +248,32 @@ function closeDrawer() {
 }
 
 async function incrementViewCount(listingId) {
+  const db = getFirestore();
   try {
     // Reference to the document in 'allListings' collection
     const listingDocRef = doc(db, 'allListings', listingId);
     
-    // Increment the 'viewCount' field
-    await updateDoc(listingDocRef, {
-      viewCount: increment(1)  // This will increment the view count by 1
-    });
+    // Get the current document to check if viewCount exists
+    const docSnap = await getDoc(listingDocRef);
 
-    console.log("View count incremented successfully.");
+    if (docSnap.exists()) {
+      const listingData = docSnap.data();
+      if (listingData.viewCount === undefined) {
+        // If viewCount doesn't exist, set it to 0 first
+        await updateDoc(listingDocRef, {
+          viewCount: 0
+        });
+      }
+
+      // Increment the 'viewCount' field
+      await updateDoc(listingDocRef, {
+        viewCount: increment(1)  // This will increment the view count by 1
+      });
+
+      console.log("View count incremented successfully.");
+    } else {
+      console.log("Listing document does not exist.");
+    }
   } catch (error) {
     console.error("Error incrementing view count: ", error);
   }

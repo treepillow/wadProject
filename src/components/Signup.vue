@@ -4,7 +4,10 @@
       <div class="signup-card">
         <img src="@/assets/homes_logo.png" alt="Homes Logo" class="logo" />
         <h2>Sign Up</h2>
-        <button type="button" @click="handleGoogleSignup" class="signup-btn google-btn">Sign up with Google?</button>
+        <button type="button" @click="handleGoogleSignup" class="google-btn">
+          <img src="@/assets/google-logo.png" alt="Google Logo" class="google-icon" />
+          <span>Sign up with Google</span>
+        </button>
         <form @submit.prevent="handleSignup">
           
           <input type="text" placeholder="Username" v-model="signup.username" required />
@@ -600,5 +603,30 @@ input::placeholder { color: gray; opacity: 1; }
   text-align: left; /* left-align the text */
   width: 100%;
   margin-bottom: 5px;
+}
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: white;
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  width: 100%;
+  font-weight: 600;
+  margin-bottom: 15px;
+  transition: background 0.2s;
+}
+
+.google-btn:hover {
+  background-color: #f7f7f7;
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 </style>

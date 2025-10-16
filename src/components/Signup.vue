@@ -260,7 +260,7 @@ body {
   box-shadow: 0 4px 20px rgba(0,0,0,0.2);
   text-align: center;
   position: relative;
-  margin-top: 50px;
+  margin-top: 37px;
 
   max-height: 90vh;
   overflow-y: auto;

@@ -1,81 +1,78 @@
 <template>
   <AuthLayout :isSignup="false">
-    <div class="form-container forgot-form">
-      <h2>Forgot Password</h2>
+    <div class="login-wrapper">
+      <div class="login-card">
+        <img src="@/assets/homes_logo.png" alt="Homes Logo" class="logo" />
+        <h2>Forgot Password</h2>
 
-      <!-- STEP 1: Enter Email -->
-      <form v-if="step === 1" @submit.prevent="sendOTP">
-        <input type="email" placeholder="Email" v-model="email" required />
-        <button type="submit" :disabled="loading">
-          {{ loading ? 'Sending...' : 'Send OTP' }}
-        </button>
-        <p class="info-text">
-          If the email address is valid, a one-time password (OTP) will be sent to the email.
-        </p>
-        <p>
-          <span class="toggle-link" @click="$router.push('/login')">
-            Back to Login
-          </span>
-        </p>
-      </form>
+        <!-- STEP 1: Enter Email -->
+        <form v-if="step === 1" @submit.prevent="sendOTP">
+          <input type="email" placeholder="Email" v-model="email" required />
+          <button type="submit" :disabled="loading">
+            {{ loading ? 'Sending...' : 'Send OTP' }}
+          </button>
+          <!-- Optional info text can stay below the button -->
+          <p class="info-text">
+            If the email address is valid, a one-time password (OTP) will be sent to the email.
+          </p>
+          <p>
+            <span class="toggle-link" @click="$router.push('/login')">Back to Login</span>
+          </p>
+        </form>
 
-      <!-- STEP 2: OTP Verification -->
-      <form v-else-if="step === 2" @submit.prevent="verifyOTP">
-        <input type="text" placeholder="Enter OTP" v-model="otpInput" required />
-        <button type="submit" :disabled="loading">
-          {{ loading ? 'Verifying...' : 'Verify OTP' }}
-        </button>
-        <p class="info-text">
-          Please enter the 6-digit code sent to your email.
-        </p>
-        <p>
-          <span class="toggle-link" @click="retry">Didn’t receive it? Retry</span>
-        </p>
-        <p>
-          <span class="toggle-link" @click="$router.push('/login')">
-            Back to Login
-          </span>
-        
-        </p>
-      </form>
+        <!-- STEP 2: OTP Verification -->
+        <form v-else-if="step === 2" @submit.prevent="verifyOTP">
+          <input type="text" placeholder="Enter OTP" v-model="otpInput" required />
+          <button type="submit" :disabled="loading">
+            {{ loading ? 'Verifying...' : 'Verify OTP' }}
+          </button>
+          <p class="info-text">Please enter the 6-digit code sent to your email.</p>
+          <p>
+            <span class="toggle-link" @click="retry">Didn’t receive it? Retry</span>
+          </p>
+          <p>
+            <span class="toggle-link" @click="$router.push('/login')">Back to Login</span>
+          </p>
+        </form>
 
-      <!-- STEP 3: New Password -->
-      <form v-else-if="step === 3" @submit.prevent="resetPassword">
-        <div class="password-container">
-          <input
-            :type="showPassword ? 'text' : 'password'"
-            placeholder="New Password"
-            v-model="password"
-            required
-          />
-          <span class="toggle-password" @click="togglePassword">
-            <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
-          </span>
+        <!-- STEP 3: New Password -->
+        <form v-else-if="step === 3" @submit.prevent="resetPassword">
+          <div class="password-container">
+            <input
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="New Password"
+              v-model="password"
+              required
+            />
+            <span class="toggle-password" @click="togglePassword">
+              <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
+            </span>
+          </div>
+
+          <div class="password-container">
+            <input
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="Confirm New Password"
+              v-model="passwordConfirm"
+              required
+            />
+          </div>
+
+          <p class="info-text">
+            Password must be at least 8 characters, including letters and numbers.
+          </p>
+
+          <button type="submit" :disabled="loading">
+            {{ loading ? 'Saving...' : 'Reset Password' }}
+          </button>
+        </form>
+
+        <!-- STEP 4: Success -->
+        <div v-else-if="step === 4" class="success-message">
+          <h3>✅ Password Reset Successful</h3>
+          <p>You can now log in with your new password.</p>
+          <button @click="$router.push('/login')">Go to Login</button>
         </div>
-
-        <div class="password-container">
-          <input
-            :type="showPassword ? 'text' : 'password'"
-            placeholder="Confirm New Password"
-            v-model="passwordConfirm"
-            required
-          />
-        </div>
-
-        <p class="info-text">
-          Password must be at least 8 characters, including letters and numbers.
-        </p>
-
-        <button type="submit" :disabled="loading">
-          {{ loading ? 'Saving...' : 'Reset Password' }}
-        </button>
-      </form>
-
-      <!-- STEP 4: Success -->
-      <div v-else-if="step === 4" class="success-message">
-        <h3>✅ Password Reset Successful</h3>
-        <p>You can now log in with your new password.</p>
-        <button @click="$router.push('/login')">Go to Login</button>
       </div>
     </div>
   </AuthLayout>
@@ -188,92 +185,70 @@ export default {
 </script>
 
 <style scoped>
-.containers {
-  margin: 0;
-  inset: 0;
-  padding: 0;
-  height: 100vh;
-  background: rgba(165, 100, 179, 0.792);
-  overflow: hidden;
-  display: flex;
-  transition: transform 1s ease-in-out;
-}
-
-.forms-wrapper {
-  position: relative;
-  width: 50%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.form-container {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(15px);
-  padding: 60px 40px;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  transition: all 0.8s ease-in-out;
-}
-
-.form-container h2 {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
 form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px; 
+}
+
+h2 {
+  margin-bottom: 30px;
+}
+.login-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: rgb(245, 239, 239);
+}
+
+.login-card {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  width: 500px;
+  text-align: center;
+}
+/* 
+.login-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 30px rgba(0,0,0,0.25);
+  transition: all 0.3s ease;
+} */
+
+.logo {
+  width: 80px;
+  margin-bottom: 20px;
 }
 
 input {
   padding: 10px;
   border: none;
   outline: none;
-  border-bottom: 2px solid #fff;
+  border-bottom: 2px solid black;
   background: transparent;
-  color: #fff;
+  color: black;
 }
 
 input::placeholder {
-  color: rgba(255, 255, 255, 0.7);
+  color: gray;
   opacity: 1;
 }
 
 button {
-  background: linear-gradient(0deg, #aa67d1, #442569);
+  background-color: rgb(245, 239, 239);
   border: none;
-  padding: 10px;
+  padding: 10px 0;
   border-radius: 20px;
-  color: #fff;
+  color: black;
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s;
 }
+
 button:hover {
   transform: scale(1.05);
-}
-
-p {
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-.toggle-link {
-  cursor: pointer;
-  text-decoration: underline;
-  color: #fff;
-}
-
-.info-text {
-  font-size: 0.85rem;
-  text-align: center;
-  opacity: 0.8;
 }
 
 .password-container {
@@ -292,12 +267,25 @@ p {
   top: 50%;
   transform: translateY(-50%);
   cursor: pointer;
-  color: #fff;
+  color: black;
   font-size: 1.1rem;
 }
 
 .toggle-password:hover {
   opacity: 0.8;
+}
+
+.toggle-link {
+  cursor: pointer;
+  text-decoration: underline;
+  color: black;
+}
+
+.info-text {
+  font-size: 0.85rem;
+  text-align: center;
+  opacity: 0.8;
+  margin-top: 5px;
 }
 
 .success-message {

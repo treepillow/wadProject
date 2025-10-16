@@ -677,4 +677,55 @@ input::placeholder { color: gray; opacity: 1; }
   height: 20px;
   object-fit: contain;
 }
+
+/* Property Type Toggle */
+.property-type-toggle {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  width: 100%;
+}
+.toggle-btn {
+  flex: 1;
+  padding: 10px 15px;
+  border: none;
+  background: rgb(245, 239, 239);
+  color: black;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0.4;
+}
+.toggle-btn:hover {
+  transform: scale(1.02);
+  opacity: 0.6;
+}
+.toggle-btn.active {
+  opacity: 1;
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Toast Notification */
+.toast {
+  min-width: 250px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.3s ease-out;
+}
+.toast-body {
+  padding: 15px;
+  font-weight: 500;
+}
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
 </style>

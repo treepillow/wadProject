@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, onBeforeUnmount, watch } from 'vue'
 import {
   collection, query, orderBy, limit, getDocs, startAfter,
-  doc, setDoc, deleteDoc, onSnapshot, where,
+  doc, setDoc, updateDoc, increment, deleteDoc, onSnapshot, where,
   getCountFromServer
 } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -247,10 +247,40 @@ function closeDrawer() {
   drawerListing.value = null
 }
 
+async function incrementViewCount(listingId) {
+  try {
+    // Reference to the document in 'allListings' collection
+    const listingDocRef = doc(db, 'allListings', listingId);
+    
+    // Increment the 'viewCount' field
+    await updateDoc(listingDocRef, {
+      viewCount: increment(1)  // This will increment the view count by 1
+    });
+
+    console.log("View count incremented successfully.");
+  } catch (error) {
+    console.error("Error incrementing view count: ", error);
+  }
+}
+
+async function handleListingClick(listingId) {
+      try {
+        // Increment view count when the listing is clicked
+        await this.incrementViewCount(listingId);
+      } catch (error) {
+        console.error('Error handling listing click:', error);
+      }
+    }
+  
+
 /* ---------- lifecycle ---------- */
 onMounted(() => {
   fetchPage()
   unsubAuth = onAuthStateChanged(auth, user => startLikesListener(user))
+  const listingId = drawerListing.value?.listingId;  // Or use the relevant listing ID from context
+  if (listingId) {
+    onViewListing({ id: listingId });  // Call this function to increment the view count
+  }
 })
 onBeforeUnmount(() => {
   if (unsubLikes) unsubLikes()
@@ -298,7 +328,8 @@ onBeforeUnmount(() => {
                 :reveal="revealedIds.has(l.listingId || l.id)"
                 @toggle-like="onToggleLike"
                 @image-loaded="() => handleImageLoaded(l.listingId || l.id)"
-                @open="openDrawer(l)"  
+                @open="openDrawer(l)" 
+                @click="handleListingClick(l.listingId || l.id)" 
               />
             </div>
           </div>

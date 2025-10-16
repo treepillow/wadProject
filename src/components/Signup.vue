@@ -141,54 +141,54 @@ export default {
       return pattern.test(phone);
     },
 
-    // async validateAddress(address) {
-    //   try {
-    //     const response = await fetch(
-    //       `https://developers.onemap.sg/commonapi/search?searchVal=${encodeURIComponent(address)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`
-    //     );
-    //     const data = await response.json();
-    //     // address is valid if Onemap returns at least one result
-    //     return data.results && data.results.length > 0;
-    //   } catch (err) {
-    //     console.error("Address validation failed:", err);
-    //     return false;
-    //   }
-    // },
+    async validateAddress(address) {
+      try {
+        const response = await fetch(
+          `https://developers.onemap.sg/commonapi/search?searchVal=${encodeURIComponent(address)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`
+        );
+        const data = await response.json();
+        // address is valid if Onemap returns at least one result
+        return data.results && data.results.length > 0;
+      } catch (err) {
+        console.error("Address validation failed:", err);
+        return false;
+      }
+    },
 
     
-  //   async validateAddress(query) {
-  //   try {
-  //     // Try main API first
-  //     const formatted = `${query} Singapore`;
-  //     let response = await fetch(
-  //       `https://www.onemap.gov.sg/api/commonapi/search?searchVal=${encodeURIComponent(formatted)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`
-  //     );
-  //     let data = await response.json();
+    async validateAddress(query) {
+    try {
+      // Try main API first
+      const formatted = `${query} Singapore`;
+      let response = await fetch(
+        `https://www.onemap.gov.sg/api/commonapi/search?searchVal=${encodeURIComponent(formatted)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`
+      );
+      let data = await response.json();
 
-  //     // fallback to fuzzy /elastic endpoint if no result
-  //     if (!data.results || data.results.length === 0) {
-  //       const fuzzyResponse = await fetch(
-  //         `https://www.onemap.gov.sg/api/commonapi/elastic/search?searchVal=${encodeURIComponent(query)}`
-  //       );
-  //       const fuzzyData = await fuzzyResponse.json();
-  //       data.results = fuzzyData.results || [];
-  //     }
+      // fallback to fuzzy /elastic endpoint if no result
+      if (!data.results || data.results.length === 0) {
+        const fuzzyResponse = await fetch(
+          `https://www.onemap.gov.sg/api/commonapi/elastic/search?searchVal=${encodeURIComponent(query)}`
+        );
+        const fuzzyData = await fuzzyResponse.json();
+        data.results = fuzzyData.results || [];
+      }
 
-  //     // last fallback: retry with postal code keywords
-  //     if (data.results.length === 0) {
-  //       const retry = `${query}, Singapore 188065`;
-  //       response = await fetch(
-  //         `https://www.onemap.gov.sg/api/commonapi/search?searchVal=${encodeURIComponent(retry)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`
-  //       );
-  //       data = await response.json();
-  //     }
+      // last fallback: retry with postal code keywords
+      if (data.results.length === 0) {
+        const retry = `${query}, Singapore 188065`;
+        response = await fetch(
+          `https://www.onemap.gov.sg/api/commonapi/search?searchVal=${encodeURIComponent(retry)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`
+        );
+        data = await response.json();
+      }
 
-  //     return data.results && data.results.length > 0;
-  //   } catch (err) {
-  //     console.error("Address validation failed:", err);
-  //     return false;
-  //   }
-  // },
+      return data.results && data.results.length > 0;
+    } catch (err) {
+      console.error("Address validation failed:", err);
+      return false;
+    }
+  },
     normalizeStr(s){ return (s||'').toString().trim().toUpperCase().replace(/\s+/g,' ').replace(/[.,']/g,'') },
     expandAbbrev(road){
       const A=[[' AVE ',' AVENUE '],[' RD ',' ROAD '],[' ST ',' STREET '],[' DR ',' DRIVE '],

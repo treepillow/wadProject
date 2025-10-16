@@ -213,28 +213,58 @@ export default {
           .filter(m=>(m.name||'').trim())
           .map(m=>({name:m.name.trim(), price:(m.price||'').trim()}))
 
-        const allListingsDocRef = doc(collection(db,'allListings'))
-        const listingId = allListingsDocRef.id
+        // Add document to 'allListings' and get reference
+const allListingsDocRef = await addDoc(collection(db, 'allListings'), {
+  businessName: this.businessName.trim(),
+  businessDesc: this.businessDesc.trim(),
+  businessCategory: this.businessCategory.trim(),
+  userId: user.uid,
+  location: {
+    country: 'Singapore',
+    blk, 
+    street,
+    postal,
+    unit: unitFormatted
+  },
+  locationFormatted,
+  menu,
+  createdAt: serverTimestamp(),
+  viewCount: 0
+});
 
-        const photoObjs = await this.uploadAllPhotos(user.uid, listingId)
-        const photoUrls = photoObjs.map(p=>p.url)
+// Get the listing ID
+const listingId = allListingsDocRef.id;
 
-        const payload = {
-          businessName:this.businessName.trim(),
-          businessDesc:this.businessDesc.trim(),
-          businessCategory:this.businessCategory.trim(),
-          userId:user.uid,
-          listingId,
-          location:{ country:'Singapore', blk, street, postal, unit:unitFormatted },
-          locationFormatted,
-          photos:photoObjs,
-          photoUrls,
-          menu,
-          createdAt: serverTimestamp()
-        }
+// Upload the photos and get the URLs
+const photoObjs = await this.uploadAllPhotos(user.uid, listingId);
+const photoUrls = photoObjs.map(p => p.url);
 
-        await setDoc(allListingsDocRef, payload)
-        await addDoc(collection(doc(db,'users',user.uid),'myListings'), payload)
+// Prepare the final payload with photos
+const payload = {
+  businessName: this.businessName.trim(),
+  businessDesc: this.businessDesc.trim(),
+  businessCategory: this.businessCategory.trim(),
+  userId: user.uid,
+  listingId,
+  location: {
+    country: 'Singapore',
+    blk, 
+    street, 
+    postal, 
+    unit: unitFormatted
+  },
+  locationFormatted,
+  photos: photoObjs,
+  photoUrls,
+  menu,
+  createdAt: serverTimestamp(),
+  viewCount: 0
+};
+
+// Now you can save the payload to the correct collections
+await setDoc(allListingsDocRef, payload);
+await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
+
 
         alert('Listing Added Successfully!')
         this.clearForm()
@@ -330,10 +360,10 @@ export default {
                   </div>
                   <div class="menu-list d-flex flex-column gap-2">
                     <div class="row g-2" v-for="(m, i) in menuItems" :key="i">
-                      <div class="col-8">
+                      <div class="col-6">
                         <input class="form-control" :placeholder="itemNamePlaceholder" v-model.trim="m.name" />
                       </div>
-                      <div class="col-3">
+                      <div class="col">
                         <div class="input-group">
                           <span class="input-group-text">$</span>
                           <input class="form-control" :placeholder="pricePlaceholder" v-model.trim="m.price" />

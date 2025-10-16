@@ -177,6 +177,13 @@ onBeforeUnmount(() => {
   box-shadow: 0 8px 22px rgba(0,0,0,.12);
   opacity: 0;            /* start hidden */
   transform: translateY(10px);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+  cursor: pointer;
+}
+.about-grid img:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  filter: brightness(0.92);
 }
 
 /* Simple fade-in on scroll (once) */
@@ -215,9 +222,21 @@ onBeforeUnmount(() => {
   opacity: 0;
   transform: translateY(12px);
   transition: opacity .5s ease-out, transform .5s ease-out;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  cursor: default;
 }
 .container-description.fade-in,
 .container-description2.fade-in{ opacity: 1; transform: translateY(0); }
+
+.container-description:hover,
+.container-description2:hover {
+  transform: translateY(-6px);
+  background: #f3f1f8; /* slightly darker background */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  transition: transform 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
+}
+
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {

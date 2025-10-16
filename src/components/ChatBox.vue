@@ -21,10 +21,18 @@ const userCache = ref({}) // cache user data so we don't refetch unnecessarily
 let unsubscribeMsgs = null
 
 onMounted(() => {
+  // If already logged in (e.g. navigated from navbar)
+  if (auth.currentUser) {
+    currentUserId.value = auth.currentUser.uid
+    subscribeMyChats()   // 👉 immediately fetch chats
+  }
+
+  // Also listen for auth state changes
   onAuthStateChanged(auth, (user) => {
-    if (!user) return
-    currentUserId.value = user.uid
-    subscribeMyChats()
+    if (user && user.uid !== currentUserId.value) {
+      currentUserId.value = user.uid
+      subscribeMyChats()
+    }
   })
 })
 
@@ -34,29 +42,33 @@ function subscribeMyChats() {
     where('participants', 'array-contains', currentUserId.value),
     orderBy('updatedAt', 'desc')
   )
+
   onSnapshot(q, async (snap) => {
-    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  let rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
 
-    // fetch user meta for each chat
-    for (const chat of rows) {
-      await populateUserMeta(chat)
+  // Populate usernames/photos
+  for (const chat of rows) {
+    await populateUserMeta(chat)
+  }
+
+  // ✅ NEW: Only show chats that have started (i.e. have a non-empty lastMessage)
+  rows = rows.filter(c => c.lastMessage && c.lastMessage.trim() !== '')
+
+  chats.value = rows
+
+  const targetId = route.query.chatId
+  if (targetId) {
+    const found = rows.find(c => c.id === targetId)
+    if (found) {
+      selectChat(found)
+      return
     }
+  }
 
-    chats.value = rows
+  // ✅ Auto-select the most recent chat if there's no chatId
 
-    const targetId = route.query.chatId
-    if (targetId) {
-      const found = rows.find(c => c.id === targetId)
-      if (found) {
-        selectChat(found)
-        return
-      }
-    }
+})
 
-    if (!activeChat.value && rows.length > 0) {
-      selectChat(rows[0])
-    }
-  })
 }
 
 async function populateUserMeta(chat) {
@@ -77,9 +89,19 @@ async function populateUserMeta(chat) {
   }
 }
 
+import { useRouter } from 'vue-router'
+const router = useRouter()
+
 function selectChat(chat) {
   activeChat.value = chat
-  if (unsubscribeMsgs) { unsubscribeMsgs(); unsubscribeMsgs = null }
+
+  // ✅ Keep the URL updated for refreshing/sharing
+  router.replace({ query: { chatId: chat.id } })
+
+  if (unsubscribeMsgs) {
+    unsubscribeMsgs()
+    unsubscribeMsgs = null
+  }
 
   const q = query(
     collection(db, `chats/${chat.id}/messages`),
@@ -89,6 +111,7 @@ function selectChat(chat) {
     messages.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
   })
 }
+
 
 async function sendMessage() {
   if (!newMessage.value.trim() || !activeChat.value) return
@@ -165,9 +188,22 @@ function formatTimestamp(ts) {
         </div>
       </div>
 
-      <!-- Conversation -->
+      <!-- Chat Window -->
       <div :class="['chat-window d-flex flex-column p-0', { expanded: sidebarCollapsed }]">
-        <div class="flex-grow-1 p-4 overflow-auto msg-scroll">
+        <!-- Empty Chat Placeholder -->
+        <div
+          v-if="!activeChat"
+          class="d-flex flex-column justify-content-center align-items-center flex-grow-1 text-muted text-center px-3"
+        >
+          <h5 class="mb-2">💬 Messages</h5>
+          <p class="fs-6">
+            Press on a chat from the sidebar to start messaging.
+          </p>
+        </div>
+
+
+        <!-- Active Chat Messages -->
+        <div v-else class="flex-grow-1 p-4 overflow-auto msg-scroll">
           <div
             v-for="msg in messages"
             :key="msg.id"
@@ -181,7 +217,7 @@ function formatTimestamp(ts) {
         </div>
 
         <!-- Composer -->
-        <div class="composer p-3 d-flex align-items-center">
+        <div v-if="activeChat" class="composer p-3 d-flex align-items-center">
           <input
             v-model="newMessage"
             type="text"
@@ -196,6 +232,7 @@ function formatTimestamp(ts) {
     </div>
   </div>
 </template>
+
 
 <style scoped>
 .chatbox {

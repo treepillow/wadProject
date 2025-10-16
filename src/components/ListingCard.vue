@@ -98,7 +98,12 @@ function onImgError() { imgErrored.value = true; emit('image-loaded', props.list
         >♥</button>
       </div>
       <div class="d-flex gap-2">
-        <StartChatButton :targetUserId="listing.userId" @click.stop />
+        <!-- ✅ Only show StartChatButton if this is NOT your own listing -->
+        <StartChatButton
+          v-if="listing.userId !== $auth?.currentUser?.uid"
+          :targetUserId="listing.userId"
+          @click.stop
+        />
       </div>
     </div>
   </div>

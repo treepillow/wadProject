@@ -1,7 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { auth } from '@/firebase'
-import { startChatWithUser } from '../helpers/chathelper.js'
+import { startChatWithUser } from '../helpers/chatHelper'
 
 const props = defineProps({
   targetUserId: { type: String, required: true }

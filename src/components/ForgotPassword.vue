@@ -1,41 +1,54 @@
 <template>
   <AuthLayout :isSignup="false">
-    <div class="login-wrapper">
-      <div class="login-card">
+    <div class="signup-wrapper">
+      <div class="signup-card">
         <img src="@/assets/homes_logo.png" alt="Homes Logo" class="logo" />
         <h2>Forgot Password</h2>
 
-        <!-- STEP 1: Enter Email -->
+        <!-- STEP 1: Enter Phone Number -->
         <form v-if="step === 1" @submit.prevent="sendOTP">
-          <input type="email" placeholder="Email" v-model="email" required />
-          <button type="submit" :disabled="loading">
+          <input
+            type="text"
+            class="phone-input"
+            placeholder="Phone Number (include +65, e.g. +65XXXXXXXX)"
+            v-model="phone"
+            required
+          />
+          <button type="submit" class="signup-btn" :disabled="loading">
             {{ loading ? 'Sending...' : 'Send OTP' }}
           </button>
-          <!-- Optional info text can stay below the button -->
           <p class="info-text">
-            If the email address is valid, a one-time password (OTP) will be sent to the email.
+            Enter your registered phone number. We'll send a fake OTP via console for now.
           </p>
           <p>
             <span class="toggle-link" @click="$router.push('/login')">Back to Login</span>
           </p>
         </form>
 
-        <!-- STEP 2: OTP Verification -->
+        <!-- STEP 2: Verify OTP -->
         <form v-else-if="step === 2" @submit.prevent="verifyOTP">
-          <input type="text" placeholder="Enter OTP" v-model="otpInput" required />
-          <button type="submit" :disabled="loading">
-            {{ loading ? 'Verifying...' : 'Verify OTP' }}
+          <div class="otp-verify-group">
+            <input
+              type="text"
+              placeholder="Enter 6-digit OTP"
+              v-model="enteredOTP"
+              maxlength="6"
+              class="otp-input"
+              required
+            />
+            <button type="submit" class="btn-verify" :disabled="loading || enteredOTP.length !== 6">
+              {{ loading ? 'Verifying...' : 'Verify' }}
+            </button>
+          </div>
+          <button type="button" class="btn-resend" @click="resendOTP" :disabled="loading">
+            Resend OTP
           </button>
-          <p class="info-text">Please enter the 6-digit code sent to your email.</p>
-          <p>
-            <span class="toggle-link" @click="retry">Didn’t receive it? Retry</span>
-          </p>
           <p>
             <span class="toggle-link" @click="$router.push('/login')">Back to Login</span>
           </p>
         </form>
 
-        <!-- STEP 3: New Password -->
+        <!-- STEP 3: Reset Password -->
         <form v-else-if="step === 3" @submit.prevent="resetPassword">
           <div class="password-container">
             <input
@@ -62,7 +75,7 @@
             Password must be at least 8 characters, including letters and numbers.
           </p>
 
-          <button type="submit" :disabled="loading">
+          <button type="submit" class="signup-btn" :disabled="loading">
             {{ loading ? 'Saving...' : 'Reset Password' }}
           </button>
         </form>
@@ -71,7 +84,26 @@
         <div v-else-if="step === 4" class="success-message">
           <h3>✅ Password Reset Successful</h3>
           <p>You can now log in with your new password.</p>
-          <button @click="$router.push('/login')">Go to Login</button>
+          <button class="signup-btn" @click="$router.push('/login')">Go to Login</button>
+        </div>
+
+        <!-- Toast Notification -->
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999">
+          <div
+            v-if="notification.show"
+            class="toast show"
+            :class="`bg-${notification.type} text-white`"
+            role="alert"
+          >
+            <div class="toast-body d-flex align-items-center justify-content-between">
+              <span>{{ notification.message }}</span>
+              <button
+                type="button"
+                class="btn-close btn-close-white ms-3"
+                @click="notification.show = false"
+              ></button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -80,142 +112,138 @@
 
 <script>
 import AuthLayout from "./AuthLayout.vue";
-import { db } from "../firebase";
-import { doc, setDoc, getDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import { v4 as uuidv4 } from "uuid";
 
 export default {
   name: "ForgotPassword",
   components: { AuthLayout },
   data() {
     return {
-      email: "",
-      otpId: "",
-      otpInput: "",
       step: 1,
+      phone: "",
+      enteredOTP: "",
+      generatedOTP: null,
       password: "",
       passwordConfirm: "",
       showPassword: false,
       loading: false,
+      notification: { show: false, message: "", type: "" },
     };
   },
   methods: {
-    togglePassword() {
-      this.showPassword = !this.showPassword;
+    showNotification(message, type = "danger") {
+      this.notification = { show: true, message, type };
+      setTimeout(() => (this.notification.show = false), 4000);
     },
 
+    isValidSGPhone(phone) {
+      const pattern = /^(?:\+65)?[89]\d{7}$/;
+      return pattern.test(phone);
+    },
+
+    // STEP 1: Generate fake OTP
     async sendOTP() {
+      if (!this.isValidSGPhone(this.phone)) {
+        this.showNotification("Please enter a valid Singapore phone number.", "danger");
+        return;
+      }
       this.loading = true;
       try {
-        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpId = uuidv4();
-        this.otpId = otpId;
-
-        await setDoc(doc(db, "password_otps", otpId), {
-          email: this.email.toLowerCase(),
-          code: otpCode,
-          createdAt: serverTimestamp(),
-          expiresIn: 5 * 60 * 1000,
-        });
-
-        // For now, just log the code — in real app you'd email it
-        console.log(`📧 Sending OTP ${otpCode} to ${this.email}`);
-
+        this.generatedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+        console.log(`📲 [DEV] OTP for ${this.phone}: ${this.generatedOTP}`);
+        this.showNotification("Fake OTP generated. Check console.", "success");
         this.step = 2;
-      } catch (err) {
-        console.error(err);
       } finally {
         this.loading = false;
       }
     },
 
+    // STEP 2: Verify fake OTP
     async verifyOTP() {
+      if (!this.generatedOTP) {
+        this.showNotification("OTP session expired. Please resend.", "danger");
+        return;
+      }
       this.loading = true;
       try {
-        const ref = doc(db, "password_otps", this.otpId);
-        const snap = await getDoc(ref);
-        if (!snap.exists()) throw new Error("OTP expired or invalid");
-
-        const data = snap.data();
-        if (data.code === this.otpInput) {
-          await deleteDoc(ref);
+        if (this.enteredOTP === this.generatedOTP) {
+          this.showNotification("OTP verified!", "success");
           this.step = 3;
         } else {
-          alert("❌ Incorrect OTP. Please try again.");
+          this.showNotification("Invalid OTP. Please try again.", "danger");
         }
-      } catch (err) {
-        alert(`❌ Verification failed: ${err.message}`);
       } finally {
         this.loading = false;
       }
     },
 
-    retry() {
-      this.step = 1;
-      this.otpInput = "";
+    async resendOTP() {
+      this.enteredOTP = "";
+      this.generatedOTP = null;
+      await this.sendOTP();
     },
 
+    // STEP 3: Fake password reset (simulate updating a "user" in localStorage)
     async resetPassword() {
       if (this.password !== this.passwordConfirm) {
-        alert("❌ Passwords do not match.");
+        this.showNotification("Passwords do not match.", "danger");
         return;
       }
-      if (
-        this.password.length < 8 ||
-        !/\d/.test(this.password) ||
-        !/[A-Za-z]/.test(this.password)
-      ) {
-        alert("❌ Password must be at least 8 characters and include letters and numbers.");
+      if (this.password.length < 8 || !/\d/.test(this.password) || !/[A-Za-z]/.test(this.password)) {
+        this.showNotification(
+          "Password must be at least 8 characters long and include both letters and numbers.",
+          "danger"
+        );
         return;
       }
 
       this.loading = true;
       try {
-        // Normally, you'd use a Firebase Function to verify OTP and reset the password securely
-        console.log(`✅ Would reset password for ${this.email} to: ${this.password}`);
+        // 📝 Simulate a user database using localStorage
+        const users = JSON.parse(localStorage.getItem("fake_users") || "{}");
+        users[this.phone] = { password: this.password };
+        localStorage.setItem("fake_users", JSON.stringify(users));
+
+        console.log(`✅ [DEV] Updated password for ${this.phone}: ${this.password}`);
+        this.showNotification("Password reset successfully!", "success");
         this.step = 4;
-      } catch (err) {
-        alert(`❌ Reset failed: ${err.message}`);
       } finally {
         this.loading = false;
       }
+    },
+
+    togglePassword() {
+      this.showPassword = !this.showPassword;
     },
   },
 };
 </script>
 
 <style scoped>
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px; 
-}
-
-h2 {
-  margin-bottom: 30px;
-}
-.login-wrapper {
+.signup-wrapper {
   display: flex;
   justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: rgb(245, 239, 239);
+  align-items: flex-start;
+  min-height: 100vh;
+  background: rgb(245, 239, 239);
+  padding: 20px;
+  overflow-y: auto;
 }
 
-.login-card {
-  background: white;
+.signup-card {
+  background: #fff;
   border-radius: 20px;
-  padding: 40px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  padding: 30px 40px;
   width: 500px;
+  max-width: 500px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
   text-align: center;
+  position: relative;
+  margin-top: 37px;
+  max-height: 90vh;
+  overflow-y: auto;
+  scrollbar-width: none;
 }
-/* 
-.login-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 15px 30px rgba(0,0,0,0.25);
-  transition: all 0.3s ease;
-} */
+.signup-card::-webkit-scrollbar { display: none; }
 
 .logo {
   width: 80px;
@@ -236,19 +264,32 @@ input::placeholder {
   opacity: 1;
 }
 
-button {
-  background-color: rgb(245, 239, 239);
+button.signup-btn {
+  background: rgb(245, 239, 239);
   border: none;
-  padding: 10px 0;
+  margin-top: 5px;
+  padding: 10px 20px;
   border-radius: 20px;
   color: black;
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s;
+  width: 100%;
+}
+button.signup-btn:hover { transform: scale(1.05); }
+
+.toggle-link {
+  cursor: pointer;
+  text-decoration: underline;
+  color: black;
+  font-size: 0.9rem;
 }
 
-button:hover {
-  transform: scale(1.05);
+.info-text {
+  font-size: 0.85rem;
+  text-align: center;
+  opacity: 0.8;
+  margin-top: 5px;
 }
 
 .password-container {
@@ -271,24 +312,59 @@ button:hover {
   font-size: 1.1rem;
 }
 
-.toggle-password:hover {
-  opacity: 0.8;
+.otp-verify-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
-.toggle-link {
-  cursor: pointer;
-  text-decoration: underline;
+.otp-input {
+  flex: 1;
+  min-width: 150px;
+  padding: 10px;
+  border: none;
+  border-bottom: 2px solid #4b2aa6 !important;
+  background: transparent;
   color: black;
+  font-size: 16px;
+  letter-spacing: 2px;
+  text-align: center;
 }
 
-.info-text {
-  font-size: 0.85rem;
-  text-align: center;
-  opacity: 0.8;
-  margin-top: 5px;
+.btn-verify {
+  padding: 10px 20px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-verify:hover:not(:disabled) { background: #218838; transform: scale(1.02); }
+
+.btn-resend {
+  padding: 10px 20px;
+  background: transparent;
+  color: #4b2aa6;
+  border: 1px solid #4b2aa6;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+.btn-resend:hover {
+  background: #4b2aa6;
+  color: white;
+  transform: scale(1.02);
 }
 
 .success-message {
   text-align: center;
+}
+.phone-input{
+  margin-top: 10px;
+  width:100%;
 }
 </style>

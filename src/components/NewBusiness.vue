@@ -21,7 +21,7 @@ export default {
       photos: [],
       isDragging: false,
       photoError: '',
-      menuItems: [{ name: '', price: '' }],
+      menuItems: [{ name: '', price: '', operatingHours: { start: '09:00', end: '17:00' } }],
 
       addrError: '',
 
@@ -80,7 +80,7 @@ export default {
     },
 
     /* ---------- Menu/Services ---------- */
-    addMenuItem() { this.menuItems.push({ name: '', price: '' }) },
+    addMenuItem() { this.menuItems.push({ name: '', price: '', operatingHours: { start: '09:00', end: '17:00' } }) },
     removeMenuItem(i) { if (this.menuItems.length > 1) this.menuItems.splice(i, 1) },
 
     /* ---------- Address utils & OneMap (strict) ---------- */
@@ -224,7 +224,11 @@ export default {
       try{
         const menu = this.menuItems
           .filter(m=>(m.name||'').trim())
-          .map(m=>({name:m.name.trim(), price:(m.price||'').trim()}))
+          .map(m=>({
+            name:m.name.trim(),
+            price:(m.price||'').trim(),
+            operatingHours: m.operatingHours || { start: '09:00', end: '17:00' }
+          }))
 
         // Add document to 'allListings' and get reference
 const allListingsDocRef = await addDoc(collection(db, 'allListings'), {
@@ -299,7 +303,7 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
       this.locationStreet=''
       this.locationPostal=''
       this.locationUnit=''
-      this.menuItems=[{name:'',price:''}]
+      this.menuItems=[{name:'',price:'', operatingHours: { start: '09:00', end: '17:00' }}]
       this.photos.forEach(p=>p.url && URL.revokeObjectURL(p.url)); this.photos=[]
       this.photoError=''
       this.addrError=''
@@ -386,20 +390,34 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
                     <label class="form-label fw-semibold m-0">{{ listLabel }}</label>
                     <button type="button" class="btn btn-primary px-4 py-2" @click="addMenuItem">{{ addItemBtnText }}</button>
                   </div>
-                  <div class="menu-list d-flex flex-column gap-2">
-                    <div class="row g-2" v-for="(m, i) in menuItems" :key="i">
-                      <div class="col-6">
-                        <input class="form-control" :placeholder="itemNamePlaceholder" v-model.trim="m.name" />
-                      </div>
-                      <div class="col">
-                        <div class="input-group">
-                          <span class="input-group-text">$</span>
-                          <input class="form-control" :placeholder="pricePlaceholder" v-model.trim="m.price" />
+                  <div class="menu-list d-flex flex-column gap-3">
+                    <div class="menu-item-card card p-3" v-for="(m, i) in menuItems" :key="i">
+                      <div class="row g-2 mb-2">
+                        <div class="col-6">
+                          <input class="form-control" :placeholder="itemNamePlaceholder" v-model.trim="m.name" />
+                        </div>
+                        <div class="col">
+                          <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input class="form-control" :placeholder="pricePlaceholder" v-model.trim="m.price" />
+                          </div>
+                        </div>
+                        <div class="col-auto d-flex align-items-center">
+                          <button class="btn btn-outline-danger btn-sm" type="button"
+                                  @click="removeMenuItem(i)" :disabled="menuItems.length === 1">×</button>
                         </div>
                       </div>
-                      <div class="col-1 d-flex align-items-center">
-                        <button class="btn btn-outline-secondary btn-sm" type="button"
-                                @click="removeMenuItem(i)" :disabled="menuItems.length === 1">—</button>
+                      <div class="row g-2 align-items-center">
+                        <div class="col-auto">
+                          <label class="form-label mb-0 small text-muted">Operating Hours:</label>
+                        </div>
+                        <div class="col">
+                          <div class="d-flex align-items-center gap-2">
+                            <input type="time" class="form-control form-control-sm" v-model="m.operatingHours.start">
+                            <span class="text-muted">to</span>
+                            <input type="time" class="form-control form-control-sm" v-model="m.operatingHours.end">
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -699,6 +717,17 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
   background-color: #e7f3ff;
   border-color: #b3d9ff;
   color: #004085;
+}
+
+.menu-item-card {
+  background: #fafafa;
+  border: 1px solid #e6e3f4;
+  transition: all 0.2s ease;
+}
+
+.menu-item-card:hover {
+  border-color: #a889ff;
+  box-shadow: 0 2px 8px rgba(122, 90, 248, 0.1);
 }
 
 </style>

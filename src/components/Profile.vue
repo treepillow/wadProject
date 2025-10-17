@@ -404,42 +404,63 @@ export default {
       drawerListing.value = null
     }
 
+    /* ---------------- Boost Countdown (INSIDE setup) ---------------- */
+    function formatCountdown(timestamp) {
+      let targetTime;
+
+      // Firestore Timestamp
+      if (timestamp && typeof timestamp === 'object' && 'seconds' in timestamp) {
+        targetTime = timestamp.seconds * 1000;
+      }
+      // ISO string
+      else if (typeof timestamp === 'string') {
+        targetTime = Date.parse(timestamp);
+      }
+      // Number (ms)
+      else {
+        targetTime = Number(timestamp || 0);
+      }
+
+      if (!targetTime || Number.isNaN(targetTime)) return 'Expired';
+
+      const diff = targetTime - Date.now();
+      if (diff <= 0) return 'Expired';
+
+      const days = Math.floor(diff / 86400000);
+      const hours = Math.floor((diff % 86400000) / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+
+      if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m`;
+    }
+
+    // Auto refresh countdown every minute
+    let countdownInterval = null
+    onMounted(() => {
+      countdownInterval = setInterval(() => {
+        myListings.value = [...myListings.value]; // trigger re-render
+      }, 60000);
+
+      // Show success notification if redirected from Stripe
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('boosted') === 'true') {
+        alert('🎉 Your listing has been boosted! It will receive increased visibility.');
+        if (window.location.hash === '#my') {
+          activeTab.value = 'my';
+        }
+        params.delete('boosted');
+        window.history.replaceState({}, '', `${window.location.pathname}`);
+      }
+    })
+
     onUnmounted(() => {
       if (unsubLikes) unsubLikes()
       if (unsubMyListings) unsubMyListings()
       profileUnsubs.forEach(unsub => unsub && unsub())
       profileUnsubs.clear()
+      if (countdownInterval) clearInterval(countdownInterval)
     })
-    /* ---------------- Boost Countdown (INSIDE setup) ---------------- */
-function formatCountdown(timestamp) {
-  let targetTime;
-
-  // Firestore Timestamp
-  if (timestamp && typeof timestamp === 'object' && 'seconds' in timestamp) {
-    targetTime = timestamp.seconds * 1000;
-  }
-  // ISO string
-  else if (typeof timestamp === 'string') {
-    targetTime = Date.parse(timestamp);
-  }
-  // Number (ms)
-  else {
-    targetTime = Number(timestamp || 0);
-  }
-
-  if (!targetTime || Number.isNaN(targetTime)) return 'Expired';
-
-  const diff = targetTime - Date.now();
-  if (diff <= 0) return 'Expired';
-
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  const minutes = Math.floor((diff % 3600000) / 60000);
-
-  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-}
 
 
 
@@ -465,57 +486,8 @@ function formatCountdown(timestamp) {
       openDrawer, closeDrawer,
       formatCountdown,
     }
-    
   }
 }
-/* ---------------- Boost Countdown ---------------- */
-function formatCountdown(timestamp) {
-  // 🔥 Convert Firestore Timestamp or string into a proper number
-  let targetTime;
-  if (typeof timestamp === 'object' && timestamp?.seconds) {
-    targetTime = timestamp.seconds * 1000;
-  } else if (typeof timestamp === 'string') {
-    targetTime = new Date(timestamp).getTime();
-  } else {
-    targetTime = Number(timestamp);
-  }
-
-  const diff = targetTime - Date.now();
-  if (diff <= 0) return "Expired";
-
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-}
-
-
-// Auto refresh every minute for live countdowns
-let countdownInterval;
-onMounted(() => {
-  countdownInterval = setInterval(() => {
-    myListings.value = [...myListings.value]; // trigger re-render
-  }, 60000);
-
-  // Show success notification if redirected from Stripe
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('boosted') === 'true') {
-    alert('🎉 Your listing has been boosted! It will receive increased visibility.');
-    if (window.location.hash === '#my') {
-      activeTab.value = 'my';
-    }
-    params.delete('boosted');
-    window.history.replaceState({}, '', `${window.location.pathname}`);
-  }
-});
-
-onUnmounted(() => {
-  clearInterval(countdownInterval);
-});
-
 </script>
 
 <template>

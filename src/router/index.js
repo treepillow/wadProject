@@ -10,6 +10,7 @@ import ChatPage from '../components/ChatPage.vue';
 import ForgotPassword from '../components/ForgotPassword.vue';
 import NewBusiness from '../components/NewBusiness.vue';
 import Boosting from '../components/Boosting.vue'
+import UserProfile from '../components/UserProfile.vue'
 
 import { auth } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -70,6 +71,12 @@ const router = createRouter({
       path: '/boosting',
       name: 'Boosting',
       component: Boosting
+    },
+    {
+      path: '/user/:userId',
+      name: 'UserProfile',
+      component: UserProfile,
+      meta: { requiresAuth: true }
     },
   ],
 })

@@ -180,7 +180,8 @@
     if (!listing.value) return;
     checkingOut.value = true;
     try {
-      const res = await fetch("http://localhost:4242/create-checkout-session", {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4242';
+      const res = await fetch(`${apiUrl}/create-checkout-session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

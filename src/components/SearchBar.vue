@@ -13,38 +13,26 @@ function handleSearch(e) {
     location: locationQuery.value.trim()
   })
 }
-
-function clearSearch() {
-  searchQuery.value = ''
-  locationQuery.value = ''
-  emit('search', { business: '', location: '' })
-}
 </script>
 
 <template>
   <div class="search mt-2">
-    <form class="d-flex" role="search" @submit="handleSearch">
+    <form class="d-flex align-items-center gap-3" role="search" @submit="handleSearch">
       <input
-        class="home-business form-control me-3"
+        class="home-business form-control"
         type="search"
         placeholder="🔍 Search for a home business"
         aria-label="Search"
         v-model="searchQuery"
       />
       <input
-        class="location-search form-control me-3"
+        class="location-search form-control"
         type="search"
         placeholder="📍 Search location"
         aria-label="Search Location"
         v-model="locationQuery"
       />
       <button class="btn btn-search" type="submit">Search</button>
-      <button
-        v-if="searchQuery || locationQuery"
-        class="btn btn-clear ms-2"
-        type="button"
-        @click="clearSearch"
-      >Clear</button>
     </form>
   </div>
 </template>
@@ -52,26 +40,33 @@ function clearSearch() {
 
 
 <style scoped>
+.search form {
+  width: 100%;
+}
+
 .home-business {
-  width: 50%;
+  flex: 1;
+  min-width: 0;
   padding: 15px;
   border-radius: 8px;
   border: 2px solid #e0e0e0;
   transition: border-color 0.3s ease;
+  height: 52px;
 }
 
 .home-business:focus {
   border-color: #4b2aa6;
   outline: none;
-  box-shadow: 0 0 0 3px rgba(75, 42, 166, 0.1);
 }
 
 .location-search {
-  width: 25%;
+  flex: 0 0 auto;
+  width: 280px;
   padding: 15px;
   border-radius: 8px;
   border: 2px solid #e0e0e0;
   transition: border-color 0.3s ease;
+  height: 52px;
 }
 
 .location-search:focus {
@@ -81,36 +76,26 @@ function clearSearch() {
 }
 
 .btn-search {
+  flex: 0 0 auto;
   color: white;
   background-color: #4b2aa6d7;
-  padding: 0 30px;
+  padding: 0 40px;
+  height: 52px;
   transition: all 0.2s ease;
-  border: 1px solid white;
-  font-weight: bold;
-  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  border-radius: 12px;
   white-space: nowrap;
 }
 
 .btn-search:hover {
-  background-color: #4b2aa6;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(75, 42, 166, 0.3);
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(75, 42, 166, 0.25);
 }
 
-.btn-clear {
-  color: #666;
-  background-color: #f5f5f5;
-  padding: 0 20px;
-  transition: all 0.2s ease;
-  border: 1px solid #ddd;
-  font-weight: 500;
-  border-radius: 8px;
-  white-space: nowrap;
-}
-
-.btn-clear:hover {
-  background-color: #e0e0e0;
-  border-color: #999;
+.btn-search:active {
+  transform: translateY(0);
 }
 
 .search {
@@ -125,6 +110,24 @@ function clearSearch() {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .search form {
+    flex-wrap: wrap;
+  }
+
+  .home-business,
+  .location-search {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .btn-search {
+    width: 100%;
+    flex: 1 1 100%;
   }
 }
 </style>

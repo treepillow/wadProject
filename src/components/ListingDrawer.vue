@@ -1,10 +1,13 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { db, auth } from '@/firebase'
 import {
   collection, query, where, limit as fsLimit, getDocs,
   doc, updateDoc, addDoc, serverTimestamp, getDoc, orderBy
 } from 'firebase/firestore'
+
+const router = useRouter()
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -482,6 +485,24 @@ watch(() => props.listing?.listingId || props.listing?.id, (newId) => {
   }
 }, { immediate: true })
 
+/* Navigate to user profile */
+function goToSellerProfile(event) {
+  event.stopPropagation()
+  const userId = props.listing?.userId
+  if (userId) {
+    emit('close')
+    router.push({ name: 'UserProfile', params: { userId } })
+  }
+}
+
+function goToReviewerProfile(userId, event) {
+  event.stopPropagation()
+  if (userId) {
+    emit('close')
+    router.push({ name: 'UserProfile', params: { userId } })
+  }
+}
+
 // Fetch reviews when drawer opens
 watch(() => props.open, (isOpen) => {
   if (isOpen && props.listing) {
@@ -512,7 +533,7 @@ watch(() => props.open, (isOpen) => {
 
       <!-- Header -->
       <div class="header d-flex align-items-center gap-3 mb-3">
-        <div class="rounded-circle overflow-hidden avatar">
+        <div class="rounded-circle overflow-hidden avatar seller-avatar-clickable" @click="goToSellerProfile">
           <img v-if="sellerAvatar" :src="sellerAvatar" class="w-100 h-100" style="object-fit:cover" alt="">
           <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary fw-bold">
             {{ (sellerName||'S').toString().trim().charAt(0).toUpperCase() }}
@@ -520,7 +541,7 @@ watch(() => props.open, (isOpen) => {
         </div>
         <div class="flex-grow-1">
           <div class="fw-semibold small text-muted">Seller</div>
-          <div class="fw-semibold">{{ sellerName || 'Seller' }}</div>
+          <div class="fw-semibold seller-name-clickable" @click="goToSellerProfile">{{ sellerName || 'Seller' }}</div>
         </div>
         <span class="badge text-bg-primary">{{ active?.businessCategory || listing?.businessCategory }}</span>
       </div>
@@ -689,7 +710,11 @@ watch(() => props.open, (isOpen) => {
                   <div class="card-body p-3">
                     <div class="d-flex align-items-start gap-2 mb-2">
                       <!-- Reviewer Avatar -->
-                      <div class="reviewer-avatar rounded-circle overflow-hidden">
+                      <div
+                        class="reviewer-avatar rounded-circle overflow-hidden"
+                        :class="{ 'reviewer-avatar-clickable': review.userId }"
+                        @click="review.userId ? goToReviewerProfile(review.userId, $event) : null"
+                      >
                         <img v-if="review.reviewerAvatar" :src="review.reviewerAvatar" class="w-100 h-100" style="object-fit:cover" alt="">
                         <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary fw-bold small">
                           {{ (review.reviewerName || 'A').charAt(0).toUpperCase() }}
@@ -698,7 +723,11 @@ watch(() => props.open, (isOpen) => {
 
                       <div class="flex-grow-1">
                         <div class="d-flex align-items-center justify-content-between mb-1">
-                          <span class="fw-semibold small">{{ review.reviewerName }}</span>
+                          <span
+                            class="fw-semibold small"
+                            :class="{ 'reviewer-name-clickable': review.userId }"
+                            @click="review.userId ? goToReviewerProfile(review.userId, $event) : null"
+                          >{{ review.reviewerName }}</span>
                           <div class="stars-display-small">
                             <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= review.rating }">★</span>
                           </div>
@@ -838,5 +867,43 @@ watch(() => props.open, (isOpen) => {
 .alert-sm {
   font-size: 0.85rem;
   margin-bottom: 0.5rem;
+}
+
+.seller-name-clickable {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.seller-name-clickable:hover {
+  color: #4b2aa6;
+  text-decoration: underline;
+}
+
+.seller-avatar-clickable {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.seller-avatar-clickable:hover {
+  transform: scale(1.05);
+}
+
+.reviewer-name-clickable {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.reviewer-name-clickable:hover {
+  color: #4b2aa6;
+  text-decoration: underline;
+}
+
+.reviewer-avatar-clickable {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.reviewer-avatar-clickable:hover {
+  transform: scale(1.05);
 }
 </style>

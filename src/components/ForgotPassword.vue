@@ -5,86 +5,42 @@
         <img src="@/assets/homes_logo.png" alt="Homes Logo" class="logo" />
         <h2>Forgot Password</h2>
 
-        <!-- STEP 1: Enter Phone Number -->
-        <form v-if="step === 1" @submit.prevent="sendOTP">
+        <!-- STEP 1: Enter Email -->
+        <form v-if="!emailSent" @submit.prevent="sendPasswordResetEmail">
           <input
-            type="text"
-            class="phone-input"
-            placeholder="Phone Number (include +65, e.g. +65XXXXXXXX)"
-            v-model="phone"
+            type="email"
+            class="email-input"
+            placeholder="Enter your email address"
+            v-model="email"
             required
           />
           <button type="submit" class="signup-btn" :disabled="loading">
-            {{ loading ? 'Sending...' : 'Send OTP' }}
+            {{ loading ? 'Sending...' : 'Send Reset Link' }}
           </button>
           <p class="info-text">
-            Enter your registered phone number. We'll send a fake OTP via console for now.
+            Enter your registered email address. We'll send you a password reset link.
           </p>
           <p>
             <span class="toggle-link" @click="$router.push('/login')">Back to Login</span>
           </p>
         </form>
 
-        <!-- STEP 2: Verify OTP -->
-        <form v-else-if="step === 2" @submit.prevent="verifyOTP">
-          <div class="otp-verify-group">
-            <input
-              type="text"
-              placeholder="Enter 6-digit OTP"
-              v-model="enteredOTP"
-              maxlength="6"
-              class="otp-input"
-              required
-            />
-            <button type="submit" class="btn-verify" :disabled="loading || enteredOTP.length !== 6">
-              {{ loading ? 'Verifying...' : 'Verify' }}
-            </button>
-          </div>
-          <button type="button" class="btn-resend" @click="resendOTP" :disabled="loading">
-            Resend OTP
+        <!-- STEP 2: Success Message -->
+        <div v-else class="success-message">
+          <div class="success-icon">✉️</div>
+          <h3>Check Your Email</h3>
+          <p class="mb-3">
+            We've sent a password reset link to <strong>{{ email }}</strong>
+          </p>
+          <p class="info-text mb-4">
+            Click the link in the email to reset your password. The link will expire in 1 hour.
+          </p>
+          <button class="signup-btn mb-3" @click="$router.push('/login')">
+            Back to Login
           </button>
           <p>
-            <span class="toggle-link" @click="$router.push('/login')">Back to Login</span>
+            <span class="toggle-link" @click="resetForm">Send another email</span>
           </p>
-        </form>
-
-        <!-- STEP 3: Reset Password -->
-        <form v-else-if="step === 3" @submit.prevent="resetPassword">
-          <div class="password-container">
-            <input
-              :type="showPassword ? 'text' : 'password'"
-              placeholder="New Password"
-              v-model="password"
-              required
-            />
-            <span class="toggle-password" @click="togglePassword">
-              <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
-            </span>
-          </div>
-
-          <div class="password-container">
-            <input
-              :type="showPassword ? 'text' : 'password'"
-              placeholder="Confirm New Password"
-              v-model="passwordConfirm"
-              required
-            />
-          </div>
-
-          <p class="info-text">
-            Password must be at least 8 characters, including letters and numbers.
-          </p>
-
-          <button type="submit" class="signup-btn" :disabled="loading">
-            {{ loading ? 'Saving...' : 'Reset Password' }}
-          </button>
-        </form>
-
-        <!-- STEP 4: Success -->
-        <div v-else-if="step === 4" class="success-message">
-          <h3>✅ Password Reset Successful</h3>
-          <p>You can now log in with your new password.</p>
-          <button class="signup-btn" @click="$router.push('/login')">Go to Login</button>
         </div>
 
         <!-- Toast Notification -->
@@ -112,19 +68,16 @@
 
 <script>
 import AuthLayout from "./AuthLayout.vue";
+import { auth } from "../firebase";
+import { sendPasswordResetEmail as firebaseSendPasswordResetEmail } from "firebase/auth";
 
 export default {
   name: "ForgotPassword",
   components: { AuthLayout },
   data() {
     return {
-      step: 1,
-      phone: "",
-      enteredOTP: "",
-      generatedOTP: null,
-      password: "",
-      passwordConfirm: "",
-      showPassword: false,
+      email: "",
+      emailSent: false,
       loading: false,
       notification: { show: false, message: "", type: "" },
     };
@@ -132,87 +85,51 @@ export default {
   methods: {
     showNotification(message, type = "danger") {
       this.notification = { show: true, message, type };
-      setTimeout(() => (this.notification.show = false), 4000);
+      setTimeout(() => (this.notification.show = false), 5000);
     },
 
-    isValidSGPhone(phone) {
-      const pattern = /^(?:\+65)?[89]\d{7}$/;
-      return pattern.test(phone);
-    },
-
-    // STEP 1: Generate fake OTP
-    async sendOTP() {
-      if (!this.isValidSGPhone(this.phone)) {
-        this.showNotification("Please enter a valid Singapore phone number.", "danger");
+    async sendPasswordResetEmail() {
+      if (!this.email.trim()) {
+        this.showNotification("Please enter your email address.", "danger");
         return;
       }
-      this.loading = true;
-      try {
-        this.generatedOTP = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log(`📲 [DEV] OTP for ${this.phone}: ${this.generatedOTP}`);
-        this.showNotification("Fake OTP generated. Check console.", "success");
-        this.step = 2;
-      } finally {
-        this.loading = false;
-      }
-    },
 
-    // STEP 2: Verify fake OTP
-    async verifyOTP() {
-      if (!this.generatedOTP) {
-        this.showNotification("OTP session expired. Please resend.", "danger");
+      // Basic email validation
+      const emailRegex = /^[\w.+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(this.email)) {
+        this.showNotification("Please enter a valid email address.", "danger");
         return;
       }
+
       this.loading = true;
       try {
-        if (this.enteredOTP === this.generatedOTP) {
-          this.showNotification("OTP verified!", "success");
-          this.step = 3;
+        // Send password reset email using Firebase Auth
+        await firebaseSendPasswordResetEmail(auth, this.email.trim());
+
+        this.emailSent = true;
+        this.showNotification("Password reset email sent successfully!", "success");
+      } catch (error) {
+        console.error("Password reset error:", error);
+
+        // Handle specific error cases
+        if (error.code === "auth/user-not-found") {
+          this.showNotification("No account found with this email address.", "danger");
+        } else if (error.code === "auth/invalid-email") {
+          this.showNotification("Invalid email address.", "danger");
+        } else if (error.code === "auth/too-many-requests") {
+          this.showNotification("Too many requests. Please try again later.", "danger");
         } else {
-          this.showNotification("Invalid OTP. Please try again.", "danger");
+          this.showNotification("Failed to send reset email. Please try again.", "danger");
         }
       } finally {
         this.loading = false;
       }
     },
 
-    async resendOTP() {
-      this.enteredOTP = "";
-      this.generatedOTP = null;
-      await this.sendOTP();
-    },
-
-    // STEP 3: Fake password reset (simulate updating a "user" in localStorage)
-    async resetPassword() {
-      if (this.password !== this.passwordConfirm) {
-        this.showNotification("Passwords do not match.", "danger");
-        return;
-      }
-      if (this.password.length < 8 || !/\d/.test(this.password) || !/[A-Za-z]/.test(this.password)) {
-        this.showNotification(
-          "Password must be at least 8 characters long and include both letters and numbers.",
-          "danger"
-        );
-        return;
-      }
-
-      this.loading = true;
-      try {
-        // 📝 Simulate a user database using localStorage
-        const users = JSON.parse(localStorage.getItem("fake_users") || "{}");
-        users[this.phone] = { password: this.password };
-        localStorage.setItem("fake_users", JSON.stringify(users));
-
-        console.log(`✅ [DEV] Updated password for ${this.phone}: ${this.password}`);
-        this.showNotification("Password reset successfully!", "success");
-        this.step = 4;
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    togglePassword() {
-      this.showPassword = !this.showPassword;
+    resetForm() {
+      this.email = "";
+      this.emailSent = false;
+      this.loading = false;
     },
   },
 };
@@ -276,7 +193,16 @@ button.signup-btn {
   transition: transform 0.2s;
   width: 100%;
 }
-button.signup-btn:hover { transform: scale(1.05); }
+
+button.signup-btn:hover {
+  transform: scale(1.05);
+}
+
+button.signup-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
 
 .toggle-link {
   cursor: pointer;
@@ -292,79 +218,58 @@ button.signup-btn:hover { transform: scale(1.05); }
   margin-top: 5px;
 }
 
-.password-container {
-  position: relative;
-  width: 100%;
-}
-
-.password-container input {
-  width: 100%;
-  padding-right: 40px;
-}
-
-.toggle-password {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  cursor: pointer;
-  color: black;
-  font-size: 1.1rem;
-}
-
-.otp-verify-group {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.otp-input {
-  flex: 1;
-  min-width: 150px;
-  padding: 10px;
-  border: none;
-  border-bottom: 2px solid #4b2aa6 !important;
-  background: transparent;
-  color: black;
-  font-size: 16px;
-  letter-spacing: 2px;
-  text-align: center;
-}
-
-.btn-verify {
-  padding: 10px 20px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 20px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn-verify:hover:not(:disabled) { background: #218838; transform: scale(1.02); }
-
-.btn-resend {
-  padding: 10px 20px;
-  background: transparent;
-  color: #4b2aa6;
-  border: 1px solid #4b2aa6;
-  border-radius: 20px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 10px;
-}
-.btn-resend:hover {
-  background: #4b2aa6;
-  color: white;
-  transform: scale(1.02);
-}
-
 .success-message {
   text-align: center;
+  padding: 20px 0;
 }
-.phone-input{
+
+.success-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  animation: bounce 1s ease;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.success-message h3 {
+  color: #28a745;
+  margin-bottom: 15px;
+}
+
+.success-message p {
+  color: #555;
+  line-height: 1.6;
+}
+
+.email-input {
   margin-top: 10px;
-  width:100%;
+  width: 100%;
+}
+
+/* Toast styles */
+.toast {
+  min-width: 300px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.3s ease-out;
+}
+
+.toast-body {
+  padding: 15px;
+  font-weight: 500;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 </style>

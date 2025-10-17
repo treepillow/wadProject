@@ -1,9 +1,12 @@
 <script setup>
 import StartChatButton from './StartChatButton.vue'
 import { computed, ref, onMounted, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import { db } from '@/firebase'
 import { collection, query, getDocs } from 'firebase/firestore'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
+
+const router = useRouter()
 
 /* ---------------- AUTH ---------------- */
 const auth = getAuth()
@@ -108,6 +111,14 @@ const boostCountdown = computed(() => {
   if (hours > 0) return `${hours}h ${minutes}m`
   return `${minutes}m`
 })
+
+/* ---------------- NAVIGATE TO USER PROFILE ---------------- */
+function goToUserProfile(event) {
+  event.stopPropagation() // Prevent card click event
+  if (props.listing.userId) {
+    router.push({ name: 'UserProfile', params: { userId: props.listing.userId } })
+  }
+}
 </script>
 
 <template>
@@ -118,13 +129,18 @@ const boostCountdown = computed(() => {
   >
     <!-- Header -->
     <div class="card-header bg-transparent border-0 pb-0 d-flex align-items-center gap-2">
-      <div class="avatar-box rounded-circle overflow-hidden d-inline-block" style="width:28px;height:28px;">
+      <div class="avatar-box rounded-circle overflow-hidden d-inline-block" style="width:28px;height:28px;" @click="goToUserProfile">
         <img v-if="sellerAvatar" :src="sellerAvatar" alt="avatar" class="w-100 h-100" style="object-fit:cover;">
         <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary small">
           {{ (sellerName || 'S').toString().trim().charAt(0).toUpperCase() }}
         </div>
       </div>
-      <span class="fw-semibold small text-truncate" style="max-width:140px" :title="sellerName">{{ sellerName }}</span>
+      <span
+        class="fw-semibold small text-truncate seller-name-link"
+        style="max-width:140px"
+        :title="sellerName"
+        @click="goToUserProfile"
+      >{{ sellerName }}</span>
     </div>
 
     <!-- Image box -->
@@ -202,7 +218,22 @@ const boostCountdown = computed(() => {
 </template>
 
 <style scoped>
-.selectable { cursor: pointer; }
+.selectable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.selectable:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+  border-color: #4b2aa6 !important;
+}
+
+.selectable:active {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
 .reveal-in { animation: fadeIn .35s ease both; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: none } }
 
@@ -225,5 +256,24 @@ const boostCountdown = computed(() => {
   border-radius: 6px;
   padding: 4px 8px;
   display: inline-block;
+}
+
+.seller-name-link {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.seller-name-link:hover {
+  color: #4b2aa6;
+  text-decoration: underline;
+}
+
+.avatar-box {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.avatar-box:hover {
+  transform: scale(1.1);
 }
 </style>

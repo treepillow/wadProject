@@ -123,7 +123,7 @@ function goToUserProfile(event) {
 
 <template>
   <div
-    class="card h-100 shadow-sm selectable"
+    class="card h-100 shadow-sm selectable card-border"
     :class="{ 'reveal-in': reveal }"
     @click="emit('open', listing)"
   >
@@ -218,6 +218,10 @@ function goToUserProfile(event) {
 </template>
 
 <style scoped>
+.card-border {
+  border: 1px solid #e0e0e0;
+}
+
 .selectable {
   cursor: pointer;
   transition: all 0.3s ease;

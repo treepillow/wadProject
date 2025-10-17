@@ -637,16 +637,15 @@ export default {
             </div>
           </div>
 
-          </div>
-
           <!-- LIKED -->
           <div v-show="activeTab==='liked'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
             <h4 class="mb-4">Liked Listings</h4>
             <div v-if="likedLoading" class="text-center py-4"><div class="spinner-border"></div></div>
             <div v-else-if="!likedListings.length" class="text-muted">No liked listings yet.</div>
             <div v-else class="row g-3 g-md-4">
-              <div v-for="l in likedListings" :key="l.listingId || l.id" class="col-12 col-sm-6 col-lg-4">
+              <div v-for="l in likedListings" :key="l.listingId || l.id" class="col-12 col-sm-6 col-lg-4 d-flex flex-column">
                 <ListingCard
+                  class="w-100 flex-grow-1"
                   :listing="l"
                   :liked="likedSet?.has(l.listingId || l.id)"
                   :likesCount="likeCounts[l.listingId || l.id] || 0"
@@ -655,7 +654,7 @@ export default {
                   :reveal="revealedLiked.has(l.listingId || l.id)"
                   @toggle-like="onToggleLike"
                   @image-loaded="handleLikedImageLoaded"
-                  @open="openDrawer(l)"  
+                  @open="openDrawer(l)"
                 />
               </div>
             </div>
@@ -673,7 +672,7 @@ export default {
       :sellerAvatar="drawerSellerAvatar"
       @close="closeDrawer"
     />
-  
+  </div>
 </template>
 
 <style scoped>

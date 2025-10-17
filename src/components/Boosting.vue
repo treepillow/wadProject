@@ -1,0 +1,258 @@
+<template>
+    <div class="bg-page min-vh-100">
+      <NavBar />
+      <div class="container py-4">
+        <div v-if="loading" class="text-center py-5">
+          <div class="spinner-border"></div>
+        </div>
+  
+        <div v-else>
+          <div v-if="listing" class="row g-4">
+            <!-- LEFT: Preview listing card -->
+            <div class="col-12 col-lg-4">
+              <ListingCard
+                :listing="listing"
+                :liked="false"
+                :likesCount="0"
+                :reveal="true"
+                :sellerNameOverride="seller.displayName"
+                :sellerAvatarOverride="seller.photoURL"
+              />
+            </div>
+  
+            <!-- RIGHT: Boost panel -->
+            <div class="col-12 col-lg-8">
+              <div class="boost-card shadow-soft rounded-4 p-4 bg-white">
+                <h4 class="mb-3 d-flex justify-content-between align-items-center">
+                  🚀 Boost Listing
+                  <small class="text-muted">Stripe secure checkout 🔒</small>
+                </h4>
+                <p class="text-muted small mb-4">
+                  Increase visibility on Explore & Trending. Choose a boost duration below.
+                </p>
+  
+                <!-- Plan options -->
+                <div class="d-flex flex-column gap-3">
+                  <label
+                    v-for="p in plans"
+                    :key="p.id"
+                    class="plan-option border rounded-3 p-3 d-flex align-items-center justify-content-between"
+                    :class="{ selected: p.id === selectedPlanId }"
+                    @click="selectedPlanId = p.id"
+                  >
+                    <div class="d-flex align-items-center gap-3">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        :checked="p.id === selectedPlanId"
+                        @change="selectedPlanId = p.id"
+                      />
+                      <div>
+                        <div class="fw-semibold d-flex align-items-center gap-2">
+                          <span>{{ p.name }}</span>
+                          <span v-if="p.badge" class="badge bg-primary-subtle text-primary small">{{ p.badge }}</span>
+                        </div>
+                        <div class="text-muted small">{{ p.subtitle }}</div>
+                      </div>
+                    </div>
+                    <div class="fw-semibold">{{ formatPrice(p.price) }}</div>
+                  </label>
+                </div>
+  
+                <!-- Summary -->
+                <div class="d-flex align-items-center justify-content-between mt-4">
+                  <div class="text-muted">Selected</div>
+                  <div class="fw-semibold">{{ selectedPlan.name }}</div>
+                </div>
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                  <div class="text-muted">Total</div>
+                  <div class="fs-5 fw-bold">{{ formatPrice(selectedPlan.price) }}</div>
+                </div>
+  
+                <!-- CTA -->
+                <button
+                  class="btn btn-primary w-100 py-2"
+                  :disabled="checkingOut"
+                  @click="startCheckout"
+                >
+                  <span v-if="!checkingOut">Boost with Stripe</span>
+                  <span v-else class="spinner-border spinner-border-sm"></span>
+                </button>
+  
+                <!-- Help -->
+                <div class="mt-4 p-3 bg-light rounded-3 small text-muted">
+                  <div class="fw-semibold mb-1">What happens after payment?</div>
+                  After successful payment, we’ll set a <code>boostedUntil</code> timestamp on your listing and
+                  redirect you to your <strong>Profile → My Listings</strong> page.
+                </div>
+              </div>
+            </div>
+          </div>
+  
+          <div v-else class="alert alert-warning text-center mt-4">
+            No listing found. Please go back to your
+            <router-link to="/profile#my" class="fw-semibold">My Listings</router-link>.
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+  
+  <script setup>
+  import { ref, computed, onMounted } from "vue";
+  import { useRoute, useRouter } from "vue-router";
+  import NavBar from "@/components/NavBar.vue";
+  import ListingCard from "@/components/ListingCard.vue";
+  import { getFirestore, doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
+  
+  const db = getFirestore();
+  const route = useRoute();
+  const router = useRouter();
+  
+  const loading = ref(true);
+  const listing = ref(null);
+  const seller = ref({ displayName: "", photoURL: "" });
+  const checkingOut = ref(false);
+  
+  // ✅ Boost Plans
+  const plans = [
+    { id: "1day", name: "1 Day Boost", price: 500, subtitle: "Quick bump to the top for 24h", badge: "Popular" },
+    { id: "7days", name: "7 Days Boost", price: 2000, subtitle: "Great visibility for a whole week", badge: "Best value" },
+    { id: "1month", name: "1 Month Boost", price: 5000, subtitle: "Dominant placement all month", badge: "Max exposure" },
+  ];
+  
+  const selectedPlanId = ref("7days");
+  const selectedPlan = computed(() => plans.find(p => p.id === selectedPlanId.value) || plans[0]);
+  
+  function formatPrice(cents) {
+    return `$${(cents / 100).toFixed(2)}`;
+  }
+  
+  /* ---------------- Load listing ---------------- */
+  onMounted(async () => {
+    const listingId = route.query.listing || route.query.listingId;
+    const status = route.query.status;
+    const plan = route.query.plan;
+  
+    // ✅ Handle success redirect from Stripe
+    if (status === "success" && listingId && plan) {
+      await applyBoost(listingId, plan);
+      router.replace("/profile#my");
+      return;
+    }
+  
+    if (!listingId) {
+      loading.value = false;
+      return;
+    }
+  
+    try {
+      const snap = await getDoc(doc(db, "allListings", listingId));
+      if (snap.exists()) {
+        listing.value = { id: snap.id, ...snap.data() };
+        await loadSeller(listing.value.userId);
+      }
+    } catch (e) {
+      console.error("Failed to load listing:", e);
+    } finally {
+      loading.value = false;
+    }
+  });
+  
+  async function loadSeller(uid) {
+    if (!uid) return;
+    try {
+      const snap = await getDoc(doc(db, "users", uid));
+      if (snap.exists()) {
+        const d = snap.data();
+        seller.value = {
+          displayName: d.username || d.displayName || "",
+          photoURL: d.photoURL || d.avatarUrl || d.profilePhoto || "",
+        };
+      }
+    } catch (e) {
+      console.warn("Failed to load seller:", e);
+    }
+  }
+  
+  /* ---------------- Stripe Checkout ---------------- */
+  async function startCheckout() {
+    if (!listing.value) return;
+    checkingOut.value = true;
+    try {
+      const res = await fetch("http://localhost:4242/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: listing.value.id,
+          planId: selectedPlanId.value,
+        }),
+      });
+  
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create checkout session");
+  
+      window.location.href = data.url; // Redirect to Stripe
+    } catch (err) {
+      console.error("Stripe checkout error:", err);
+      alert("Failed to start checkout. Please try again.");
+    } finally {
+      checkingOut.value = false;
+    }
+  }
+  
+  /* ---------------- Apply Boost (STACK TIME) ---------------- */
+  async function applyBoost(listingId, planId) {
+    let msToAdd = 0;
+    if (planId === "1day") msToAdd = 1 * 24 * 60 * 60 * 1000;
+    if (planId === "7days") msToAdd = 7 * 24 * 60 * 60 * 1000;
+    if (planId === "1month") msToAdd = 30 * 24 * 60 * 60 * 1000;
+  
+    try {
+      const ref = doc(db, "allListings", listingId);
+      const snap = await getDoc(ref);
+  
+      let baseTime = Date.now();
+      if (snap.exists()) {
+        const data = snap.data();
+        const currentBoostedUntil = data.boostedUntil;
+  
+        // If there's already a boost in the future, stack onto it
+        if (currentBoostedUntil && currentBoostedUntil.toMillis() > Date.now()) {
+          baseTime = currentBoostedUntil.toMillis();
+        }
+      }
+  
+      const newBoostedUntil = Timestamp.fromMillis(baseTime + msToAdd);
+  
+      await updateDoc(ref, {
+        boostedUntil: newBoostedUntil,
+      });
+  
+      console.log(`✅ Boost applied to ${listingId} until ${newBoostedUntil.toDate()}`);
+    } catch (e) {
+      console.error("❌ Failed to update boostedUntil:", e);
+      alert("Boost applied, but failed to update listing. Please refresh.");
+    }
+  }
+  </script>
+  
+  <style scoped>
+  .bg-page { background: var(--page-bg, rgb(245,239,239)); }
+  .shadow-soft { box-shadow: 0 8px 28px rgba(0,0,0,.06); }
+  
+  .plan-option {
+    transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+    cursor: pointer;
+    background: #fff;
+  }
+  .plan-option:hover {
+    border-color: #cfc3ff;
+    box-shadow: 0 8px 22px rgba(122, 90, 248, 0.06);
+  }
+  .plan-option.selected {
+    border-color: #7a5af8;
+    background: #f7f4ff;
+  }
+  </style>
+  

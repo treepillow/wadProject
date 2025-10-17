@@ -9,7 +9,7 @@ import Signup from "@/components/Signup.vue";
 import ChatPage from '../components/ChatPage.vue';
 import ForgotPassword from '../components/ForgotPassword.vue';
 import NewBusiness from '../components/NewBusiness.vue';
-
+import Boosting from '../components/Boosting.vue'
 
 import { auth } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -65,7 +65,12 @@ const router = createRouter({
       path:'/createService',
       name: 'createservice',
       component: NewBusiness
-    }
+    },
+    {
+      path: '/boosting',
+      name: 'Boosting',
+      component: Boosting
+    },
   ],
 })
 

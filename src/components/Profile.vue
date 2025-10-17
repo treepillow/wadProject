@@ -410,6 +410,39 @@ export default {
       profileUnsubs.forEach(unsub => unsub && unsub())
       profileUnsubs.clear()
     })
+    /* ---------------- Boost Countdown (INSIDE setup) ---------------- */
+function formatCountdown(timestamp) {
+  let targetTime;
+
+  // Firestore Timestamp
+  if (timestamp && typeof timestamp === 'object' && 'seconds' in timestamp) {
+    targetTime = timestamp.seconds * 1000;
+  }
+  // ISO string
+  else if (typeof timestamp === 'string') {
+    targetTime = Date.parse(timestamp);
+  }
+  // Number (ms)
+  else {
+    targetTime = Number(timestamp || 0);
+  }
+
+  if (!targetTime || Number.isNaN(targetTime)) return 'Expired';
+
+  const diff = targetTime - Date.now();
+  if (diff <= 0) return 'Expired';
+
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+
+
 
     return {
       /* tabs */
@@ -429,10 +462,60 @@ export default {
       handleMyImageLoaded, handleLikedImageLoaded,
       /* drawer (NEW) */
       drawerOpen, drawerListing, drawerSellerName, drawerSellerAvatar,
-      openDrawer, closeDrawer
+      openDrawer, closeDrawer,
+      formatCountdown,
     }
+    
   }
 }
+/* ---------------- Boost Countdown ---------------- */
+function formatCountdown(timestamp) {
+  // 🔥 Convert Firestore Timestamp or string into a proper number
+  let targetTime;
+  if (typeof timestamp === 'object' && timestamp?.seconds) {
+    targetTime = timestamp.seconds * 1000;
+  } else if (typeof timestamp === 'string') {
+    targetTime = new Date(timestamp).getTime();
+  } else {
+    targetTime = Number(timestamp);
+  }
+
+  const diff = targetTime - Date.now();
+  if (diff <= 0) return "Expired";
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+
+// Auto refresh every minute for live countdowns
+let countdownInterval;
+onMounted(() => {
+  countdownInterval = setInterval(() => {
+    myListings.value = [...myListings.value]; // trigger re-render
+  }, 60000);
+
+  // Show success notification if redirected from Stripe
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('boosted') === 'true') {
+    alert('🎉 Your listing has been boosted! It will receive increased visibility.');
+    if (window.location.hash === '#my') {
+      activeTab.value = 'my';
+    }
+    params.delete('boosted');
+    window.history.replaceState({}, '', `${window.location.pathname}`);
+  }
+});
+
+onUnmounted(() => {
+  clearInterval(countdownInterval);
+});
+
 </script>
 
 <template>
@@ -526,14 +609,30 @@ export default {
             </div>
           </div>
 
+          
           <!-- MY LISTINGS -->
           <div v-show="activeTab==='my'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
             <h4 class="mb-4">My Listings</h4>
-            <div v-if="myLoading" class="text-center py-4"><div class="spinner-border"></div></div>
-            <div v-else-if="!myListings.length" class="text-muted">You haven’t posted any listings yet.</div>
+
+            <!-- Loading -->
+            <div v-if="myLoading" class="text-center py-4">
+              <div class="spinner-border"></div>
+            </div>
+
+            <!-- Empty -->
+            <div v-else-if="!myListings.length" class="text-muted">
+              You haven’t posted any listings yet.
+            </div>
+
+            <!-- Grid -->
             <div v-else class="row g-3 g-md-4">
-              <div v-for="l in myListings" :key="l.listingId || l.id" class="col-12 col-sm-6 col-lg-4">
+              <div
+                v-for="l in myListings"
+                :key="l.listingId || l.id"
+                class="col-12 col-sm-6 col-lg-4 d-flex flex-column"
+              >
                 <ListingCard
+                  class="w-100 flex-grow-1"
                   :listing="l"
                   :liked="likedSet?.has(l.listingId || l.id)"
                   :likesCount="likeCounts[l.listingId || l.id] || 0"
@@ -542,10 +641,30 @@ export default {
                   :reveal="revealedMy.has(l.listingId || l.id)"
                   @toggle-like="onToggleLike"
                   @image-loaded="handleMyImageLoaded"
-                  @open="openDrawer(l)" 
+                  @open="openDrawer(l)"
                 />
+
+                <!-- Boost section inside the same container/column -->
+                <div class="mt-2">
+                  <!-- Boost Timer (only if boostedUntil exists) -->
+                  <div v-if="l.boostedUntil" class="boost-badge mb-2 ">
+                    ⏰ Boost ends in: <strong>{{ formatCountdown(l.boostedUntil) }}</strong>
+                  </div>
+
+                  <!-- Boost Button -->
+                  <div class="d-flex gap-2 boost-section">
+                    <router-link
+                      class="btn btn-sm btn-primary w-100"
+                      :to="{ path: '/boosting', query: { listingId: l.listingId || l.id } }"
+                    >
+                      Boost
+                    </router-link>
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
+
           </div>
 
           <!-- LIKED -->
@@ -582,7 +701,7 @@ export default {
       :sellerAvatar="drawerSellerAvatar"
       @close="closeDrawer"
     />
-  </div>
+  
 </template>
 
 <style scoped>
@@ -614,4 +733,28 @@ export default {
 .stars-display .star.filled {
   color: #ffc107;
 }
+.boost-badge {
+  background: #f7f4ff;
+  color: #5a43c5;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 8px;
+  display: inline-block;
+}
+.boost-section .btn {
+  height: 50px;          /* or 55px, tweak as needed */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  background-color: #7a4de8;
+  border-color: #7a4de8;
+}
+
+.boost-section .btn:hover {
+  background-color: #693ccc;
+  border-color: #693ccc;
+}
+
 </style>

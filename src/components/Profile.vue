@@ -223,8 +223,15 @@ export default {
           email.value     = d.email || u.email || ''
           phone.value     = d.phone || ''
           dateOfBirth.value = d.dateOfBirth || ''
-          address.value   = d.address || ''
-          avatarUrl.value = d.photoURL || u.photoURL || ''
+          if (d.address) {
+            const a = d.address
+            address.value = a.blk || a.street || a.postal || a.unit
+              ? `${a.blk || ''} ${a.street || ''} ${a.unit || ''} ${a.postal || ''}`.trim()
+              : ''
+          } else {
+            address.value = ''
+          }
+          avatarUrl.value = d.profilePicture || d.photoURL || u.photoURL || ''
           averageRating.value = d.averageRating || 0
           totalReviews.value = d.totalReviews || 0
 
@@ -559,7 +566,7 @@ export default {
                 <input class="form-control" v-model="lastName" placeholder="Doe" />
               </div>
               <div class="col-md-6">
-                <label class="form-label fw-semibold">Phone</label>
+                <label class="form-label fw-semibold">Phone Number</label>
                 <input class="form-control" v-model="phone" placeholder="+6591234567" />
               </div>
               <div class="col-md-6">

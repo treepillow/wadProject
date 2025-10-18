@@ -18,7 +18,7 @@
             {{ loading ? 'Sending...' : 'Send Reset Link' }}
           </button>
           <p class="info-text">
-            Enter your registered email address. We'll send you a password reset link.
+            Enter your registered email address. We will send you a password reset link.
           </p>
           <p>
             <span class="toggle-link" @click="$router.push('/login')">Back to Login</span>

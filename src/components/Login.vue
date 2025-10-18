@@ -11,6 +11,10 @@
           <span>Sign in with Google</span>
         </button>
 
+        <div class="divider">
+          <span>or</span>
+        </div>
+        
         <!-- Email / Username Login -->
         <form @submit.prevent="handleLogin">
           <input
@@ -258,7 +262,7 @@ button:hover {
   width: 100%;
   font-weight: 600;
   margin-bottom: 15px;
-  transition: background 0.2s;
+  /* transition: background 0.2s; */
 }
 
 .google-btn:hover {
@@ -270,4 +274,22 @@ button:hover {
   height: 20px;
   object-fit: contain;
 }
+
+.divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999; /* subtle gray */
+  font-size: 14px;
+  margin: 20px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #ccc; /* subtle line */
+  margin: 0 10px;
+}
+
 </style>

@@ -560,7 +560,7 @@ export default {
                 <input class="form-control" v-model="lastName" placeholder="Doe" />
               </div>
               <div class="col-md-6">
-                <label class="form-label fw-semibold">Phone</label>
+                <label class="form-label fw-semibold">Phone Number</label>
                 <input class="form-control" v-model="phone" placeholder="+6591234567" />
               </div>
               <div class="col-md-6">

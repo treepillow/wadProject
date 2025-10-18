@@ -4,29 +4,50 @@
       <div class="signup-card">
         <img src="@/assets/homes_logo.png" alt="Homes Logo" class="logo" />
         <h2>Sign Up</h2>
+
+        <!-- Flow 2: Google Signup -->
         <button type="button" @click="handleGoogleSignup" class="google-btn">
           <img src="@/assets/google-logo.png" alt="Google Logo" class="google-icon" />
-          <span>Sign up with Google</span>
+          Sign up with Google
         </button>
-        <form @submit.prevent="handleSignup">
-          <!-- Username / Email -->
+
+        <div class="divider"><span>or</span></div>
+
+        <!-- Flow 1: Normal Signup -->
+        <form @submit.prevent="handleBasicSignup">
           <input type="text" placeholder="Username" v-model="signup.username" required />
           <input type="email" placeholder="Email" v-model="signup.email" required />
+          <input type="password" placeholder="Password" v-model="signup.password" required />
+          <button type="submit" class="signup-btn">Sign Up</button>
+        </form>
 
-          <!-- Password with eye toggle -->
-          <div class="password-container" v-if="!signup.isGoogle">
-            <input
-              :type="showPassword ? 'text' : 'password'"
-              placeholder="Password"
-              v-model="signup.password"
-              required
-            />
-            <span class="toggle-password" @click="togglePassword">
-              <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
-            </span>
-          </div>
+        <div class="login-link">
+          <span class="toggle-link" @click="goToLogin">Already have an account? Login</span>
+        </div>
+      </div>
 
-          <!-- Names -->
+      <!-- Popup for additional info (same for both flows) -->
+      <div v-if="showDetailsPopup" class="popup-overlay">
+        <div class="popup-card">
+          <h3>Complete Your Profile</h3>
+          <form @submit.prevent="submitDetails">
+            <!-- Show password only for normal signup -->
+            <div v-if="!signup.isGoogle" class="password-container">
+              <input :type="showPassword ? 'text' : 'password'" v-model="signup.password" placeholder="Password" required />
+              <span class="toggle-password" @click="showPassword = !showPassword">
+                <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
+              </span>
+            </div>
+            <!-- ask them to enter a password if they signup using google -->
+            <div v-else-if="signup.isGoogle" class="password-container">
+              <input :type="showPassword ? 'text' : 'password'" v-model="signup.password" placeholder="Password" required />
+              <span class="toggle-password" @click="showPassword = !showPassword">
+                <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
+              </span>
+            </div>
+
+            <!-- all additional info -->
+            <!-- Names -->
           <input type="text" placeholder="First Name" v-model="signup.firstName" required />
           <input type="text" placeholder="Last Name" v-model="signup.lastName" required />
 
@@ -101,7 +122,7 @@
                 :class="{ active: !signup.isLanded }"
                 @click="signup.isLanded = false"
               >
-                HDB / Condo
+                HDB / Condominium
               </button>
               <button
                 type="button"
@@ -158,45 +179,14 @@
             </div>
           </div>
 
-          <button type="submit" class="signup-btn google-btn">Sign Up</button>
-
-          <div class="login-link">
-            <p>
-              <span class="toggle-link" @click="goToLogin">
-                Already have an account? Login
-              </span>
-            </p>
+          <!-- Image Modal -->
+          <div v-if="showImageModal" class="image-modal" @click="showImageModal = false">
+            <img :src="signup.profilePreview" alt="Full Image Preview" />
           </div>
-        </form>
 
-        <!-- Image Modal -->
-        <div v-if="showImageModal" class="image-modal" @click="showImageModal = false">
-          <img :src="signup.profilePreview" alt="Full Image Preview" />
-        </div>
-
-        <!-- Scroll hint -->
-        <div class="scroll-hint" v-show="showScrollHint">
-          <i class="fa fa-chevron-down"></i>
-          <span>Scroll for more</span>
-        </div>
-      </div>
-
-      <!-- Bootstrap Toast Notification -->
-      <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999">
-        <div
-          v-if="notification.show"
-          class="toast show"
-          :class="`bg-${notification.type} text-white`"
-          role="alert"
-        >
-          <div class="toast-body d-flex align-items-center justify-content-between">
-            <span>{{ notification.message }}</span>
-            <button
-              type="button"
-              class="btn-close btn-close-white ms-3"
-              @click="notification.show = false"
-            ></button>
-          </div>
+            <button type="submit" class="popup-submit">Save & Continue</button>
+            <button type="button" class="popup-cancel" @click="showDetailsPopup = false">Cancel</button>
+          </form>
         </div>
       </div>
     </div>
@@ -213,7 +203,6 @@ export default {
   name: "Signup",
   components: { AuthLayout },
   data() {
-    const currentYear = new Date().getFullYear();
     return {
       signup: {
         username: "",
@@ -221,367 +210,179 @@ export default {
         password: "",
         firstName: "",
         lastName: "",
-        day: "",
-        month: "",
-        year: "",
         dateOfBirth: "",
         phone: "",
-        address: "",     // kept for compatibility (not used for validation)
+        isGoogle: false,
+        isLanded: false,
         blk: "",
         street: "",
         postal: "",
         unit: "",
         profilePreview: null,
-        isGoogle: false,
-        isLanded: false, // New: tracks if user lives in landed property
+        profileFile: null,
       },
-      showImageModal: false,
-      months: [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-      ],
-      years: Array.from({ length: 100 }, (_, i) => currentYear - i),
+      showDetailsPopup: false,
       showPassword: false,
+      currentUserUid: null,
+
+      // OTP states
+      otpSent: false,
+      otpVerified: false,
+      enteredOTP: "",
+      sendingOTP: false,
+
+      // Address errors/warnings
       addrError: "",
       addrWarning: "",
-      showScrollHint: false,
-      notification: { show: false, message: "", type: "" }, // For Bootstrap toast notifications
 
-      // OTP verification
-      otpSent: false,
-      otpCode: '',
-      enteredOTP: '',
-      otpVerified: false,
-      sendingOTP: false,
+      // Image modal
+      showImageModal: false,
     };
   },
   methods: {
     showNotification(message, type = "danger") {
-      this.notification = { show: true, message, type };
-      setTimeout(() => {
-        this.notification.show = false;
-      }, 5000);
-    },
-    togglePassword() {
-      this.showPassword = !this.showPassword;
-    },
-    togglePropertyType() {
-      this.signup.isLanded = !this.signup.isLanded;
-      // Clear block field when switching to landed
-      if (this.signup.isLanded) {
-        this.signup.blk = "";
-      }
-    },
-    handleProfilePicture(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        this.signup.profilePreview = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    },
-    isValidSGPhone(phone) {
-      const pattern = /^(?:\+65)?[89]\d{7}$/;
-      return pattern.test(phone);
+      alert(`${type.toUpperCase()}: ${message}`);
     },
 
-    /* ---------- OTP Functions ---------- */
-    async sendOTP() {
-      if (!this.isValidSGPhone(this.signup.phone)) {
-        this.showNotification("Please enter a valid Singapore phone number first.", "danger");
-        return;
-      }
-
-      this.sendingOTP = true;
-
-      // Generate 6-digit OTP
-      this.otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-      // In a real app, you would send this via SMS API (Twilio, AWS SNS, etc.)
-      // For demo purposes, we'll show it in console and as a notification
-      console.log(`[OTP] Code for ${this.signup.phone}: ${this.otpCode}`);
-
-      // Simulate API call delay
-      setTimeout(() => {
-        this.otpSent = true;
-        this.sendingOTP = false;
-        this.showNotification(`OTP sent to ${this.signup.phone} (Check console for demo)`, "success");
-
-        // For demo: also show OTP in notification (remove in production!)
-        setTimeout(() => {
-          this.showNotification(`Demo OTP: ${this.otpCode}`, "info");
-        }, 1000);
-      }, 1500);
-    },
-
-    verifyOTP() {
-      if (this.enteredOTP === this.otpCode) {
-        this.otpVerified = true;
-        this.showNotification("Phone number verified successfully!", "success");
-      } else {
-        this.showNotification("Invalid OTP. Please try again.", "danger");
-      }
-    },
-
-    resendOTP() {
-      this.otpSent = false;
-      this.enteredOTP = '';
-      this.sendOTP();
-    },
-
-    /* ---------- Local normalizers ---------- */
-    normalizeStr(s) {
-      return (s || "")
-        .toString()
-        .trim()
-        .toUpperCase()
-        .replace(/\s+/g, " ")
-        .replace(/[.,']/g, "");
-    },
-    expandAbbrev(road) {
-      const A = [
-        [" AVE ", " AVENUE "],
-        [" RD ", " ROAD "],
-        [" ST ", " STREET "],
-        [" DR ", " DRIVE "],
-        [" CRES ", " CRESCENT "],
-        [" CTRL ", " CENTRAL "],
-        [" PK ", " PARK "],
-        [" PKWY ", " PARKWAY "],
-        [" TER ", " TERRACE "],
-        [" HTS ", " HEIGHTS "],
-        [" HWY ", " HIGHWAY "],
-        [" GDN ", " GARDEN "],
-        [" GDNS ", " GARDENS "],
-        [" CTR ", " CENTRE "],
-        [" PL ", " PLACE "],
-        [" CL ", " CLOSE "]
-      ];
-      let out = ` ${this.normalizeStr(road)} `;
-      A.forEach(([a, b]) => (out = out.replaceAll(a, b)));
-      return out.trim();
-    },
-    levDist(a, b) {
-      const m = a.length, n = b.length;
-      if (!m) return n;
-      if (!n) return m;
-      const d = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-      for (let i = 0; i <= m; i++) d[i][0] = i;
-      for (let j = 0; j <= n; j++) d[0][j] = j;
-      for (let i = 1; i <= m; i++) {
-        for (let j = 1; j <= n; j++) {
-          const c = a[i - 1] === b[j - 1] ? 0 : 1;
-          d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + c);
-        }
-      }
-      return d[m][n];
-    },
-    similarity(a, b) {
-      const A = this.expandAbbrev(a);
-      const B = this.expandAbbrev(b);
-      const dist = this.levDist(A, B);
-      const L = Math.max(A.length, B.length) || 1;
-      return 1 - dist / L;
-    },
-
-    /* ---------- OneMap API with fallback endpoints (matches NewBusiness.vue) ---------- */
-    async fetchJSON(url, { timeoutMs = 6000 } = {}) {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), timeoutMs);
-      try {
-        const res = await fetch(url, {
-          signal: ctrl.signal,
-          headers: { Accept: 'application/json' },
-          mode: "cors",
-        });
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status} ${res.statusText}`);
-        }
-        return await res.json();
-      } finally {
-        clearTimeout(t);
-      }
-    },
-
-    // Try multiple OneMap endpoints with fallback (same as NewBusiness.vue)
-    async oneMapSearchByPostal(postal) {
-      const q = `searchVal=${encodeURIComponent(postal)}&returnGeom=N&getAddrDetails=Y&pageNum=1`;
-      const urls = [
-        `https://www.onemap.gov.sg/api/common/elastic/search?${q}`,
-        `https://developers.onemap.sg/commonapi/search?${q}`,
-      ];
-      let lastErr;
-      for (const u of urls) {
-        try {
-          return await this.fetchJSON(u);
-        } catch (e) {
-          lastErr = e;
-        }
-      }
-      throw lastErr || new Error('All OneMap endpoints failed');
-    },
-
-    async validateAddressPreferOneMap({ blk, street, postal }, threshold = 0.8) {
-      if (!/^[0-9]{6}$/.test(postal)) {
-        return { ok: false, reason: "Postal Code must be 6 digits." };
-      }
-      const userBlk = this.normalizeStr(blk || "");
-      const userStreet = this.expandAbbrev(street || "");
-
-      // Try OneMap with fallback endpoints
-      let json;
-      try {
-        json = await this.oneMapSearchByPostal(postal);
-      } catch (err) {
-        console.error('OneMap error:', err);
-        // Strict error for signup - require valid address
-        return {
-          ok: false,
-          reason: 'Address service not reachable. Please check your connection and try again.'
-        };
-      }
-
-      const results = Array.isArray(json?.results) ? json.results : [];
-      const exact = results.filter((r) => r.POSTAL === postal);
-      const candidates = exact.length ? exact : results;
-      if (!candidates.length) return { ok: false, reason: "Invalid address in Singapore." };
-
-      let best = null, score = -1;
-      for (const r of candidates) {
-        const s = this.similarity(userStreet, r.ROAD_NAME || "");
-        if (s > score) { best = r; score = s; }
-      }
-
-      const omBlk  = this.normalizeStr(best?.BLK_NO || "");
-      const omRoad = this.expandAbbrev(best?.ROAD_NAME || "");
-      const omBldg = this.normalizeStr(best?.BUILDING || "");
-      const addrStr = (best?.ADDRESS || "").toUpperCase();
-      const addressLabelHasBlk = /(^|[\s,])BLK[\s]/.test(addrStr);
-
-      if (userBlk && omBlk && userBlk !== omBlk && score < 0.92) {
-        return { ok:false, reason:`Block/House number mismatch (OneMap: ${omBlk || "—"}, You: ${userBlk}).` };
-      }
-
-      const streetOk   = score >= threshold;
-      const buildingOk = omBldg && this.similarity(this.normalizeStr(street || ""), omBldg) >= threshold;
-      if (!streetOk && !buildingOk) {
-        return { ok:false, reason:`Street doesn’t match OneMap (score ${score.toFixed(2)}).` };
-      }
-
-      return {
-        ok: true,
-        data: {
-          blk: omBlk || userBlk,
-          street: omRoad || userStreet,
-          postal,
-          building: best?.BUILDING || "",
-          confidence: Math.max(score, buildingOk ? 1 : 0),
-          addressLabelHasBlk,
-          source: "onemap",
-        },
-      };
-    },
-
-    /* ---------- Auth flows ---------- */
+    // Signup Methods
     async handleGoogleSignup() {
-      const provider = new GoogleAuthProvider();
       try {
+        const provider = new GoogleAuthProvider();
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
+
         await setDoc(doc(db, "users", user.uid), {
           username: user.displayName,
           email: user.email,
           profilePicture: user.photoURL,
           createdAt: serverTimestamp(),
         });
-        this.showNotification(`Signed in as ${user.displayName}`, "success");
-        setTimeout(() => this.$router.push("/home"), 1500);
+
+        this.signup.username = user.displayName || "";
+        this.signup.email = user.email || "";
+        this.signup.isGoogle = true;
+        this.currentUserUid = user.uid;
+
+        this.showDetailsPopup = true;
       } catch (err) {
-        this.showNotification(`Google sign-in failed: ${err.message}`, "danger");
+        this.showNotification(`Google sign-in failed: ${err.message}`);
       }
     },
 
-    async handleSignup() {
-      this.addrError = "";
-      this.addrWarning = "";
-
-      // 0) Check OTP verification
-      if (!this.otpVerified) {
-        this.showNotification("Please verify your phone number with OTP first.", "danger");
-        return;
-      }
-
-      // 0.5) Check if block is required (non-landed properties)
-      if (!this.signup.isLanded && !this.signup.blk.trim()) {
-        this.addrError = "Block number is required for HDB/Condo. Toggle 'Landed Property' if you live in a landed house.";
-        this.showNotification(this.addrError, "danger");
-        return;
-      }
-
-      // 1) OneMap validation
-      const addrCheck = await this.validateAddressPreferOneMap(
-        { blk: this.signup.blk, street: this.signup.street, postal: this.signup.postal },
-        0.8
-      );
-      if (!addrCheck.ok) {
-        this.addrError = addrCheck.reason;
-        this.showNotification(addrCheck.reason, "danger");
-        return;
-      }
-      if (addrCheck.data?.warning) {
-        this.addrWarning = addrCheck.data.warning;
-      }
-
-      const { blk, street, postal, building, addressLabelHasBlk, source } = addrCheck.data;
-      const unitRaw = (this.signup.unit || "").trim();
-      const unit = unitRaw ? (unitRaw.startsWith("#") ? unitRaw : `#${unitRaw}`) : "";
-
-      const leadingNumber = blk ? (addressLabelHasBlk ? `BLK ${blk}` : blk) : "";
-      const fullAddress = `${[leadingNumber, street, building].filter(Boolean).join(" ")} Singapore ${postal} ${unit}`.trim();
-
-      // 2) Other validations
-      const validEmailPattern = /^[\w.+-]+@([\w-]+\.)+[\w-]{2,}$/i;
-      if (!validEmailPattern.test(this.signup.email)) {
-        this.showNotification("Please use a valid email address.", "danger");
-        return;
-      }
-      if (!this.isValidSGPhone(this.signup.phone)) {
-        this.showNotification("Please enter a valid Singapore phone number (e.g. +6591234567 or 91234567).", "danger");
-        return;
-      }
-
-      // 3) Create user + save profile
+    async handleBasicSignup() {
       try {
-        const userCredential = await createUserWithEmailAndPassword(auth, this.signup.email, this.signup.password);
-        const user = userCredential.user;
+        if (!this.signup.username || !this.signup.email || !this.signup.password) {
+          return this.showNotification("Please fill in all fields.", "danger");
+        }
 
-        await setDoc(doc(db, "users", user.uid), {
-          username: this.signup.username,
-          email: this.signup.email,
-          firstName: this.signup.firstName,
-          lastName: this.signup.lastName,
-          dateOfBirth: this.signup.dateOfBirth || "",
-          phone: this.signup.phone,
-          address: fullAddress,
-          addressComponents: { blk, street, postal, unit, building, verificationSource: source, isLanded: this.signup.isLanded },
-          createdAt: serverTimestamp(),
-          profilePicture: this.signup.profilePreview || null,
-        });
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          this.signup.email,
+          this.signup.password
+        );
+        this.currentUserUid = userCredential.user.uid;
+        this.signup.isGoogle = false;
 
-        this.showNotification(`Account created for ${this.signup.username}!`, "success");
-        setTimeout(() => this.$router.push("/login"), 1500);
+        this.showDetailsPopup = true;
       } catch (err) {
-        this.showNotification(`Signup failed: ${err.message}`, "danger");
+        this.showNotification(`Signup failed: ${err.message}`);
+      }
+    },
+
+    async submitDetails() {
+      try {
+        const uid = this.currentUserUid || auth.currentUser?.uid;
+        if (!uid) return this.showNotification("User not found.", "danger");
+
+        await setDoc(
+          doc(db, "users", uid),
+          {
+            firstName: this.signup.firstName,
+            lastName: this.signup.lastName,
+            dateOfBirth: this.signup.dateOfBirth,
+            phone: this.signup.phone,
+            address: {
+              isLanded: this.signup.isLanded,
+              blk: this.signup.blk,
+              street: this.signup.street,
+              postal: this.signup.postal,
+              unit: this.signup.unit,
+            },
+            profilePicture: this.signup.profilePreview || null,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        this.showNotification("Profile completed successfully!", "success");
+        this.showDetailsPopup = false;
+        setTimeout(() => this.$router.push("/home"), 1200);
+      } catch (err) {
+        this.showNotification(`Failed to save profile: ${err.message}`, "danger");
       }
     },
 
     goToLogin() {
       this.$router.push("/login");
     },
+
+    // OTP Methods
+    async sendOTP() {
+      if (!this.signup.phone) return this.showNotification("Enter your phone number first.", "danger");
+      this.sendingOTP = true;
+
+      try {
+        // Mock OTP sending
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        this.otpSent = true;
+        this.showNotification("OTP sent to your phone.", "success");
+      } catch (err) {
+        this.showNotification("Failed to send OTP.", "danger");
+      } finally {
+        this.sendingOTP = false;
+      }
+    },
+
+    async verifyOTP() {
+      if (this.enteredOTP.length !== 6) return this.showNotification("Enter 6-digit OTP.", "danger");
+
+      try {
+        // Mock OTP verification
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        this.otpVerified = true;
+        this.showNotification("Phone verified successfully!", "success");
+      } catch (err) {
+        this.showNotification("OTP verification failed.", "danger");
+      }
+    },
+
+    async resendOTP() {
+      this.otpSent = false;
+      this.enteredOTP = "";
+      await this.sendOTP();
+    },
+
+    // Misc Methods
+    togglePropertyType() {
+      this.signup.isLanded = !this.signup.isLanded;
+    },
+
+    handleProfilePicture(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      this.signup.profileFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.signup.profilePreview = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    },
   },
 };
 </script>
+
+
 
 <style scoped>
 /* * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; } */
@@ -612,23 +413,7 @@ export default {
 }
 .signup-card::-webkit-scrollbar { display: none; }
 
-.scroll-hint {
-  position: sticky;
-  bottom: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: #888;
-  font-size: 0.85rem;
-  opacity: 0.9;
-  animation: fadeUp 2s ease-in-out infinite;
-  pointer-events: none;
-}
-.scroll-hint i {
-  font-size: 1rem;
-  margin-bottom: 3px;
-  animation: bounce 1.5s infinite;
-}
+
 @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(5px)} }
 @keyframes fadeUp { 0%,100%{opacity:.8} 50%{opacity:.4} }
 
@@ -951,4 +736,95 @@ input::placeholder { color: gray; opacity: 1; }
     transform: translateY(0);
   }
 }
+
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.popup-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 30px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh; /* fits screen height */
+  overflow-y: auto; /* scroll only inside card */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Hide scrollbar but keep scrollable for popup */
+.popup-card {
+  max-height: 85vh;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* Chrome, Safari, Opera */
+.popup-card::-webkit-scrollbar {
+  display: none;
+}
+
+
+.popup-card h3 {
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.popup-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.popup-card input {
+  padding: 10px;
+  border: none;
+  border-bottom: 2px solid #000;
+  background: transparent;
+}
+
+.popup-submit {
+  background: black;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.popup-cancel {
+  background: #ddd;
+  border: none;
+  padding: 10px;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999; 
+  font-size: 14px;
+  margin: 20px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #ccc; 
+  margin: 0 10px;
+}
+
 </style>

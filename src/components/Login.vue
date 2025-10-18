@@ -147,12 +147,14 @@ export default {
 
         this.$router.replace("/home");
       } catch (err) {
-        // Ignore if user simply closed the popup
-        if (err.code === 'auth/popup-closed-by-user') {
+        // Ignore if user simply closed the popup or cancelled
+        if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
           this.googleLoading = false;
           return;
         }
         alert(`❌ Google sign-in failed: ${err.message}`);
+        this.googleLoading = false;
+      } finally {
         this.googleLoading = false;
       }
     },
@@ -185,6 +187,11 @@ export default {
 .logo {
   width: 80px;
   margin-bottom: 20px;
+}
+
+h2 {
+  margin-bottom: 25px;
+  color: black;
 }
 
 form {

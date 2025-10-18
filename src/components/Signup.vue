@@ -8,7 +8,7 @@
         <!-- Flow 2: Google Signup -->
         <button type="button" @click="handleGoogleSignup" class="google-btn">
           <img src="@/assets/google-logo.png" alt="Google Logo" class="google-icon" />
-          Sign up with Google
+          <span>Sign up with Google</span>
         </button>
 
         <div class="divider"><span>or</span></div>
@@ -224,6 +224,7 @@ export default {
       showDetailsPopup: false,
       showPassword: false,
       currentUserUid: null,
+      googleLoading: false,
 
       // OTP states
       otpSent: false,
@@ -246,6 +247,10 @@ export default {
 
     // Signup Methods
     async handleGoogleSignup() {
+      // Prevent multiple popup attempts
+      if (this.googleLoading) return;
+      this.googleLoading = true;
+
       try {
         const provider = new GoogleAuthProvider();
         const result = await signInWithPopup(auth, provider);
@@ -265,11 +270,14 @@ export default {
 
         this.showDetailsPopup = true;
       } catch (err) {
-        // Ignore if user simply closed the popup
-        if (err.code === 'auth/popup-closed-by-user') {
+        // Ignore if user simply closed the popup or cancelled
+        if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+          this.googleLoading = false;
           return;
         }
         this.showNotification(`Google sign-in failed: ${err.message}`);
+      } finally {
+        this.googleLoading = false;
       }
     },
 
@@ -394,7 +402,7 @@ export default {
 .signup-wrapper {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   min-height: 100vh;
   background: rgb(245, 239, 239);
   padding: 20px;
@@ -403,16 +411,14 @@ export default {
 .signup-card {
   background: #fff;
   border-radius: 20px;
-  padding: 30px 40px;
+  padding: 40px;
   width: 500px;
   max-width: 500px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.2);
   text-align: center;
   position: relative;
-  margin-top: 37px;
   max-height: 90vh;
   overflow-y: auto;
-  padding-bottom: 40px;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }

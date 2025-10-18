@@ -481,7 +481,6 @@ export default {
       /* batch reveal bindings */
       revealedMy, revealedLiked,
       handleMyImageLoaded, handleLikedImageLoaded,
-      /* drawer (NEW) */
       drawerOpen, drawerListing, drawerSellerName, drawerSellerAvatar,
       openDrawer, closeDrawer,
       formatCountdown,

@@ -147,6 +147,11 @@ export default {
 
         this.$router.replace("/home");
       } catch (err) {
+        // Ignore if user simply closed the popup
+        if (err.code === 'auth/popup-closed-by-user') {
+          this.googleLoading = false;
+          return;
+        }
         alert(`❌ Google sign-in failed: ${err.message}`);
         this.googleLoading = false;
       }

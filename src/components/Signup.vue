@@ -265,6 +265,10 @@ export default {
 
         this.showDetailsPopup = true;
       } catch (err) {
+        // Ignore if user simply closed the popup
+        if (err.code === 'auth/popup-closed-by-user') {
+          return;
+        }
         this.showNotification(`Google sign-in failed: ${err.message}`);
       }
     },

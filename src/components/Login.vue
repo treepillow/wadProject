@@ -262,7 +262,7 @@ button:hover {
   width: 100%;
   font-weight: 600;
   margin-bottom: 15px;
-  transition: background 0.2s;
+  /* transition: background 0.2s; */
 }
 
 .google-btn:hover {

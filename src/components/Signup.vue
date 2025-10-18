@@ -49,70 +49,70 @@
             <!-- all additional info -->
             <!-- Names -->
           <input type="text" placeholder="First Name" v-model="signup.firstName" required />
-          <input type="text" placeholder="Last Name" v-model="signup.lastName" required />
+            <input type="text" placeholder="Last Name" v-model="signup.lastName" required />
 
-          <!-- DOB -->
-          <div class="dob-container">
-            <label style="color: #000; font-weight: 500; margin-bottom: 5px;">Date of Birth:</label>
-            <input type="date" v-model="signup.dateOfBirth" required />
-          </div>
-
-          <!-- Phone -->
-          <input
-            type="text"
-            placeholder="Phone Number (include +65, e.g. +65XXXXXXXX)"
-            v-model="signup.phone"
-            required
-          />
-
-          <!-- OTP Verification Section -->
-          <div class="otp-container">
-            <!-- Send OTP Button -->
-            <button
-              v-if="!otpSent"
-              type="button"
-              class="btn-otp"
-              @click="sendOTP"
-              :disabled="sendingOTP || !signup.phone"
-            >
-              {{ sendingOTP ? 'Sending...' : 'Send OTP' }}
-            </button>
-
-            <!-- OTP Input and Verify Button -->
-            <div v-if="otpSent && !otpVerified" class="otp-verify-group">
-              <input
-                type="text"
-                placeholder="Enter 6-digit OTP"
-                v-model="enteredOTP"
-                maxlength="6"
-                class="otp-input"
-              />
-              <button
-                type="button"
-                class="btn-verify"
-                @click="verifyOTP"
-                :disabled="enteredOTP.length !== 6"
-              >
-                Verify
-              </button>
-              <button
-                type="button"
-                class="btn-resend"
-                @click="resendOTP"
-              >
-                Resend OTP
-              </button>
+            <!-- DOB -->
+            <div class="dob-container">
+              <label style="color: #000; font-weight: 500; margin-bottom: 5px;">Date of Birth:</label>
+              <input type="date" v-model="signup.dateOfBirth" required />
             </div>
 
-            <!-- Verification Status -->
-            <div v-if="otpVerified" class="otp-verified">
-              <span class="checkmark">✓</span> Phone verified
-            </div>
-          </div>
+            <!-- Phone -->
+            <input
+              type="text"
+              placeholder="Phone Number (include +65, e.g. +65XXXXXXXX)"
+              v-model="signup.phone"
+              required
+            />
 
-          <!-- Address -->
-          <div class="address-container">
-            <label class="address-label">Address:</label>
+            <!-- OTP Verification Section -->
+            <div class="otp-container">
+              <!-- Send OTP Button -->
+              <button
+                v-if="!otpSent"
+                type="button"
+                class="btn-otp"
+                @click="sendOTP"
+                :disabled="sendingOTP || !signup.phone"
+              >
+                {{ sendingOTP ? 'Sending...' : 'Send OTP' }}
+              </button>
+
+              <!-- OTP Input and Verify Button -->
+              <div v-if="otpSent && !otpVerified" class="otp-verify-group">
+                <input
+                  type="text"
+                  placeholder="Enter 6-digit OTP"
+                  v-model="enteredOTP"
+                  maxlength="6"
+                  class="otp-input"
+                />
+                <button
+                  type="button"
+                  class="btn-verify"
+                  @click="verifyOTP"
+                  :disabled="enteredOTP.length !== 6"
+                >
+                  Verify
+                </button>
+                <button
+                  type="button"
+                  class="btn-resend"
+                  @click="resendOTP"
+                >
+                  Resend OTP
+                </button>
+              </div>
+
+              <!-- Verification Status -->
+              <div v-if="otpVerified" class="otp-verified">
+                <span class="checkmark">✓</span> Phone verified
+              </div>
+            </div>
+
+            <!-- Address -->
+            <div class="address-container">
+              <label class="address-label">Address:</label>
 
             <!-- Property Type Toggle -->
             <div class="property-type-toggle">
@@ -297,6 +297,7 @@ export default {
         await setDoc(
           doc(db, "users", uid),
           {
+            username: this.signup.username,
             firstName: this.signup.firstName,
             lastName: this.signup.lastName,
             dateOfBirth: this.signup.dateOfBirth,
@@ -314,7 +315,7 @@ export default {
           { merge: true }
         );
 
-        this.showNotification("Profile completed successfully!", "success");
+        // this.showNotification("Profile completed successfully!", "success");
         this.showDetailsPopup = false;
         setTimeout(() => this.$router.push("/home"), 1200);
       } catch (err) {
@@ -552,12 +553,14 @@ input::placeholder { color: gray; opacity: 1; }
   width: 100%;
   font-weight: 600;
   margin-bottom: 15px;
-  transition: background 0.2s;
+  transition: all 0.2s; 
 }
 
 .google-btn:hover {
   background-color: #f7f7f7;
+  transform: scale(1.05); 
 }
+
 
 .google-icon {
   width: 20px;

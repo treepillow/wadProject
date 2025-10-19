@@ -17,7 +17,7 @@ function handleSearch(e) {
 
 <template>
   <div class="search mt-2">
-    <form class="d-flex align-items-center gap-3" role="search" @submit="handleSearch">
+    <form class="d-flex align-items-center gap-3" role="search" @keyup="handleSearch">
       <input
         class="home-business form-control"
         type="search"

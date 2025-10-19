@@ -182,7 +182,12 @@ async function fetchPage () {
     const parts = []
 
     // Apply category filter if any (Firestore 'in' supports up to 10 items)
-    if (selectedCats.value.length > 0) {
+    if (selectedCats.value.includes('Trending')) {
+      // "Trending" selected → show all, sorted by viewCount
+      parts.push(orderBy('viewCount', 'desc'))
+    } 
+    else if (selectedCats.value.length > 0) {
+      // Filter by selected categories (max 10 for Firestore `in` clause)
       parts.push(where('businessCategory', 'in', selectedCats.value.slice(0, 10)))
     }
 

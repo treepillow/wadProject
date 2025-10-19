@@ -11,6 +11,7 @@ export default {
     const src = (file) => new URL(`../assets/category_images/${file}`, import.meta.url).href
     return {
       options: [
+        'Trending',
         'Food and Drinks',
         'Beauty',
         'Fitness',
@@ -20,6 +21,7 @@ export default {
         'Others'
       ],
       images: {
+        'Trending': src(),
         'Food and Drinks': src('food_drinks.png'),
         'Beauty':          src('beauty.png'),
         'Fitness':         src('fitness.png'),

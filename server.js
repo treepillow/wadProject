@@ -7,26 +7,34 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
 
-// ✅ Initialize Stripe
+// ✅ Initialize Stripe securely
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2022-11-15",
 });
 
-// ✅ Map your price IDs from Stripe Dashboard
+// ✅ Load environment variables
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://homes-beige.vercel.app";
+
+// ✅ Configure CORS (allow only your frontend domain)
+app.use(
+  cors({
+    origin: FRONTEND_URL,
+    methods: ["GET", "POST"],
+    credentials: true,
+  })
+);
+
+app.use(express.json());
+
+// ✅ Map your Stripe price IDs
 const priceMap = {
   "1day": process.env.PRICE_ID_1D,
   "7days": process.env.PRICE_ID_7D,
   "1month": process.env.PRICE_ID_30D,
 };
 
-/**
- * ✅ Create Checkout Session
- * Frontend calls this route to get the Stripe URL.
- * We redirect back to /boosting with query params for plan + listingId
- */
+// ✅ Create Checkout Session
 app.post("/create-checkout-session", async (req, res) => {
   const { listingId, planId } = req.body;
 
@@ -48,8 +56,9 @@ app.post("/create-checkout-session", async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: `http://localhost:5173/boosting?status=success&plan=${planId}&listing=${listingId}`,
-      cancel_url: `http://localhost:5173/boosting?status=failed`,
+      // ✅ Dynamic success / cancel URLs for your live frontend
+      success_url: `${FRONTEND_URL}/boosting?status=success&plan=${planId}&listing=${listingId}`,
+      cancel_url: `${FRONTEND_URL}/boosting?status=failed`,
       metadata: {
         listingId,
         planId,
@@ -58,13 +67,18 @@ app.post("/create-checkout-session", async (req, res) => {
 
     res.json({ url: session.url });
   } catch (err) {
-    console.error("Stripe error:", err);
+    console.error("❌ Stripe error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ✅ Start server
-const PORT = 4242;
+// ✅ Health Check Endpoint (optional for Render)
+app.get("/", (req, res) => {
+  res.send("✅ Stripe backend is running!");
+});
+
+// ✅ Dynamic port for Render
+const PORT = process.env.PORT || 4242;
 app.listen(PORT, () => {
-  console.log(`🚀 Stripe backend running at http://localhost:${PORT}`);
+  console.log(`🚀 Stripe backend running on port ${PORT}`);
 });

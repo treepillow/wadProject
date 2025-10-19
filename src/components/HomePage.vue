@@ -13,7 +13,7 @@ import SearchBar from './SearchBar.vue'
 import Categories from './Categories.vue'
 import ListingCard from './ListingCard.vue'
 import ListingDrawer from './ListingDrawer.vue' // <-- ADDED
-
+import { nextTick } from 'vue' // <--added
 /* ---------- state ---------- */
 const listings     = ref([])
 const loading      = ref(true)
@@ -26,6 +26,58 @@ const noMore       = ref(false)
 /* filters (multi-select categories + search) */
 const selectedCats = ref([])
 const searchFilters = ref({ business: '', location: '' })
+
+// --- Filter Drawer State & Controls ---
+const filterOpen = ref(false)
+const minLikes = ref(0)
+const minRating = ref(0)
+
+//replaced this with async function below
+// function applyFilter() {
+//   // Apply likes/rating filter to existing listings
+//   listings.value = listings.value.filter(r => {
+//     const likes = likeCounts[r.listingId || r.id] || 0
+//     const rating = r.rating ?? 0
+//     return likes >= minLikes.value && rating >= minRating.value
+//   })
+//   filterOpen.value = false
+// }
+
+
+
+async function applyFilter() {
+  await nextTick(); // ensure likes and ratings are loaded first
+
+  const filtered = listings.value.filter(r => {
+    const likes = likeCounts[r.listingId || r.id] ?? 0;
+    const rating = r.rating ?? 0;
+    return likes >= minLikes.value && rating >= minRating.value;
+  });
+
+  if (filtered.length === 0) {
+    alert("No listings match the selected filters.");
+  }
+
+  listings.value = filtered;
+  filterOpen.value = false;
+}
+
+// changed to the one below to make sure it reloads everything
+// function resetFilter() {
+//   minLikes.value = 0
+//   minRating.value = 0
+//   reloadForFilters()
+//   filterOpen.value = false
+// }
+
+function resetFilter() {
+  minLikes.value = 0
+  minRating.value = 0
+  reloadForFilters() // reloads all listings + fresh likes + ratings
+  filterOpen.value = false
+}
+
+
 
 /* likes: state + listeners */
 const likedSet     = ref(new Set())
@@ -181,6 +233,32 @@ async function fetchPage () {
     listings.value.push(...rows)
     attachProfileListeners(rows)
     rows.forEach(r => fetchLikesCount(r.listingId || r.id))
+
+    // added this to Fetch average rating for each listing (from 'reviews' subcollection)
+await Promise.all(rows.map(async (r) => {
+  try {
+    const listingId = r.listingId || r.id
+    const reviewsCol = collection(db, 'allListings', listingId, 'reviews')
+    const snap = await getDocs(reviewsCol)
+
+    if (!snap.empty) {
+      const ratings = snap.docs.map(d => d.data().rating || 0)
+      const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length
+      r.rating = Number(avg.toFixed(1))
+    } else {
+      r.rating = 0
+    }
+  } catch (err) {
+    console.warn('rating fetch failed for', r.id, err)
+    r.rating = 0
+  }
+}))
+
+
+//added this to debug ratings fetch step
+console.log('Loaded listing ratings:', rows.map(r => ({ name: r.businessName, rating: r.rating })));
+
+
 
     if (snap.size < pageSize) noMore.value = true
   } catch (e) {
@@ -343,6 +421,17 @@ onBeforeUnmount(() => {
         <Categories :selected="selectedCats" @toggle="toggleCategory" />
       </div>
 
+      <!-- Filter + Reset Buttons -->
+<div class="d-flex justify-content-end align-items-center my-3 gap-2">
+  <button class="btn btn-outline-primary" @click="filterOpen = true">
+    <i class="fas fa-filter me-2"></i> Filter
+  </button>
+  <button class="btn btn-outline-secondary" @click="resetFilter">
+    Reset
+  </button>
+</div>
+
+
       <!-- centered selected chips -->
       <div v-if="selectedCats.length" class="chip-bar my-3">
         <span v-for="c in selectedCats" :key="c" class="chip chip--selected">{{ c }}</span>
@@ -392,6 +481,35 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
+
+<!-- Slide-in Filter Drawer -->
+<div class="filter-drawer" :class="{ open: filterOpen }">
+  <div class="drawer-content p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h4 class="mb-0">Filter Listings</h4>
+      <button class="btn-close" @click="filterOpen = false"></button>
+    </div>
+
+    <div class="mb-4">
+      <label class="form-label fw-semibold">Minimum Likes: {{ minLikes }}</label>
+      <input type="range" class="form-range" min="0" max="100" step="1" v-model.number="minLikes" />
+    </div>
+
+    <div class="mb-4">
+      <label class="form-label fw-semibold">Minimum Rating: {{ minRating }}</label>
+      <input type="range" class="form-range" min="0" max="5" step="0.1" v-model.number="minRating" />
+    </div>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary w-100" @click="applyFilter">Apply</button>
+      <button class="btn btn-outline-secondary w-100" @click="resetFilter">Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay -->
+<div v-if="filterOpen" class="drawer-overlay" @click="filterOpen = false"></div>
+
 
     <!-- Drawer (REUSED) -->
     <ListingDrawer
@@ -467,4 +585,43 @@ onBeforeUnmount(() => {
   .categories-row { scrollbar-width: none; }
   .categories-row::-webkit-scrollbar { display: none; }
 }
+
+/* --- Filter Drawer --- */
+.filter-drawer {
+  position: fixed;
+  top: 0;
+  right: -75%;
+  width: 75%;
+  height: 100vh;
+  background: #fff;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.2);
+  transition: right 0.35s ease;
+  z-index: 1050;
+  overflow-y: auto;
+  border-radius: 12px 0 0 12px;
+}
+.filter-drawer.open {
+  right: 0;
+}
+.drawer-content {
+  max-width: 600px;
+  margin: 0 auto;
+}
+.drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1040;
+}
+
+/* optional for range slider */
+input[type='range'] {
+  width: 100%;
+  accent-color: #7a5af8;
+  cursor: pointer;
+}
+
 </style>

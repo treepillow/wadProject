@@ -20,14 +20,14 @@ export default {
         'Others'
       ],
       icons: {
-        'Trending': 'ic:outline-trending-up',
+        'Trending': 'fa-solid:fire',
         'Food and Drinks': 'fa-solid:utensils',
-        'Beauty': 'mdi:brush',
+        'Beauty': 'fa-solid:paint-brush',
         'Fitness': 'fa-solid:dumbbell',
-        'Arts & Craft': 'mdi:palette',
-        'Education': 'fa-solid:chalkboard-teacher',
-        'Pets': 'mdi:paw',
-        'Others': 'mdi:dots-horizontal'
+        'Arts & Craft': 'fa-solid:palette',
+        'Education': 'fa-solid:book-open',
+        'Pets': 'fa-solid:paw',
+        'Others': 'fa-solid:ellipsis-h'
       }
     };
   },
@@ -51,7 +51,7 @@ export default {
           :class="{ active: isActive(opt) }"
           @click="toggle(opt)"
         >
-          <Icon :icon="icons[opt]" width="70" height="70" />
+          <Icon :icon="icons[opt]" width="50" height="50" />
         </button>
         <div class="category-text text-center fs-5">{{ opt }}</div>
       </div>
@@ -91,8 +91,8 @@ hr { border: 1; opacity: 0.25; }
 }
 
 .category svg {
-  width: 80%;
-  height: 80%;
+  width: 100%;
+  height: 100%;
   display: block;
   transition: all var(--transition-fast);
 }

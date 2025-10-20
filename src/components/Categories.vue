@@ -8,6 +8,7 @@ export default {
   },
   emits: ['toggle'],
   data() {
+    const src = (file) => new URL(`../assets/category_images/${file}`, import.meta.url).href
     return {
       options: [
         'Trending',
@@ -19,23 +20,25 @@ export default {
         'Pets',
         'Others'
       ],
-      icons: {
-        'Trending': 'fa-solid:fire',
-        'Food and Drinks': 'fa-solid:utensils',
-        'Beauty': 'fa-solid:paint-brush',
-        'Fitness': 'fa-solid:dumbbell',
-        'Arts & Craft': 'fa-solid:palette',
-        'Education': 'fa-solid:book-open',
-        'Pets': 'fa-solid:paw',
-        'Others': 'fa-solid:ellipsis-h'
+      images: {
+        'Food and Drinks': src('food_drinks.png'),
+        'Beauty':          src('beauty.png'),
+        'Fitness':         src('fitness.png'),
+        'Arts & Craft':    src('arts_craft.png'),
+        'Education':       src('education.png'),
+        'Pets':            src('pets.png'),
+        'Others':          src('others.png')
+      },
+      icons:{
+        'Trending': 'fa-solid:fire'
       }
-    };
+    }
   },
   methods: {
-    isActive(name) { return this.selected?.includes(name); },
-    toggle(name) { this.$emit('toggle', name); }
+    isActive(name) { return this.selected?.includes(name) },
+    toggle(name) { this.$emit('toggle', name) }
   }
-};
+}
 </script>
 
 <template>
@@ -51,7 +54,8 @@ export default {
           :class="{ active: isActive(opt) }"
           @click="toggle(opt)"
         >
-          <Icon :icon="icons[opt]" width="50" height="50" />
+          <img v-if="images[opt]" :src="images[opt]" alt="category image" width="50" height="50" />
+          <Icon v-else :icon="icons[opt]" width="50" height="50" />
         </button>
         <div class="category-text text-center fs-5">{{ opt }}</div>
       </div>
@@ -90,14 +94,16 @@ hr { border: 1; opacity: 0.25; }
   background-color: var(--color-bg-primary);
 }
 
-.category svg {
-  width: 100%;
-  height: 100%;
-  display: block;
+.category img {
+  width: 60%;
+  height: 60%;
+  border: none;
+  object-fit: contain;
   transition: all var(--transition-fast);
+  display: block;
 }
 
-:root.dark-mode .category svg {
+:root.dark-mode .category img {
   filter: invert(1) brightness(1.2);
 }
 
@@ -111,13 +117,13 @@ hr { border: 1; opacity: 0.25; }
   border-color: var(--color-primary);
 }
 
-:root.dark-mode .category:hover svg {
+:root.dark-mode .category:hover img {
   filter: invert(1) brightness(1);
 }
 
-.category.active {
-  border-color: var(--color-primary); 
-  box-shadow: 0 0 5px var(--color-primary);
+.category.active img {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .category-text {

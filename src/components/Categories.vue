@@ -115,9 +115,9 @@ hr { border: 1; opacity: 0.25; }
   filter: invert(1) brightness(1);
 }
 
-.category.active svg {
-  outline: 3px solid var(--color-primary);
-  outline-offset: 2px;
+.category.active {
+  border-color: var(--color-primary); /* Highlight border color when active */
+  box-shadow: 0 0 5px var(--color-primary); /* Optional: Add a shadow effect to emphasize */
 }
 
 .category-text {

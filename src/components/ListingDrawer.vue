@@ -325,11 +325,11 @@ async function fetchReviews() {
 
   try {
     const listingId = props.listing.listingId || props.listing.id
-    console.log('[Reviews] Fetching reviews for listing:', listingId)
+    // console.log('[Reviews] Fetching reviews for listing:', listingId)
     const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
     const q = query(reviewsRef, orderBy('createdAt', 'desc'))
     const snapshot = await getDocs(q)
-    console.log('[Reviews] Found', snapshot.size, 'reviews')
+    // console.log('[Reviews] Found', snapshot.size, 'reviews')
 
     const reviewsList = []
     let totalRating = 0
@@ -382,7 +382,7 @@ async function submitReview() {
   reviewSuccess.value = ''
 
   const user = auth.currentUser
-  console.log('[Reviews] Current user:', user?.uid)
+  // console.log('[Reviews] Current user:', user?.uid)
 
   if (!user) {
     reviewError.value = 'Please log in to leave a review.'
@@ -401,7 +401,7 @@ async function submitReview() {
 
   // Check if this is the user's own listing
   const listingUserId = props.listing?.userId
-  console.log('[Reviews] Listing owner:', listingUserId, 'Current user:', user.uid)
+  // console.log('[Reviews] Listing owner:', listingUserId, 'Current user:', user.uid)
 
   if (listingUserId === user.uid) {
     reviewError.value = 'You cannot review your own listing.'
@@ -412,7 +412,7 @@ async function submitReview() {
 
   try {
     const listingId = props.listing.listingId || props.listing.id
-    console.log('[Reviews] Submitting review for listing:', listingId)
+    // console.log('[Reviews] Submitting review for listing:', listingId)
     const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
 
     await addDoc(reviewsRef, {
@@ -422,7 +422,7 @@ async function submitReview() {
       createdAt: serverTimestamp()
     })
 
-    console.log('[Reviews] Review submitted successfully')
+    // console.log('[Reviews] Review submitted successfully')
 
     // Update the seller's average rating
     await updateSellerRating(listingUserId, userRating.value)

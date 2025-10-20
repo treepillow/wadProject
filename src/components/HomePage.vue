@@ -234,7 +234,7 @@ await Promise.all(rows.map(async (r) => {
 
 
 //added this to debug ratings fetch step
-console.log('Loaded listing ratings:', rows.map(r => ({ name: r.businessName, rating: r.rating })));
+// console.log('Loaded listing ratings:', rows.map(r => ({ name: r.businessName, rating: r.rating })));
 
 
 

@@ -155,4 +155,16 @@ hr { border: 1; opacity: 0.25; }
     margin-top: 4px;
   }
 }
+:root.dark-mode .category .iconify {
+  color: #ffffff; /* Set icon color to white in dark mode */
+}
+
+/* If you are using font-awesome icons (fa-solid:fire), ensure the color changes accordingly */
+:root.dark-mode .category .iconify[data-icon='fa-solid:fire'] {
+  color: #ffffff; /* Set the fire icon to white in dark mode */
+}
+
+:root.dark-mode .category:hover .iconify {
+  color: var(--color-primary); /* Optionally, add hover effect color */
+}
 </style>

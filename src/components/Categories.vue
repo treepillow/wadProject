@@ -121,9 +121,8 @@ hr { border: 1; opacity: 0.25; }
   filter: invert(1) brightness(1);
 }
 
-.category.active img {
-  outline: 3px solid var(--color-primary);
-  outline-offset: 2px;
+.category.active {
+  box-shadow: 0 0 0 4px var(--color-primary); /* This replaces the outline */
 }
 
 .category-text {

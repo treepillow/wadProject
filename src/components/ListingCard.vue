@@ -219,18 +219,18 @@ function goToUserProfile(event) {
 
 <style scoped>
 .card-border {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-border);
 }
 
 .selectable {
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
 }
 
 .selectable:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
-  border-color: #4b2aa6 !important;
+  box-shadow: var(--shadow-hover) !important;
+  border-color: var(--color-primary) !important;
 }
 
 .selectable:active {
@@ -264,17 +264,26 @@ function goToUserProfile(event) {
 
 .seller-name-link {
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color var(--transition-fast);
 }
 
 .seller-name-link:hover {
-  color: #4b2aa6;
+  color: var(--color-primary);
   text-decoration: underline;
+}
+
+/* Heart button hover effect */
+.btn-sm {
+  transition: all var(--transition-fast);
+}
+
+.btn-sm:hover {
+  transform: scale(1.15);
 }
 
 .avatar-box {
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform var(--transition-fast);
 }
 
 .avatar-box:hover {

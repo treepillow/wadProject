@@ -191,11 +191,9 @@ async function logout() {
 
 /* Specific styles for .btn-brand */
 .btn-brand {
-  --brand: #4b2aa6d7;  /* Purple background */
-  --brand-contrast: #fff;  /* White text */
-  background: var(--brand);  /* Set purple background */
-  color: var(--brand-contrast);  /* Set text to white */
-  border-color: var(--brand);  /* Set purple border */
+  background: var(--color-primary);
+  color: var(--color-text-white);
+  border-color: var(--color-primary);
 }
 
 /* Icon Styling for Buttons */
@@ -213,30 +211,31 @@ async function logout() {
 }
 
 /* Hover Effects for Buttons */
-.btn-brand:hover, 
-.btn-outline-primary:hover, 
-.btn-primary:hover, 
+.btn-brand:hover,
+.btn-outline-primary:hover,
+.btn-primary:hover,
 .btn-common:hover {
-  filter: brightness(1.05);
-  transform: translateY(-1px);  /* Lift effect on hover */
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 /* Focus Effects */
-.btn-brand:focus, 
-.btn-outline-primary:focus, 
-.btn-primary:focus, 
+.btn-brand:focus,
+.btn-outline-primary:focus,
+.btn-primary:focus,
 .btn-common:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(75,42,166,.5);  /* Adds focus ring on button */
+  box-shadow: var(--focus-ring-sm);
 }
 
 /* Link colors for light backgrounds */
-.navbar-light .nav-link { 
-  color: #2b2b2b; 
+.navbar-light .nav-link {
+  color: var(--color-text-primary);
 }
 
-.navbar-light .nav-link:hover { 
-  color: #4b2aa6; 
+.navbar-light .nav-link:hover {
+  color: var(--color-primary);
 }
 
 /* Dropdown Menu */

@@ -229,26 +229,27 @@ onMounted(() => {
 .stat-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #4b2aa6;
+  color: var(--color-primary);
 }
 
 .stat-label {
   font-size: 0.875rem;
-  color: #666;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .nav-tabs .nav-link {
-  color: #666;
+  color: var(--color-text-secondary);
   border: none;
   border-bottom: 3px solid transparent;
   font-weight: 600;
+  transition: all var(--transition-fast);
 }
 
 .nav-tabs .nav-link.active {
-  color: #4b2aa6;
-  border-bottom-color: #4b2aa6;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
   background: transparent;
 }
 

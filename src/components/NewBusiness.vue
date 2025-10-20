@@ -523,7 +523,6 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 
 <style scoped>
 :root {
-  --brand: #4b2aa6;
   --font-family: 'Arial', sans-serif; /* Global font-family */
   --font-size-base: 1rem; /* Base font size (16px) */
   --font-size-large: 1.125rem; /* Large font size for headings/labels */
@@ -603,14 +602,17 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 
 /* Button Styles */
 .btn-primary {
-  background: #7a5af8;
-  border-color: #7a5af8;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   font-size: var(--font-size-base);
+  transition: all var(--transition-fast);
 }
 
 .btn-primary:hover {
-  background: #6948f2;
-  border-color: #6948f2;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-outline-secondary {
@@ -688,13 +690,13 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 }
 
 .booking-section h5 {
-  color: #4b2aa6;
+  color: var(--color-primary);
   font-weight: 600;
 }
 
 .form-check-input:checked {
-  background-color: #7a5af8;
-  border-color: #7a5af8;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .form-switch .form-check-input {

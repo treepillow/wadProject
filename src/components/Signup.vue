@@ -639,18 +639,19 @@ input::placeholder { color: gray; opacity: 1; }
 
 .btn-otp {
   padding: 12px 20px;
-  background: #4b2aa6;
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 20px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
 }
 
 .btn-otp:hover:not(:disabled) {
-  background: #3d2287;
-  transform: scale(1.02);
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-otp:disabled {
@@ -670,17 +671,18 @@ input::placeholder { color: gray; opacity: 1; }
   min-width: 150px;
   padding: 10px;
   border: none;
-  border-bottom: 2px solid #4b2aa6 !important;
+  border-bottom: 2px solid var(--color-primary) !important;
   background: transparent;
   color: black;
   font-size: 16px;
   letter-spacing: 2px;
   text-align: center;
+  transition: border-color var(--transition-fast);
 }
 
 .otp-input:focus {
   outline: none;
-  border-bottom-color: #3d2287 !important;
+  border-bottom-color: var(--color-primary-hover) !important;
 }
 
 .btn-verify {
@@ -707,18 +709,19 @@ input::placeholder { color: gray; opacity: 1; }
 .btn-resend {
   padding: 10px 20px;
   background: transparent;
-  color: #4b2aa6;
-  border: 1px solid #4b2aa6;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
   border-radius: 20px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
 }
 
 .btn-resend:hover {
-  background: #4b2aa6;
+  background: var(--color-primary);
   color: white;
-  transform: scale(1.02);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .otp-verified {

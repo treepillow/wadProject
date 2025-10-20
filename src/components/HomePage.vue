@@ -558,25 +558,32 @@ onBeforeUnmount(() => {
   line-height: 1;
   border: 1px solid transparent;
   user-select: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.chip:hover:not(.chip--selected) {
+  background: var(--color-primary-pale);
+  transform: translateY(-1px);
 }
 .chip--selected {
-  background: #7a5af8;
-  color: #fff;
-  border-color: #7a5af8;
-  box-shadow: 0 2px 10px rgba(122,90,248,.25);
+  background: var(--color-primary);
+  color: var(--color-text-white);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
 }
 .chip-clear {
   background: transparent;
-  border: 1px solid #d9c9ff;
-  color: #7a5af8;
+  border: 1px solid var(--color-border-purple);
+  color: var(--color-primary);
   padding: 6px 12px;
   border-radius: 999px;
   line-height: 1;
+  transition: all var(--transition-fast);
 }
 .chip-clear:hover {
-  background: #f3efff;
-  border-color: #c7b4ff;
-  color: #5b3fe8;
+  background: var(--color-primary-pale);
+  border-color: var(--color-primary-light);
+  color: var(--color-primary-hover);
 }
 
 /* layout tweaks */

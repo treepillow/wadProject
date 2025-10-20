@@ -1,0 +1,162 @@
+/*
+ * Standardized Theme: Purple + White
+ * Background: Beige (rgb(245, 239, 239))
+ */
+
+:root {
+  /* Primary Purple Colors */
+  --color-primary: #4b2aa6;
+  --color-primary-hover: #3d2287;
+  --color-primary-light: #6b4ac0;
+  --color-primary-lighter: #7a5af8;
+  --color-primary-pale: #e8e2f3;
+
+  /* Background Colors */
+  --color-bg-main: rgb(245, 239, 239);  /* Beige background */
+  --color-bg-white: #ffffff;
+  --color-bg-purple-tint: #f8f5fb;
+
+  /* Text Colors */
+  --color-text-primary: #2b2b2b;
+  --color-text-secondary: #666;
+  --color-text-light: #999;
+  --color-text-white: #ffffff;
+
+  /* Border Colors */
+  --color-border: #e0e0e0;
+  --color-border-dark: #ccc;
+  --color-border-purple: #e1dbee;
+
+  /* Status Colors */
+  --color-success: #155724;
+  --color-error: #dc3545;
+  --color-warning: #ffc107;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(75, 42, 166, 0.12);
+  --shadow-lg: 0 8px 24px rgba(75, 42, 166, 0.15);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Focus Ring */
+  --focus-ring: 0 0 0 3px rgba(75, 42, 166, 0.25);
+  --focus-ring-sm: 0 0 0 2px rgba(75, 42, 166, 0.5);
+
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+}
+
+/* Standardized Hover Effects */
+.hover-lift {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+.hover-scale {
+  transition: transform var(--transition-fast);
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+.hover-brightness {
+  transition: filter var(--transition-fast), transform var(--transition-fast);
+}
+
+.hover-brightness:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.hover-bg-purple {
+  transition: background-color var(--transition-fast);
+}
+
+.hover-bg-purple:hover {
+  background-color: var(--color-primary-pale);
+}
+
+/* Standardized Focus States */
+.focus-ring:focus,
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Standardized Button Styles */
+.btn-primary-themed {
+  background-color: var(--color-primary);
+  color: var(--color-text-white);
+  border: none;
+  transition: all var(--transition-fast);
+}
+
+.btn-primary-themed:hover {
+  background-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary-themed:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.btn-secondary-themed {
+  background-color: var(--color-bg-white);
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  transition: all var(--transition-fast);
+}
+
+.btn-secondary-themed:hover {
+  background-color: var(--color-primary);
+  color: var(--color-text-white);
+  transform: translateY(-1px);
+}
+
+/* Override Bootstrap's default blue with purple */
+.btn-primary {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  transition: all var(--transition-fast);
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md) !important;
+}
+
+.btn-outline-primary {
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  background-color: transparent;
+  transition: all var(--transition-fast);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: white !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* Override Bootstrap badges to use purple */
+.badge.text-bg-primary,
+.badge.bg-primary {
+  background-color: var(--color-primary) !important;
+  color: white !important;
+}

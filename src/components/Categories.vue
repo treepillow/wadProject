@@ -71,22 +71,29 @@ hr { border: 1; opacity: 0.25; }
 .category img {
   width: 150px;
   height: 150px;
-  border: 1px solid black;
+  border: 1px solid var(--color-text-primary);
   object-fit: cover;
   border-radius: 100px;
+  transition: all var(--transition-fast);
 }
 
 /* hover + active ring */
 .category {
-  transition: transform 0.2s ease;
+  transition: transform var(--transition-fast);
   text-decoration: none;
   cursor: pointer;
 }
-.category:hover { transform: translateY(-3px); }
+.category:hover {
+  transform: translateY(-3px);
+}
+.category:hover img {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
+}
 .category.active img {
-  outline: 3px solid #7a5af8;
+  outline: 3px solid var(--color-primary);
   outline-offset: 2px;
 }
 
-.category-text { color: black; }
+.category-text { color: var(--color-text-primary); }
 </style>

@@ -875,13 +875,13 @@ watch(() => props.open, (isOpen) => {
 }
 
 .seller-name-clickable:hover {
-  color: #4b2aa6;
+  color: var(--color-primary);
   text-decoration: underline;
 }
 
 .seller-avatar-clickable {
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform var(--transition-fast);
 }
 
 .seller-avatar-clickable:hover {
@@ -890,11 +890,11 @@ watch(() => props.open, (isOpen) => {
 
 .reviewer-name-clickable {
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color var(--transition-fast);
 }
 
 .reviewer-name-clickable:hover {
-  color: #4b2aa6;
+  color: var(--color-primary);
   text-decoration: underline;
 }
 

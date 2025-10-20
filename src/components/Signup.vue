@@ -839,8 +839,87 @@ input::placeholder { color: gray; opacity: 1; }
 .divider::after {
   content: "";
   flex: 1;
-  border-bottom: 1px solid #ccc; 
+  border-bottom: 1px solid #ccc;
   margin: 0 10px;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 767.98px) {
+  .signup-card,
+  .popup-card {
+    width: 90%;
+    max-width: 400px;
+    padding: 30px 25px;
+  }
+
+  .logo {
+    width: 60px;
+    margin-bottom: 15px;
+  }
+
+  h2, h3 {
+    font-size: 1.5rem;
+  }
+
+  button {
+    font-size: 0.875rem;
+  }
+
+  .google-btn {
+    font-size: 0.875rem;
+  }
+
+  .toggle-btn {
+    font-size: 0.875rem;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .signup-wrapper {
+    padding: 10px;
+  }
+
+  .signup-card,
+  .popup-card {
+    width: 95%;
+    padding: 25px 20px;
+  }
+
+  .logo {
+    width: 50px;
+  }
+
+  h2, h3 {
+    font-size: 1.25rem;
+    margin-bottom: 15px;
+  }
+
+  form {
+    gap: 12px;
+  }
+
+  input, select {
+    font-size: 0.875rem;
+  }
+
+  .profile-picture-container {
+    flex-direction: column;
+  }
+
+  .preview-container img.profile-preview {
+    width: 50px;
+    height: 50px;
+  }
+
+  .otp-verify-group {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .otp-input {
+    width: 100%;
+  }
 }
 
 </style>

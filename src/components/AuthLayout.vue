@@ -98,4 +98,47 @@ a { color: #fff; text-decoration: underline; }
 .containers.sign-up-mode .signup-form { left: 0; transform: translateX(0%); opacity: 1; }
 .containers.sign-up-mode .login-form { left: 0; transform: translateX(-100%); opacity: 0; }
 .containers.sign-up-mode .image-box { order: 1; }
+
+/* Mobile responsive styles */
+@media (max-width: 767.98px) {
+  .containers {
+    padding: 1rem;
+  }
+
+  .form-container {
+    padding: 40px 20px;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  input {
+    font-size: 0.875rem;
+  }
+
+  button {
+    font-size: 0.875rem;
+    padding: 8px;
+  }
+
+  .image-box {
+    display: none;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .form-container {
+    padding: 30px 15px;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    margin-bottom: 20px;
+  }
+
+  form {
+    gap: 15px;
+  }
+}
 </style>

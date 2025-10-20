@@ -97,7 +97,7 @@ export default {
         let identifier = this.login.email.trim();
         let foundEmail = null;
 
-        // 🟣 1. Try username first (search 'users' collection)
+        // check if it's username or email
         const usersRef = collection(db, "users");
         const q = query(usersRef, where("username", "==", identifier));
         const querySnapshot = await getDocs(q);
@@ -106,7 +106,6 @@ export default {
           foundEmail = userData.email;
         }
 
-        // 🟡 2. If not found, check if it's a valid email
         if (!foundEmail) {
           const emailRegex = /^[\w.+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
           if (!emailRegex.test(identifier)) {
@@ -133,7 +132,6 @@ export default {
         const user = result.user;
         const usernameKey = (user.displayName || user.email.split("@")[0]).trim();
 
-        // ✅ Store user info in /users/{uid}
         await setDoc(
           doc(db, "users", user.uid),
           {
@@ -147,7 +145,6 @@ export default {
 
         this.$router.replace("/home");
       } catch (err) {
-        // Ignore if user simply closed the popup or cancelled
         if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
           this.googleLoading = false;
           return;
@@ -302,6 +299,62 @@ button:hover {
   flex: 1;
   border-bottom: 1px solid #ccc; /* subtle line */
   margin: 0 10px;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 767.98px) {
+  .login-card {
+    width: 90%;
+    max-width: 400px;
+    padding: 30px 25px;
+  }
+
+  .logo {
+    width: 60px;
+    margin-bottom: 15px;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+  }
+
+  input {
+    font-size: 0.875rem;
+  }
+
+  button {
+    font-size: 0.875rem;
+    padding: 8px 0;
+  }
+
+  .google-btn {
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .login-card {
+    width: 95%;
+    padding: 25px 20px;
+  }
+
+  .logo {
+    width: 50px;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  form {
+    gap: 15px;
+  }
+
+  .divider {
+    font-size: 12px;
+    margin: 15px 0;
+  }
 }
 
 </style>

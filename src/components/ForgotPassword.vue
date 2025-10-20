@@ -272,4 +272,53 @@ button.signup-btn:disabled {
     opacity: 1;
   }
 }
+
+/* Mobile responsive styles */
+@media (max-width: 767.98px) {
+  .signup-card {
+    width: 90%;
+    max-width: 400px;
+    padding: 25px 30px;
+  }
+
+  .logo {
+    width: 60px;
+    margin-bottom: 15px;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  button {
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .signup-wrapper {
+    padding: 10px;
+  }
+
+  .signup-card {
+    width: 95%;
+    padding: 20px 25px;
+  }
+
+  .logo {
+    width: 50px;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  input {
+    font-size: 0.875rem;
+  }
+
+  .info-text {
+    font-size: 0.75rem;
+  }
+}
 </style>

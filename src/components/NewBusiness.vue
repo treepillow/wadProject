@@ -732,4 +732,89 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
   box-shadow: 0 2px 8px rgba(122, 90, 248, 0.1);
 }
 
+/* Mobile responsive styles */
+@media (max-width: 767.98px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .card {
+    padding: 1.25rem;
+  }
+
+  .upload-zone {
+    min-height: 150px;
+  }
+
+  .thumbs .thumb {
+    width: 72px;
+    height: 72px;
+  }
+
+  .camera-icon {
+    font-size: 24px;
+  }
+
+  .upload-title {
+    font-size: 0.95rem;
+  }
+
+  .upload-hint {
+    font-size: 0.813rem;
+  }
+
+  /* Stack booking time inputs on mobile */
+  .day-row .row {
+    flex-direction: column;
+  }
+
+  .day-row .col {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h5 {
+    font-size: 1rem;
+  }
+
+  .btn {
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .form-control,
+  .form-select {
+    font-size: 0.875rem;
+  }
+
+  .upload-zone {
+    min-height: 120px;
+  }
+
+  .thumbs .thumb {
+    width: 64px;
+    height: 64px;
+  }
+
+  .menu-item-card {
+    padding: 0.75rem;
+  }
+}
+
 </style>

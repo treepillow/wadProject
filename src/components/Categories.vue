@@ -2,12 +2,10 @@
 export default {
   name: 'Categories',
   props: {
-    /** Array of selected category names (multi-select) */
     selected: { type: Array, default: () => [] }
   },
   emits: ['toggle'],
   data() {
-    // Resolve images safely so paths never break
     const src = (file) => new URL(`../assets/category_images/${file}`, import.meta.url).href
     return {
       options: [
@@ -42,16 +40,20 @@ export default {
 <template>
   <div class="container-fluid">
     <nav class="navbar">
-      <button
+      <div
         v-for="opt in options" :key="opt"
-        type="button"
-        class="navbar-brand category btn-reset"
-        :class="{ active: isActive(opt) }"
-        @click="toggle(opt)"
+        class="category-wrapper"
       >
-        <img :src="images[opt]" :alt="opt" />
+        <button
+          type="button"
+          class="navbar-brand category btn-reset"
+          :class="{ active: isActive(opt) }"
+          @click="toggle(opt)"
+        >
+          <img :src="images[opt]" :alt="opt" />
+        </button>
         <div class="category-text text-center fs-5">{{ opt }}</div>
-      </button>
+      </div>
     </nav>
     <hr />
   </div>
@@ -60,40 +62,93 @@ export default {
 <style scoped>
 hr { border: 1; opacity: 0.25; }
 
-/* make anchors behave like buttons but keep your look */
 .btn-reset {
   background: none;
   border: 0;
   padding: 0;
 }
 
-/* circle thumbnails */
-.category img {
-  width: 150px;
-  height: 150px;
-  border: 1px solid var(--color-text-primary);
-  object-fit: cover;
-  border-radius: 100px;
-  transition: all var(--transition-fast);
+.category-wrapper {
+  display: inline-block;
+  text-align: center;
 }
 
-/* hover + active ring */
 .category {
   transition: transform var(--transition-fast);
   text-decoration: none;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  padding: 20px;
+  border: 1px solid var(--color-border-dark);
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+  background-color: var(--color-bg-primary);
 }
+
+.category img {
+  width: 60%;
+  height: 60%;
+  border: none;
+  object-fit: contain;
+  transition: all var(--transition-fast);
+  display: block;
+}
+
+:root.dark-mode .category img {
+  filter: invert(1) brightness(1.2);
+}
+
+:root.dark-mode .category {
+  border-color: #e5e5e5;
+}
+
 .category:hover {
   transform: translateY(-3px);
-}
-.category:hover img {
   box-shadow: var(--shadow-md);
   border-color: var(--color-primary);
 }
+
+:root.dark-mode .category:hover img {
+  filter: invert(1) brightness(1);
+}
+
 .category.active img {
   outline: 3px solid var(--color-primary);
   outline-offset: 2px;
 }
 
-.category-text { color: var(--color-text-primary); }
+.category-text {
+  color: var(--color-text-primary);
+  margin-top: 8px;
+}
+
+@media (max-width: 767.98px) {
+  .category {
+    width: 90px;
+    height: 90px;
+    padding: 15px;
+  }
+
+  .category-text {
+    font-size: 0.875rem;
+    margin-top: 6px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .category {
+    width: 80px;
+    height: 80px;
+    padding: 12px;
+  }
+
+  .category-text {
+    font-size: 0.813rem;
+    margin-top: 4px;
+  }
+}
 </style>

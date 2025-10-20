@@ -4,11 +4,11 @@ import { useRouter, RouterLink } from 'vue-router'
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
 import { getFirestore, doc, getDoc } from 'firebase/firestore'
 import userPng from '../assets/user.png'
+import DarkModeToggle from './DarkModeToggle.vue'
 
 const props = defineProps({
-  /** About page uses this to show Login/Sign up instead of user items */
+  // for about page - show login/signup instead of profile stuff
   authCtasOnly: { type: Boolean, default: false },
-  /** Optional: customize where Create Service points to */
   createPath: { type: String, default: '/service/new' }
 })
 
@@ -55,23 +55,22 @@ async function logout() {
     <nav class="navbar navbar-expand-lg navbar-light bg-page shadow-sm border-bottom">
 <div class="container">
 
-        <!-- Brand -->
         <RouterLink to="/" class="navbar-brand d-flex align-items-center gap-2 text-decoration-none">
           <img src="../assets/homes_logo.png" alt="Homes" class="brand-logo" />
           <span class="brand-name">Homes</span>
         </RouterLink>
 
-        <!-- Toggler -->
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
                 aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
         </button>
 
-        <!-- Right side -->
         <div id="mainNav" class="collapse navbar-collapse">
           <ul class="navbar-nav ms-auto align-items-center gap-lg-2">
 
-            <!-- About page only: Login / Sign up -->
+            <li class="nav-item">
+              <DarkModeToggle />
+            </li>
             <template v-if="showAuthCtas">
               <li class="nav-item">
                 <RouterLink to="/login" class="btn btn-outline-primary me-2">Login</RouterLink>
@@ -81,10 +80,7 @@ async function logout() {
               </li>
             </template>
 
-            <!-- Logged in, everywhere else -->
             <template v-else-if="isLoggedIn">
-
-
               <li class="nav-item">
                 <RouterLink to="/chat" class="btn btn-brand d-flex align-items-center">
                   <img src="../assets/message2.png" alt="Messages" class="icon-24 me-1" />
@@ -111,9 +107,6 @@ async function logout() {
                 </ul>
               </li>
             </template>
-
-            <!-- Not logged in on other pages => show nothing (your guards handle redirects) -->
-
           </ul>
         </div>
       </div>
@@ -122,8 +115,9 @@ async function logout() {
 </template>
 
 <style scoped>
-.bg-page { 
-  background: var(--page-bg, rgb(245, 239, 239)) !important; 
+.bg-page {
+  background: var(--color-bg-white) !important;
+  transition: background var(--transition-normal);
 }
 
 .elevate { 
@@ -139,7 +133,7 @@ async function logout() {
   font-size: clamp(1.25rem, 1.2vw + 1rem, 2.25rem);
   font-weight: 800;
   letter-spacing: 0.2px;
-  color: black;
+  color: var(--color-text-primary);
 }
 
 .icon-24 {
@@ -171,9 +165,9 @@ async function logout() {
 }
 
 /* Button styling */
-.btn-brand, 
-.btn-outline-primary, 
-.btn-primary, 
+.btn-brand,
+.btn-outline-primary,
+.btn-primary,
 .btn-common {
   font-size: 0.875rem;  /* Standard font size for all buttons */
   padding: 0.5rem 1rem;  /* Consistent padding */
@@ -187,6 +181,27 @@ async function logout() {
   border: 1px solid transparent;  /* Transparent border */
   min-width: 120px; /* Ensure buttons have a consistent width */
   width: auto;  /* Allow width to adapt based on content */
+}
+
+/* Mobile responsive buttons */
+@media (max-width: 575.98px) {
+  .btn-brand,
+  .btn-outline-primary,
+  .btn-primary,
+  .btn-common {
+    font-size: 0.813rem;
+    padding: 0.4rem 0.75rem;
+    height: 36px;
+    min-width: 100px;
+  }
+
+  .navbar-nav {
+    padding: 1rem 0;
+  }
+
+  .navbar-nav .nav-item {
+    margin-bottom: 0.5rem;
+  }
 }
 
 /* Specific styles for .btn-brand */

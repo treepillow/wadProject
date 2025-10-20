@@ -12,9 +12,9 @@ import NavBar from './NavBar.vue'
 import SearchBar from './SearchBar.vue'
 import Categories from './Categories.vue'
 import ListingCard from './ListingCard.vue'
-import ListingDrawer from './ListingDrawer.vue' // <-- ADDED
-import { nextTick } from 'vue' // <--added
-/* ---------- state ---------- */
+import ListingDrawer from './ListingDrawer.vue'
+import { nextTick } from 'vue'
+
 const listings     = ref([])
 const loading      = ref(true)
 const loadingMore  = ref(false)
@@ -23,63 +23,38 @@ const pageSize     = 12
 const lastDoc      = ref(null)
 const noMore       = ref(false)
 
-/* filters (multi-select categories + search) */
 const selectedCats = ref([])
 const searchFilters = ref({ business: '', location: '' })
 
-// --- Filter Drawer State & Controls ---
 const filterOpen = ref(false)
 const minLikes = ref(0)
 const minRating = ref(0)
 
-//replaced this with async function below
-// function applyFilter() {
-//   // Apply likes/rating filter to existing listings
-//   listings.value = listings.value.filter(r => {
-//     const likes = likeCounts[r.listingId || r.id] || 0
-//     const rating = r.rating ?? 0
-//     return likes >= minLikes.value && rating >= minRating.value
-//   })
-//   filterOpen.value = false
-// }
-
-
-
 async function applyFilter() {
-  await nextTick(); // ensure likes and ratings are loaded first
+  await nextTick()
 
   const filtered = listings.value.filter(r => {
-    const likes = likeCounts[r.listingId || r.id] ?? 0;
-    const rating = r.rating ?? 0;
-    return likes >= minLikes.value && rating >= minRating.value;
-  });
+    const likes = likeCounts[r.listingId || r.id] ?? 0
+    const rating = r.rating ?? 0
+    return likes >= minLikes.value && rating >= minRating.value
+  })
 
   if (filtered.length === 0) {
-    alert("No listings match the selected filters.");
+    alert("No listings match the selected filters.")
   }
 
-  listings.value = filtered;
-  filterOpen.value = false;
+  listings.value = filtered
+  filterOpen.value = false
 }
-
-// changed to the one below to make sure it reloads everything
-// function resetFilter() {
-//   minLikes.value = 0
-//   minRating.value = 0
-//   reloadForFilters()
-//   filterOpen.value = false
-// }
 
 function resetFilter() {
   minLikes.value = 0
   minRating.value = 0
-  reloadForFilters() // reloads all listings + fresh likes + ratings
+  reloadForFilters()
   filterOpen.value = false
 }
 
-
-
-/* likes: state + listeners */
+// likes state
 const likedSet     = ref(new Set())
 let unsubLikes     = null
 let unsubAuth      = null
@@ -116,7 +91,6 @@ function markBatchRevealed(ids) {
 }
 
 function handleImageLoaded(listingId) {
-  // Count only if this listing belongs to the current batch and has a photo
   if (!currentBatchIds.includes(listingId)) return
   batchLoadedImages.value++
   if (batchLoadedImages.value >= batchTotalImages.value && batchTotalImages.value > 0) {
@@ -124,7 +98,6 @@ function handleImageLoaded(listingId) {
   }
 }
 
-/* ---------- helpers ---------- */
 function startProfileListener(uid) {
   if (!uid || profileUnsubs.has(uid)) return
   const unsub = onSnapshot(doc(db, 'users', uid), snap => {
@@ -528,7 +501,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* categories horizontal scroll */
 .categories-row {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -546,7 +518,6 @@ onBeforeUnmount(() => {
   font-size: 0.95rem !important;
 }
 
-/* centered chips */
 .chip-bar { text-align: center; }
 .chip {
   display: inline-flex;
@@ -586,7 +557,6 @@ onBeforeUnmount(() => {
   color: var(--color-primary-hover);
 }
 
-/* layout tweaks */
 .card-sm :deep(.img-box) { height: 220px !important; }
 .card-sm :deep(.card-title) { font-size: 1rem; }
 .card-sm :deep(.badge) { font-size: 0.7rem; }
@@ -598,7 +568,6 @@ onBeforeUnmount(() => {
   .categories-row::-webkit-scrollbar { display: none; }
 }
 
-/* --- Filter Drawer --- */
 .filter-drawer {
   position: fixed;
   top: 0;
@@ -629,11 +598,66 @@ onBeforeUnmount(() => {
   z-index: 1040;
 }
 
-/* optional for range slider */
 input[type='range'] {
   width: 100%;
   accent-color: #7a5af8;
   cursor: pointer;
+}
+
+@media (max-width: 767.98px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .filter-drawer {
+    width: 90%;
+    right: -90%;
+  }
+
+  .row-cols-2 {
+    --bs-columns: 1;
+  }
+
+  .card-sm :deep(.img-box) {
+    height: 180px !important;
+  }
+
+  .chip-bar {
+    font-size: 0.875rem;
+  }
+
+  .chip {
+    padding: 5px 10px;
+    font-size: 0.813rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .filter-drawer {
+    width: 100%;
+    right: -100%;
+    border-radius: 0;
+  }
+
+  .card-sm :deep(.img-box) {
+    height: 160px !important;
+  }
+
+  .btn {
+    font-size: 0.813rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .py-3 {
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+  }
 }
 
 </style>

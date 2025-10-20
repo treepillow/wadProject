@@ -64,7 +64,7 @@ onBeforeUnmount(() => {
   <!-- CENTERED GRID + TITLE -->
   <section class="about-section">
     <div class="content text-center px-3 mb-4">
-      <h1 class="text-black fw-semibold" style="font-size: clamp(32px,6vw,70px)">
+      <h1 class="about-title fw-semibold" style="font-size: clamp(32px,6vw,70px)">
         One app for <br class="d-none d-md-block">all you need
       </h1>
     </div>
@@ -81,7 +81,7 @@ onBeforeUnmount(() => {
       <div class="container">
         <div class="row justify-content-center">
           <div class="col-12 col-md-10 col-lg-8">
-            <h3 class="text-center text-black fs-2 fw-semibold">
+            <h3 class="text-center mission-text fs-2 fw-semibold">
               <span class="underline">Our mission</span><br>
               Discover, support, and grow with<br>
               <span class="green">trusted home businesses</span>
@@ -97,7 +97,7 @@ onBeforeUnmount(() => {
     <div class="container">
       <div class="row justify-content-start mb-4">
         <div class="col-12 col-md-8 col-lg-6">
-          <div class="container-description p-4 bg-white rounded-4">
+          <div class="container-description p-4 rounded-4">
             <h3 class="h3">Discover unique local services</h3>
             <p>From homemade cakes to yoga classes, find authentic services right in your neighbourhood.</p>
           </div>
@@ -106,7 +106,7 @@ onBeforeUnmount(() => {
 
       <div class="row justify-content-end mb-4">
         <div class="col-12 col-md-8 col-lg-6">
-          <div class="container-description2 p-4 bg-white rounded-4">
+          <div class="container-description2 p-4 rounded-4">
             <h3 class="h3">Support real people</h3>
             <p>Every booking supports a real person, not a big corporation.</p>
           </div>
@@ -115,7 +115,7 @@ onBeforeUnmount(() => {
 
       <div class="row justify-content-start mb-4">
         <div class="col-12 col-md-8 col-lg-6">
-          <div class="container-description p-4 bg-white rounded-4">
+          <div class="container-description p-4 rounded-4">
             <h3 class="h3">Connect instantly</h3>
             <p>Message providers directly, customise your order, and book easily—in one place.</p>
           </div>
@@ -124,9 +124,9 @@ onBeforeUnmount(() => {
 
       <div class="row justify-content-end">
         <div class="col-12 col-md-8 col-lg-6">
-          <div class="container-description2 p-4 bg-white rounded-4">
+          <div class="container-description2 p-4 rounded-4">
             <h3 class="h3">Explore more</h3>
-            <p>From food to fitness, discover what’s around you.</p>
+            <p>From food to fitness, discover what's around you.</p>
           </div>
         </div>
       </div>
@@ -180,10 +180,19 @@ onBeforeUnmount(() => {
   transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
   cursor: pointer;
 }
+
+/* Invert logos in dark mode so they're visible */
+:root.dark-mode .about-grid img {
+  filter: invert(1) brightness(1.2);
+}
+
 .about-grid img:hover {
   transform: translateY(-6px);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-  filter: brightness(0.92);
+}
+
+:root.dark-mode .about-grid img:hover {
+  filter: invert(1) brightness(1);
 }
 
 /* Simple fade-in on scroll (once) */
@@ -201,6 +210,11 @@ onBeforeUnmount(() => {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* About title */
+.about-title {
+  color: var(--color-text-primary);
+}
+
 /* Mission (static) */
 .mission {
   margin-top: 36px;
@@ -208,11 +222,14 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 .mission h3 { font-family: "Figtree", sans-serif; }
+.mission-text {
+  color: var(--color-text-primary);
+}
 .mission .green { color: #198754; }
 .underline {
-  border-bottom: 3px solid #000; /* adjust thickness/color */
-  padding-bottom: 3px; /* space between text and line */
-  display: inline-block; /* ensures underline only spans text */
+  border-bottom: 3px solid var(--color-text-primary);
+  padding-bottom: 3px;
+  display: inline-block;
 }
 
 /* Description cards fade-in (minimal) */
@@ -221,8 +238,9 @@ onBeforeUnmount(() => {
   font-family: "Figtree", sans-serif;
   opacity: 0;
   transform: translateY(12px);
-  transition: opacity .5s ease-out, transform .5s ease-out;
-  background: #ffffff;
+  transition: opacity .5s ease-out, transform .5s ease-out, background-color .25s ease;
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   cursor: default;
 }
@@ -232,7 +250,7 @@ onBeforeUnmount(() => {
 .container-description:hover,
 .container-description2:hover {
   transform: translateY(-6px);
-  background: #f3f1f8; /* slightly darker background */
+  background: var(--color-bg-purple-tint);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
   transition: transform 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
 }

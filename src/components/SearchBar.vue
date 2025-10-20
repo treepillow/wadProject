@@ -117,17 +117,40 @@ function handleSearch(e) {
 @media (max-width: 768px) {
   .search form {
     flex-wrap: wrap;
+    gap: 0.75rem !important;
   }
 
   .home-business,
   .location-search {
     width: 100%;
     flex: 1 1 100%;
+    height: 48px;
+    padding: 12px;
   }
 
   .btn-search {
     width: 100%;
     flex: 1 1 100%;
+    height: 48px;
+    padding: 0 20px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .search form {
+    gap: 0.5rem !important;
+  }
+
+  .home-business,
+  .location-search {
+    height: 44px;
+    padding: 10px;
+    font-size: 0.875rem;
+  }
+
+  .btn-search {
+    height: 44px;
+    font-size: 0.875rem;
   }
 }
 </style>

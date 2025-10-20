@@ -31,16 +31,16 @@ html, body, #app {
 
 } */
 
-:root { --page-bg: rgb(245, 239, 239); }
-
 html, body, #app {
   min-height: 100%;
-  background: var(--page-bg);
+  background: var(--color-bg-main);
+  color: var(--color-text-primary);
   margin: 0;
-    font-family: "Poppins", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif; 
+  font-family: "Poppins", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+  transition: background var(--transition-normal), color var(--transition-normal);
 }
 
-.bg-page { background: var(--page-bg) !important; }
+.bg-page { background: var(--color-bg-main) !important; }
 
 
 

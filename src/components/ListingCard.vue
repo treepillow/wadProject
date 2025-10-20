@@ -8,23 +8,20 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth'
 
 const router = useRouter()
 
-/* ---------------- AUTH ---------------- */
 const auth = getAuth()
 const $auth = reactive({ currentUser: auth.currentUser })
 onAuthStateChanged(auth, (u) => { $auth.currentUser = u })
 
-/* ---------------- PROPS + EMITS ---------------- */
 const props = defineProps({
   listing: { type: Object, required: true },
   liked: { type: Boolean, default: false },
   likesCount: { type: Number, default: 0 },
   sellerNameOverride: { type: String, default: '' },
   sellerAvatarOverride: { type: String, default: '' },
-  reveal: { type: Boolean, default: true } // for batch reveal fade-in
+  reveal: { type: Boolean, default: true }
 })
 const emit = defineEmits(['toggle-like', 'image-loaded', 'open'])
 
-/* ---------------- RATINGS ---------------- */
 const avgRating = ref(0)
 const totalReviews = ref(0)
 
@@ -77,7 +74,6 @@ const sellerAvatar = computed(() =>
   props.sellerAvatarOverride || props.listing.userPhotoURL || ''
 )
 
-/* ---------------- IMAGE LOADING ---------------- */
 const imgLoaded = ref(false)
 const imgErrored = ref(false)
 function onImgLoad () {
@@ -89,12 +85,10 @@ function onImgError() {
   emit('image-loaded', props.listing.listingId || props.listing.id)
 }
 
-/* ---------------- BOOST COUNTDOWN ---------------- */
 const boostCountdown = computed(() => {
   let ts = props.listing.boostedUntil
   if (!ts) return null
 
-  // Handle Firestore REST format: { timestampValue: "..." }
   if (ts.timestampValue) ts = ts.timestampValue
 
   const target = typeof ts === 'object' && ts.seconds ? ts.seconds * 1000 : Date.parse(ts)
@@ -112,9 +106,8 @@ const boostCountdown = computed(() => {
   return `${minutes}m`
 })
 
-/* ---------------- NAVIGATE TO USER PROFILE ---------------- */
 function goToUserProfile(event) {
-  event.stopPropagation() // Prevent card click event
+  event.stopPropagation()
   if (props.listing.userId) {
     router.push({ name: 'UserProfile', params: { userId: props.listing.userId } })
   }
@@ -248,7 +241,6 @@ function goToUserProfile(event) {
 @keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
 .img-fallback { position:absolute; inset:0; background:#f0f2f5; color:#999; display:flex; justify-content:center; align-items:center; }
 
-/* Rating Display */
 .rating-display { display: flex; align-items: center; gap: 6px; }
 .stars-small { display: flex; gap: 1px; }
 .stars-small .star { color: #ddd; font-size: 14px; }
@@ -272,7 +264,6 @@ function goToUserProfile(event) {
   text-decoration: underline;
 }
 
-/* Heart button hover effect */
 .btn-sm {
   transition: all var(--transition-fast);
 }
@@ -288,5 +279,66 @@ function goToUserProfile(event) {
 
 .avatar-box:hover {
   transform: scale(1.1);
+}
+
+@media (max-width: 767.98px) {
+  .img-box {
+    height: 180px !important;
+  }
+
+  .card-body {
+    padding: 0.65rem 0.85rem !important;
+  }
+
+  .card-footer {
+    padding: 0.45rem 0.85rem !important;
+  }
+
+  .card-title {
+    font-size: 0.95rem !important;
+  }
+
+  .badge {
+    font-size: 0.65rem !important;
+  }
+
+  .rating-text {
+    font-size: 0.75rem;
+  }
+
+  .stars-small .star {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .img-box {
+    height: 160px !important;
+  }
+
+  .card-body {
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  .card-footer {
+    padding: 0.4rem 0.75rem !important;
+  }
+
+  .card-title {
+    font-size: 0.875rem !important;
+  }
+
+  .badge {
+    font-size: 0.6rem !important;
+  }
+
+  .btn-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .small {
+    font-size: 0.75rem !important;
+  }
 }
 </style>

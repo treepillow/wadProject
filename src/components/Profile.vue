@@ -734,4 +734,53 @@ export default {
   border-color: #693ccc;
 }
 
+/* Mobile responsive styles */
+@media (max-width: 767.98px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .card {
+    padding: 1.25rem;
+  }
+
+  .nav-tabs .nav-link {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  h2, h3 {
+    font-size: 1.5rem;
+  }
+
+  .btn {
+    font-size: 0.875rem;
+  }
+
+  .boost-section .btn {
+    height: 44px;
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .card {
+    padding: 1rem;
+  }
+
+  h2, h3 {
+    font-size: 1.25rem;
+  }
+
+  .form-control,
+  .form-select {
+    font-size: 0.875rem;
+  }
+
+  .stars-display .star {
+    font-size: 16px;
+  }
+}
+
 </style>

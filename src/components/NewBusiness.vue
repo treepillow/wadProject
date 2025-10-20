@@ -3,6 +3,7 @@ import { addDoc, collection, doc, setDoc, serverTimestamp } from 'firebase/fires
 import { auth, db, storage } from '@/firebase'
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
 import NavBar from './NavBar.vue'
+import { Icon } from '@iconify/vue';
 
 export default {
   name: 'CreateListing',
@@ -326,107 +327,129 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 </script>
 
 <template>
-  <!-- ⬇️ Same scaffold as HomePage.vue -->
   <div class="container-fluid bg-page">
     <NavBar />
-
 
     <!-- content zone (mirrors HomePage’s container pb-5) -->
     <div class="container pb-5 mt-5">
       <div class="d-flex justify-content-center">
         <div class="listing-card shadow-soft rounded-4 p-4 p-md-5">
           <form @submit.prevent="handleSubmit" novalidate>
-            <div class="row g-4">
-              <!-- Left -->
-              <div class="col-lg-6">
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">Service Name</label>
+            <div class="d-flex flex-column">
+
+              <!-- Name and Category (side by side) -->
+              <div class="d-flex gap-3 mb-3">
+                <div class="flex-grow-1">
+                  <label class="form-label fw-semibold">
+                    Service Name <Icon icon="mdi:briefcase" />
+                  </label>
                   <input class="form-control form-control-lg" v-model="businessName" placeholder="Enter your business name here" />
                 </div>
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">Description</label>
-                  <textarea class="form-control" rows="4" v-model="businessDesc" placeholder="Describe your service"></textarea>
-                </div>
-                <div class="mb-4">
-                  <label class="form-label fw-semibold">Category</label>
+                <div class="flex-grow-1">
+                  <label class="form-label fw-semibold">
+                    Category <Icon icon="mdi:view-dashboard" />
+                  </label>
                   <select class="form-select" v-model="businessCategory">
                     <option disabled value="">-- select category --</option>
-                    <option>Food and Drinks</option><option>Beauty</option><option>Fitness</option>
-                    <option>Arts & Craft</option><option>Education</option><option>Pets</option><option>Others</option>
+                    <option>Food and Drinks</option>
+                    <option>Beauty</option>
+                    <option>Fitness</option>
+                    <option>Arts & Craft</option>
+                    <option>Education</option>
+                    <option>Pets</option>
+                    <option>Others</option>
                   </select>
                 </div>
               </div>
 
-              <!-- Right -->
-              <div class="col-lg-6">
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">Block</label>
+              <!-- Description (full-width) -->
+              <div class="mb-3">
+                <label class="form-label fw-semibold">
+                  Description <Icon icon="mdi:pencil" />
+                </label>
+                <textarea class="form-control" rows="4" v-model="businessDesc" placeholder="Describe your service"></textarea>
+              </div>
+
+              <!-- Block and Street (side by side) -->
+              <div class="d-flex gap-3 mb-3">
+                <div class="flex-grow-1">
+                  <label class="form-label fw-semibold">
+                    Block <Icon icon="mdi:home" />
+                  </label>
                   <input class="form-control" v-model.trim="locationBlk" placeholder="e.g 485B" />
                 </div>
-                <div class="mb-1">
-                  <label class="form-label fw-semibold">Street Address</label>
+                <div class="flex-grow-1">
+                  <label class="form-label fw-semibold">
+                    Street Address <Icon icon="mdi:map-marker" />
+                  </label>
                   <input class="form-control" v-model.trim="locationStreet" placeholder="e.g Tampines Ave 9" />
                 </div>
-                <div class="row">
-                  <div class="col-6 mb-3">
-                    <label class="form-label fw-semibold">Postal Code</label>
-                    <input class="form-control" v-model.trim="locationPostal"
-                           inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
-                           placeholder="6-digit postal code" title="Enter a 6-digit Singapore postal code"
-                           @input="handlePostalInput" />
-                  </div>
-                  <div class="col-6 mb-3">
-                    <label class="form-label fw-semibold">Unit No</label>
-                    <input class="form-control" v-model.trim="locationUnit"
-                           pattern="#?[0-9]{2}-[0-9]{3}" placeholder="#01-234"
-                           title="Format like #09-142" @input="handleUnitInput" />
-                  </div>
+              </div>
+
+              <!-- Postal and Unit No (side by side) -->
+              <div class="d-flex gap-3 mb-3">
+                <div class="flex-grow-1">
+                  <label class="form-label fw-semibold">
+                    Postal Code
+                  </label>
+                  <input class="form-control" v-model.trim="locationPostal"
+                         inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                         placeholder="6-digit postal code" title="Enter a 6-digit Singapore postal code"
+                         @input="handlePostalInput" />
                 </div>
+                <div class="flex-grow-1">
+                  <label class="form-label fw-semibold">
+                    Unit No
+                  </label>
+                  <input class="form-control" v-model.trim="locationUnit"
+                         pattern="#?[0-9]{2}-[0-9]{3}" placeholder="#01-234"
+                         title="Format like #09-142" @input="handleUnitInput" />
+                </div>
+              </div>
 
-                <div v-if="addrError" class="text-danger small mt-n2 mb-2">{{ addrError }}</div>
+              <div v-if="addrError" class="text-danger small mt-n2 mb-2">{{ addrError }}</div>
 
-                <div class="mb-3">
-                  <div class="d-flex align-items-center justify-content-between mb-2">
-                    <label class="form-label fw-semibold m-0">{{ listLabel }}</label>
-                    <button type="button" class="btn btn-primary px-4 py-2" @click="addMenuItem">{{ addItemBtnText }}</button>
-                  </div>
-                  <div class="menu-list d-flex flex-column gap-3">
-                    <div class="menu-item-card card p-3" v-for="(m, i) in menuItems" :key="i">
-                      <div class="row g-2 mb-2">
-                        <div class="col-6">
-                          <input class="form-control" :placeholder="itemNamePlaceholder" v-model.trim="m.name" />
-                        </div>
-                        <div class="col">
-                          <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input class="form-control" :placeholder="pricePlaceholder" v-model.trim="m.price" />
-                          </div>
-                        </div>
-                        <div class="col-auto d-flex align-items-center">
-                          <button class="btn btn-outline-danger btn-sm" type="button"
-                                  @click="removeMenuItem(i)" :disabled="menuItems.length === 1">×</button>
-                        </div>
+              <!-- Menu Items Section -->
+              <div class="mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <label class="form-label fw-semibold m-0">
+                    {{ listLabel }} <Icon icon="mdi:list-box" />
+                  </label>
+                  <button type="button" class="btn btn-primary px-4 py-2" @click="addMenuItem">{{ addItemBtnText }}</button>
+                </div>
+                <div class="menu-list d-flex flex-column gap-3">
+                  <div class="menu-item-card card p-3" v-for="(m, i) in menuItems" :key="i">
+                    <div class="mb-2">
+                      <input class="form-control" :placeholder="itemNamePlaceholder" v-model.trim="m.name" />
+                    </div>
+                    <div class="mb-2">
+                      <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input class="form-control" :placeholder="pricePlaceholder" v-model.trim="m.price" />
                       </div>
-                      <div class="row g-2 align-items-center">
-                        <div class="col-auto">
-                          <label class="form-label mb-0 small text-muted">Operating Hours:</label>
-                        </div>
-                        <div class="col">
-                          <div class="d-flex align-items-center gap-2">
-                            <input type="time" class="form-control form-control-sm" v-model="m.operatingHours.start">
-                            <span class="text-muted">to</span>
-                            <input type="time" class="form-control form-control-sm" v-model="m.operatingHours.end">
-                          </div>
-                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end mb-2">
+                      <button class="btn btn-outline-danger btn-sm" type="button" @click="removeMenuItem(i)" :disabled="menuItems.length === 1">×</button>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                      <div class="form-check">
+                        <label class="form-label mb-0 small text-muted">Operating Hours:</label>
+                      </div>
+                      <div class="d-flex align-items-center gap-2">
+                        <input type="time" class="form-control form-control-sm" v-model="m.operatingHours.start">
+                        <span class="text-muted">to</span>
+                        <input type="time" class="form-control form-control-sm" v-model="m.operatingHours.end">
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Photos -->
-              <div class="col-12">
-                <label class="form-label fw-semibold">Photos</label>
+              <!-- Photo Upload Section -->
+              <div class="mb-3">
+                <label class="form-label fw-semibold">
+                  Photos <Icon icon="mdi:camera" />
+                </label>
 
                 <div v-if="photoError" class="text-danger small mb-2">{{ photoError }}</div>
 
@@ -453,8 +476,8 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
                 <div class="text-muted small mb-3">Tip: upload at least 3 photos for a better listing.</div>
               </div>
 
-              <!-- BOOKING SYSTEM -->
-              <div class="col-12">
+              <!-- Booking System Section -->
+              <div class="mb-3">
                 <div class="booking-section card p-4 mb-3">
                   <h5 class="mb-3">📅 Booking System (Optional)</h5>
 
@@ -467,7 +490,6 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
                   </div>
 
                   <div v-if="acceptsBookings" class="booking-settings">
-                    <!-- Booking Duration -->
                     <div class="mb-3">
                       <label class="form-label fw-semibold">Typical Session Duration</label>
                       <select class="form-select" v-model.number="bookingDuration">
@@ -479,7 +501,6 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
                       </select>
                     </div>
 
-                    <!-- Available Days & Times -->
                     <div class="mb-3">
                       <label class="form-label fw-semibold">Available Days & Hours</label>
                       <div class="days-grid">
@@ -508,11 +529,12 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div class="mt-3 d-flex justify-content-center gap-3">
-              <button type="submit" class="btn btn-primary px-4 py-2">Publish Listing</button>
-              <button type="button" class="btn btn-outline-secondary px-4 py-2" @click="clearForm">Clear Form</button>
+              <!-- Submit & Clear Form Buttons -->
+              <div class="mt-3 d-flex justify-content-center gap-3">
+                <button type="submit" class="btn btn-primary px-4 py-2">Publish Listing</button>
+                <button type="button" class="btn btn-outline-secondary px-4 py-2" @click="clearForm">Clear Form</button>
+              </div>
             </div>
           </form>
         </div>
@@ -520,6 +542,7 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
     </div>
   </div>
 </template>
+
 
 <style scoped>
 :root {
@@ -560,6 +583,7 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
   font-size: var(--font-size-large);
   color: #4b3f7f;
   font-weight: 600;
+  padding-top: 12px;
 }
 
 /* Inputs and Textareas */

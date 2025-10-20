@@ -5,6 +5,7 @@ import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
 import { getFirestore, doc, getDoc } from 'firebase/firestore'
 import userPng from '../assets/user.png'
 import DarkModeToggle from './DarkModeToggle.vue'
+import { Icon } from '@iconify/vue'; 
 
 const props = defineProps({
   // for about page - show login/signup instead of profile stuff
@@ -83,13 +84,14 @@ async function logout() {
             <template v-else-if="isLoggedIn">
               <li class="nav-item">
                 <RouterLink to="/chat" class="btn btn-brand d-flex align-items-center">
-                  <img src="../assets/message2.png" alt="Messages" class="icon-24 me-1" />
+                  <Icon icon="mdi:email" class="icon-24 me-1" />
                   <span class="d-none d-sm-inline">Messages</span>
                 </RouterLink>
               </li>
               <li class="nav-item me-1">
                 <RouterLink to="/createService" class="btn btn-brand">
-                  + Create Service
+                  <Icon icon="mdi:plus-circle" class="me-1" />
+                  Create Service
                 </RouterLink>
               </li>
               <li class="nav-item dropdown">
@@ -137,14 +139,14 @@ async function logout() {
 }
 
 .icon-24 {
-  width: auto;              /* Fixed width for button */
-  height: auto;             /* Fixed height for button */
-  object-fit: cover;        /* Ensure the image covers the whole area */
-  background-color: white;  /* Optional: background behind the icon */
-  padding: 0;               /* No extra padding around the image */
-  box-shadow: 0 0 2px rgba(0, 0, 0, 0.1); /* Optional: shadow for contrast */
-  border-radius: 20%;       /* Make it circular */
-  display: inline-block;    /* Ensure it behaves like an icon */
+  width: 24px;               /* Adjust the size to ensure the icon shows up */
+  height: 24px;              /* Adjust the size */
+  object-fit: contain;       /* Ensure the icon fits properly */
+  background-color: transparent; /* Transparent background behind the icon */
+  padding: 0;                /* No extra padding */
+  box-shadow: none;          /* Remove box shadow (if any) */
+  border-radius: 50%;        /* Ensure the icon is circular */
+  display: inline-block;     /* Make it behave like an inline element */
 }
 
 /* Avatar image styles */

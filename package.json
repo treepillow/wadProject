@@ -12,6 +12,8 @@
         "preview": "vite preview"
     },
     "dependencies": {
+        "@iconify/iconify": "^3.1.1",
+        "@iconify/vue": "^5.0.0",
         "@stripe/stripe-js": "^8.1.0",
         "bootstrap": "^5.3.8",
         "cors": "^2.8.5",

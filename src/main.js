@@ -7,6 +7,7 @@ import App from './App.vue'
 import router from './router'
 import { auth } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { Icon } from '@iconify/vue';
 
 const app = createApp(App)
 
@@ -23,4 +24,5 @@ onAuthStateChanged(auth, (user) => {
     router.replace({ name: "home" });
   }
 });
+app.component('Icon', Icon);
 app.mount('#app')

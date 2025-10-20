@@ -1,4 +1,6 @@
 <script>
+import { Icon } from '@iconify/vue';
+
 export default {
   name: 'Categories',
   props: {
@@ -6,7 +8,6 @@ export default {
   },
   emits: ['toggle'],
   data() {
-    const src = (file) => new URL(`../assets/category_images/${file}`, import.meta.url).href
     return {
       options: [
         'Trending',
@@ -18,23 +19,23 @@ export default {
         'Pets',
         'Others'
       ],
-      images: {
-        'Trending': src(),
-        'Food and Drinks': src('food_drinks.png'),
-        'Beauty':          src('beauty.png'),
-        'Fitness':         src('fitness.png'),
-        'Arts & Craft':    src('arts_craft.png'),
-        'Education':       src('education.png'),
-        'Pets':            src('pets.png'),
-        'Others':          src('others.png')
+      icons: {
+        'Trending': 'ic:outline-trending-up',
+        'Food and Drinks': 'fa-solid:utensils',
+        'Beauty': 'mdi:brush',
+        'Fitness': 'fa-solid:dumbbell',
+        'Arts & Craft': 'mdi:palette',
+        'Education': 'fa-solid:chalkboard-teacher',
+        'Pets': 'mdi:paw',
+        'Others': 'mdi:dots-horizontal'
       }
-    }
+    };
   },
   methods: {
-    isActive(name) { return this.selected?.includes(name) },
-    toggle(name) { this.$emit('toggle', name) }
+    isActive(name) { return this.selected?.includes(name); },
+    toggle(name) { this.$emit('toggle', name); }
   }
-}
+};
 </script>
 
 <template>
@@ -50,7 +51,7 @@ export default {
           :class="{ active: isActive(opt) }"
           @click="toggle(opt)"
         >
-          <img :src="images[opt]" :alt="opt" />
+          <Icon :icon="icons[opt]" width="50" height="50" />
         </button>
         <div class="category-text text-center fs-5">{{ opt }}</div>
       </div>
@@ -89,16 +90,14 @@ hr { border: 1; opacity: 0.25; }
   background-color: var(--color-bg-primary);
 }
 
-.category img {
+.category svg {
   width: 60%;
   height: 60%;
-  border: none;
-  object-fit: contain;
-  transition: all var(--transition-fast);
   display: block;
+  transition: all var(--transition-fast);
 }
 
-:root.dark-mode .category img {
+:root.dark-mode .category svg {
   filter: invert(1) brightness(1.2);
 }
 
@@ -112,11 +111,11 @@ hr { border: 1; opacity: 0.25; }
   border-color: var(--color-primary);
 }
 
-:root.dark-mode .category:hover img {
+:root.dark-mode .category:hover svg {
   filter: invert(1) brightness(1);
 }
 
-.category.active img {
+.category.active svg {
   outline: 3px solid var(--color-primary);
   outline-offset: 2px;
 }

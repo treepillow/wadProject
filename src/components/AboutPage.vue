@@ -1,12 +1,197 @@
 <script setup>
-import { onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, onBeforeUnmount, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import NavBar from './NavBar.vue'
+import { db } from '@/firebase'
+import { collection, query, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore'
 
 let io = null
 let descriptionIo = null
 
+const testimonials = ref([])
+const loadingReviews = ref(true)
+const trendingListings = ref([])
+const loadingTrending = ref(true)
+
+// fetch real reviews from database
+async function fetchRealReviews() {
+  try {
+    // get all listings
+    const listingsRef = collection(db, 'allListings')
+    const listingsSnap = await getDocs(query(listingsRef, limit(50)))
+
+    const allReviews = []
+
+    // fetch reviews from each listing
+    for (const listingDoc of listingsSnap.docs) {
+      const listingId = listingDoc.id
+      const listingData = listingDoc.data()
+
+      const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
+      const reviewsQuery = query(reviewsRef, orderBy('createdAt', 'desc'), limit(5))
+      const reviewsSnap = await getDocs(reviewsQuery)
+
+      for (const reviewDoc of reviewsSnap.docs) {
+        const reviewData = reviewDoc.data()
+
+        // only include 5-star reviews with actual text
+        if (reviewData.rating === 5 && reviewData.comment && reviewData.comment.trim().length > 0) {
+          // fetch user data
+          let userName = reviewData.userName || 'Anonymous'
+          let userLocation = 'Singapore'
+
+          if (reviewData.userId) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', reviewData.userId))
+              if (userDoc.exists()) {
+                const userData = userDoc.data()
+                userName = userData.displayName || userData.username || userName
+              }
+            } catch (e) {
+              // fallback to review data
+            }
+          }
+
+          allReviews.push({
+            text: reviewData.comment,
+            rating: reviewData.rating,
+            userName: userName,
+            userLocation: userLocation,
+            businessName: listingData.businessName
+          })
+        }
+      }
+
+      // stop once we have at least 3 reviews
+      if (allReviews.length >= 3) break
+    }
+
+    // shuffle and pick 3
+    const shuffled = allReviews.sort(() => 0.5 - Math.random())
+    testimonials.value = shuffled.slice(0, 3)
+
+    // fallback if no reviews found
+    if (testimonials.value.length === 0) {
+      testimonials.value = [
+        {
+          text: "Found the most amazing homemade pastries right in my neighbourhood. The quality is incredible and the service is so personal!",
+          rating: 5,
+          userName: "Sarah T.",
+          userLocation: "Tampines"
+        },
+        {
+          text: "As a home baker, this platform helped me reach so many new customers. The booking system makes everything seamless!",
+          rating: 5,
+          userName: "Michelle L.",
+          userLocation: "Jurong West"
+        },
+        {
+          text: "Best platform for finding local services. I've tried yoga classes, art workshops, and cooking lessons—all amazing!",
+          rating: 5,
+          userName: "James W.",
+          userLocation: "Bishan"
+        }
+      ]
+    }
+
+  } catch (error) {
+    console.error('Failed to fetch reviews:', error)
+    // fallback to dummy data if fetch fails
+    testimonials.value = [
+      {
+        text: "Found the most amazing homemade pastries right in my neighbourhood. The quality is incredible and the service is so personal!",
+        rating: 5,
+        userName: "Sarah T.",
+        userLocation: "Tampines"
+      },
+      {
+        text: "As a home baker, this platform helped me reach so many new customers. The booking system makes everything seamless!",
+        rating: 5,
+        userName: "Michelle L.",
+        userLocation: "Jurong West"
+      },
+      {
+        text: "Best platform for finding local services. I've tried yoga classes, art workshops, and cooking lessons—all amazing!",
+        rating: 5,
+        userName: "James W.",
+        userLocation: "Bishan"
+      }
+    ]
+  } finally {
+    loadingReviews.value = false
+  }
+}
+
+// fetch trending listings (sorted by viewCount)
+async function fetchTrendingListings() {
+  try {
+    const listingsRef = collection(db, 'allListings')
+    const trendingQuery = query(listingsRef, orderBy('viewCount', 'desc'), limit(4))
+    const snapshot = await getDocs(trendingQuery)
+
+    const listings = []
+    for (const doc of snapshot.docs) {
+      const data = doc.data()
+      const listingId = doc.id
+
+      // fetch rating
+      let avgRating = 0
+      let totalReviews = 0
+      try {
+        const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
+        const reviewsSnap = await getDocs(reviewsRef)
+        if (!reviewsSnap.empty) {
+          const ratings = reviewsSnap.docs.map(d => d.data().rating || 0)
+          avgRating = ratings.reduce((a, b) => a + b, 0) / ratings.length
+          totalReviews = reviewsSnap.size
+        }
+      } catch (e) {
+        console.warn('Failed to fetch ratings for', listingId)
+      }
+
+      listings.push({
+        id: listingId,
+        businessName: data.businessName,
+        businessCategory: data.businessCategory,
+        price: data.menu?.[0]?.price || null,
+        avgRating: avgRating.toFixed(1),
+        totalReviews: totalReviews
+      })
+    }
+
+    trendingListings.value = listings
+
+  } catch (error) {
+    console.error('Failed to fetch trending listings:', error)
+  } finally {
+    loadingTrending.value = false
+  }
+}
+
+// helper to get category background class
+function getCategoryClass(category) {
+  const categoryMap = {
+    'Fitness': 'fitness-bg',
+    'Food & Drinks': 'food-bg',
+    'Arts & Craft': 'arts-bg',
+    'Education': 'education-bg',
+    'Health & Wellness': 'fitness-bg',
+    'Beauty': 'arts-bg',
+    'Home Services': 'education-bg'
+  }
+  return categoryMap[category] || 'fitness-bg'
+}
+
+// helper to generate star rating display
+function getStars(rating) {
+  const roundedRating = Math.round(parseFloat(rating))
+  return '★'.repeat(roundedRating) + '☆'.repeat(5 - roundedRating)
+}
+
 onMounted(() => {
+  fetchRealReviews()
+  fetchTrendingListings()
+
   const section = document.querySelector('.about-section')
   if (!section) return
 
@@ -132,6 +317,99 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </div>
+
+  <!-- SOCIAL PROOF SECTION -->
+  <section class="social-proof-section py-5">
+    <div class="container">
+      <!-- Section Title -->
+      <div class="text-center mb-5 social-proof-header">
+        <h2 class="display-5 fw-bold mb-3">Loved by our community</h2>
+        <p class="lead text-muted">Join thousands discovering amazing home businesses</p>
+      </div>
+
+      <!-- Testimonials Grid -->
+      <div v-if="loadingReviews" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading reviews...</span>
+        </div>
+      </div>
+
+      <div v-else class="row g-4 mb-5">
+        <div v-for="(testimonial, index) in testimonials" :key="index" class="col-12 col-md-6 col-lg-4">
+          <div class="testimonial-card">
+            <div class="stars mb-2">★★★★★</div>
+            <p class="testimonial-text">"{{ testimonial.text }}"</p>
+            <div class="testimonial-author">
+              <div class="author-avatar">{{ testimonial.userName.charAt(0).toUpperCase() }}</div>
+              <div>
+                <div class="author-name">{{ testimonial.userName }}</div>
+                <div class="author-location">{{ testimonial.userLocation }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Featured Listings Preview -->
+      <div class="featured-preview-section">
+        <h3 class="text-center mb-4 fw-semibold">Popular right now</h3>
+
+        <div v-if="loadingTrending" class="text-center py-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading trending listings...</span>
+          </div>
+        </div>
+
+        <div v-else class="row g-4 mb-4">
+          <div v-for="listing in trendingListings" :key="listing.id" class="col-12 col-sm-6 col-lg-3">
+            <div class="preview-card">
+              <div class="preview-image" :class="getCategoryClass(listing.businessCategory)">
+                <span class="preview-badge">{{ listing.businessCategory }}</span>
+              </div>
+              <div class="preview-content">
+                <h6 class="preview-title">{{ listing.businessName }}</h6>
+                <div class="preview-rating">
+                  <span class="stars-small">{{ getStars(listing.avgRating) }}</span>
+                  <span class="rating-count">{{ listing.avgRating }} ({{ listing.totalReviews }})</span>
+                </div>
+                <div class="preview-price" v-if="listing.price">From S${{ listing.price }}</div>
+                <div class="preview-price text-muted" v-else>Price varies</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CTA Section -->
+      <div class="cta-section">
+        <div class="cta-card">
+          <div class="cta-content">
+            <h3 class="cta-title">Ready to get started?</h3>
+            <p class="cta-subtitle">Join our community and discover amazing local businesses today</p>
+            <div class="cta-stats">
+              <div class="stat-item">
+                <div class="stat-number">500+</div>
+                <div class="stat-label">Businesses</div>
+              </div>
+              <div class="stat-divider"></div>
+              <div class="stat-item">
+                <div class="stat-number">10k+</div>
+                <div class="stat-label">Happy Customers</div>
+              </div>
+              <div class="stat-divider"></div>
+              <div class="stat-item">
+                <div class="stat-number">50+</div>
+                <div class="stat-label">Categories</div>
+              </div>
+            </div>
+            <RouterLink to="/signup" class="btn btn-primary btn-lg cta-button">
+              Sign Up Free
+            </RouterLink>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </template>
 
 <style scoped>
@@ -270,4 +548,369 @@ onBeforeUnmount(() => {
 
 /* Navbar text */
 .navbar .nav-link{ color:#fff; font-size:17px; }
+
+/* -------- SOCIAL PROOF SECTION -------- */
+.social-proof-section {
+  background: var(--color-bg-page);
+  position: relative;
+}
+
+.social-proof-header {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.6s ease-out forwards;
+  animation-delay: 0.2s;
+}
+
+/* Testimonial Cards */
+.testimonial-card {
+  background: var(--color-bg-white);
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 16px rgba(75, 42, 166, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 100%;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.6s ease-out forwards;
+  border: 1px solid var(--color-border);
+}
+
+.testimonial-card:nth-child(1) { animation-delay: 0.3s; }
+.testimonial-card:nth-child(2) { animation-delay: 0.4s; }
+.testimonial-card:nth-child(3) { animation-delay: 0.5s; }
+
+.testimonial-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(75, 42, 166, 0.15);
+}
+
+.testimonial-card .stars {
+  color: #ffc107;
+  font-size: 1.25rem;
+  letter-spacing: 2px;
+}
+
+.testimonial-text {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  margin-bottom: 1.5rem;
+  font-style: italic;
+}
+
+.testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.author-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-lighter));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.author-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+}
+
+.author-location {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+/* Featured Preview Cards */
+.featured-preview-section {
+  margin-top: 3rem;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.6s ease-out forwards;
+  animation-delay: 0.6s;
+}
+
+.featured-preview-section h3 {
+  color: var(--color-text-primary);
+}
+
+.preview-card {
+  background: var(--color-bg-white);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(75, 42, 166, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  height: 100%;
+}
+
+.preview-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(75, 42, 166, 0.15);
+}
+
+.preview-image {
+  height: 180px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fitness-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.food-bg {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.arts-bg {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.education-bg {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.preview-badge {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0.4rem 0.9rem;
+  border-radius: 50px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.preview-content {
+  padding: 1.25rem;
+}
+
+.preview-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--color-text-primary);
+}
+
+.preview-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.preview-rating .stars-small {
+  color: #ffc107;
+  font-size: 0.9rem;
+}
+
+.preview-rating .rating-count {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.preview-price {
+  font-weight: 700;
+  color: var(--color-primary);
+  font-size: 1.1rem;
+}
+
+/* CTA Section */
+.cta-section {
+  margin-top: 4rem;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.6s ease-out forwards;
+  animation-delay: 0.7s;
+}
+
+.cta-card {
+  background: linear-gradient(135deg, #4b2aa6 0%, #6d3cc4 100%);
+  border-radius: 1.5rem;
+  padding: 3rem 2rem;
+  text-align: center;
+  box-shadow: 0 12px 32px rgba(75, 42, 166, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ensure text is always white regardless of theme */
+.cta-card * {
+  color: white !important;
+}
+
+.cta-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.cta-content {
+  position: relative;
+  z-index: 1;
+}
+
+.cta-title {
+  color: white;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.cta-subtitle {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+
+.cta-stats {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.stat-divider {
+  width: 1px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.cta-button {
+  background: white !important;
+  color: #4b2aa6 !important;
+  font-weight: 600;
+  padding: 0.875rem 3rem;
+  border: none !important;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+}
+
+.cta-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #4b2aa6 !important;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 991.98px) {
+  .stat-divider {
+    display: none;
+  }
+
+  .cta-stats {
+    gap: 1.5rem;
+  }
+
+  .preview-image {
+    height: 160px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .testimonial-card {
+    padding: 1.5rem;
+  }
+
+  .testimonial-text {
+    font-size: 0.95rem;
+  }
+
+  .cta-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .cta-title {
+    font-size: 1.5rem;
+  }
+
+  .cta-subtitle {
+    font-size: 1rem;
+  }
+
+  .stat-number {
+    font-size: 1.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.8rem;
+  }
+
+  .cta-button {
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+  }
+
+  .preview-image {
+    height: 140px;
+  }
+
+  .preview-content {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .social-proof-header h2 {
+    font-size: 1.75rem;
+  }
+
+  .social-proof-header p {
+    font-size: 1rem;
+  }
+
+  .featured-preview-section h3 {
+    font-size: 1.25rem;
+  }
+}
 </style>

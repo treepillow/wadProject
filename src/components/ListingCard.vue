@@ -213,28 +213,56 @@ function goToUserProfile(event) {
 <style scoped>
 .card-border {
   border: 1px solid var(--color-border);
+  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,245,251,0.95) 100%);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.card-border::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary-lighter) 100%);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.card-border:hover::before {
+  opacity: 1;
 }
 
 .selectable {
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(75, 42, 166, 0.08);
 }
 
 .selectable:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-hover) !important;
-  border-color: var(--color-primary) !important;
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 12px 32px rgba(75, 42, 166, 0.18), 0 0 0 1px rgba(75, 42, 166, 0.1) !important;
+  border-color: transparent !important;
 }
 
 .selectable:active {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 8px 24px rgba(75, 42, 166, 0.15) !important;
 }
 
 .reveal-in { animation: fadeIn .35s ease both; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: none } }
 
-.img-box { height: 220px; position: relative; background: #f8f9fa; border-radius: 0.75rem; overflow: hidden; }
+.img-box {
+  height: 220px;
+  position: relative;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e8e2f3 100%);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: inset 0 2px 8px rgba(75, 42, 166, 0.05);
+}
 .img-cover { width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: 0; transition: opacity 0.4s ease; }
 .img-visible { opacity: 1; }
 .skeleton { position: absolute; inset: 0; background: linear-gradient(90deg,#eee 0%,#f5f5f5 20%,#eee 40%,#eee 100%); background-size:200% 100%; animation: shimmer 1.1s infinite; }

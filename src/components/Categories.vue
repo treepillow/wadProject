@@ -51,7 +51,7 @@ export default {
           :class="{ active: isActive(opt) }"
           @click="toggle(opt)"
         >
-          <Icon :icon="icons[opt]" width="50" height="50" />
+          <Icon :icon="icons[opt]" width="70" height="70" />
         </button>
         <div class="category-text text-center fs-5">{{ opt }}</div>
       </div>
@@ -91,8 +91,8 @@ hr { border: 1; opacity: 0.25; }
 }
 
 .category svg {
-  width: 60%;
-  height: 60%;
+  width: 80%;
+  height: 80%;
   display: block;
   transition: all var(--transition-fast);
 }
@@ -116,8 +116,8 @@ hr { border: 1; opacity: 0.25; }
 }
 
 .category.active {
-  border-color: var(--color-primary); /* Highlight border color when active */
-  box-shadow: 0 0 5px var(--color-primary); /* Optional: Add a shadow effect to emphasize */
+  border-color: var(--color-primary); 
+  box-shadow: 0 0 5px var(--color-primary);
 }
 
 .category-text {

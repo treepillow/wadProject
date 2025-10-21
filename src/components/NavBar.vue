@@ -76,9 +76,6 @@ async function logout() {
 
           <ul class="navbar-nav ms-auto align-items-center gap-lg-2">
 
-            <li class="nav-item">
-              <DarkModeToggle />
-            </li>
             <template v-if="showAuthCtas">
               <li class="nav-item">
                 <RouterLink to="/login" class="btn btn-outline-primary me-2">Login</RouterLink>
@@ -86,34 +83,71 @@ async function logout() {
               <li class="nav-item">
                 <RouterLink to="/signup" class="btn btn-primary">Sign up</RouterLink>
               </li>
+              <li class="nav-item">
+                <DarkModeToggle />
+              </li>
             </template>
 
             <template v-else-if="isLoggedIn">
-              <li class="nav-item">
-                <RouterLink to="/chat" class="btn btn-brand d-flex align-items-center">
-                  <Icon icon="mdi:email" class="icon-24 me-1" />
-                  <span class="d-none d-sm-inline">Messages</span>
+              <!-- Profile picture at top (mobile only) -->
+              <li class="nav-item order-mobile-0 d-lg-none">
+                <div class="mobile-profile-header">
+                  <img :src="avatarUrl" alt="User avatar" class="mobile-avatar" />
+                </div>
+              </li>
+
+              <!-- Profile button -->
+              <li class="nav-item order-mobile-1 order-lg-last">
+                <!-- Mobile: Profile button -->
+                <RouterLink to="/profile" class="btn btn-brand d-lg-none mobile-nav-btn">
+                  <Icon icon="mdi:account" class="icon-24" />
+                  <span class="btn-text">Profile</span>
+                </RouterLink>
+                <!-- Desktop: Dropdown -->
+                <div class="dropdown d-none d-lg-block">
+                  <button class="btn p-0 dropdown-toggle avatar-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                    <img :src="avatarUrl" alt="User avatar" class="avatar-36" />
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li><RouterLink to="/profile" class="dropdown-item">Profile</RouterLink></li>
+                    <li><hr class="dropdown-divider" /></li>
+                    <li>
+                      <button class="dropdown-item text-danger" @click="logout" :disabled="loggingOut">
+                        {{ loggingOut ? 'Signing out…' : 'Sign out' }}
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </li>
+
+              <!-- Messages button -->
+              <li class="nav-item order-mobile-2">
+                <RouterLink to="/chat" class="btn btn-brand mobile-nav-btn">
+                  <Icon icon="mdi:email" class="icon-24" />
+                  <span class="btn-text d-lg-none">Messages</span>
+                  <span class="d-none d-lg-inline ms-1">Messages</span>
                 </RouterLink>
               </li>
-              <li class="nav-item me-1">
-                <RouterLink to="/createService" class="btn btn-brand d-flex align-items-center">
-                  <Icon icon="mdi:plus-circle" class="icon-24 me-1" />
-                  <span class="btn-text">Create Service</span>
+
+              <!-- Create button -->
+              <li class="nav-item order-mobile-3">
+                <RouterLink to="/createService" class="btn btn-brand mobile-nav-btn">
+                  <Icon icon="mdi:plus-circle" class="icon-24" />
+                  <span class="btn-text">Create</span>
                 </RouterLink>
               </li>
-              <li class="nav-item dropdown">
-                <button class="btn p-0 dropdown-toggle avatar-btn" data-bs-toggle="dropdown" aria-expanded="false">
-                  <img :src="avatarUrl" alt="User avatar" class="avatar-36" />
+
+              <!-- Sign out button (mobile only) -->
+              <li class="nav-item order-mobile-4 d-lg-none">
+                <button class="btn btn-danger mobile-nav-btn mobile-signout-btn" @click="logout" :disabled="loggingOut">
+                  <Icon icon="mdi:logout" class="icon-24" />
+                  <span class="btn-text">{{ loggingOut ? 'Signing out…' : 'Sign out' }}</span>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                  <li><RouterLink to="/profile" class="dropdown-item">Profile</RouterLink></li>
-                  <li><hr class="dropdown-divider" /></li>
-                  <li>
-                    <button class="dropdown-item text-danger" @click="logout" :disabled="loggingOut">
-                      {{ loggingOut ? 'Signing out…' : 'Sign out' }}
-                    </button>
-                  </li>
-                </ul>
+              </li>
+
+              <!-- Dark mode toggle last on mobile, first on desktop -->
+              <li class="nav-item order-mobile-last order-lg-first">
+                <DarkModeToggle />
               </li>
             </template>
           </ul>
@@ -345,13 +379,14 @@ async function logout() {
     width: 280px;
     height: 100vh;
     background: var(--color-bg-white);
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
-    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+    transition: left 0.15s ease-out !important;
     z-index: 1050;
     overflow-y: auto;
-    padding: 1.5rem 1rem;
+    padding: 1.25rem 1rem 1.25rem 1rem;
     display: block !important;
     visibility: hidden;
+    border: none;
   }
 
   .navbar-collapse.show {
@@ -361,20 +396,22 @@ async function logout() {
 
   .navbar-collapse.collapsing {
     left: -280px;
-    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.35s !important;
-    height: 100vh !important;
+    transition: left 0.15s ease-out !important;
+    height: auto !important;
     visibility: hidden;
   }
 
   .navbar-collapse.show.collapsing {
     left: 0;
     visibility: visible;
-    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: left 0.15s ease-out !important;
   }
 
   .navbar-nav {
     padding-top: 1rem;
-    gap: 1rem !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
   }
 
   .navbar-nav .nav-item {
@@ -382,17 +419,117 @@ async function logout() {
     margin-bottom: 0;
   }
 
-  .navbar-nav .btn {
-    width: 100%;
-    justify-content: center;
-    min-height: 44px;
-    font-size: 0.95rem;
+  /* Mobile single column layout */
+  .order-mobile-0 {
+    order: 0;
   }
 
-  .navbar-nav .btn-brand,
-  .navbar-nav .btn-primary,
-  .navbar-nav .btn-outline-primary {
-    padding: 0.65rem 1rem;
+  .order-mobile-1 {
+    order: 1;
+  }
+
+  .order-mobile-2 {
+    order: 2;
+  }
+
+  .order-mobile-3 {
+    order: 3;
+  }
+
+  .order-mobile-4 {
+    order: 4;
+  }
+
+  .order-mobile-last {
+    order: 999;
+    margin-top: 0.5rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* Mobile profile header with avatar */
+  .mobile-profile-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem 0;
+    margin-bottom: 0.5rem;
+  }
+
+  .mobile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--color-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Mobile navigation buttons - horizontal layout with icon on left */
+  .mobile-nav-btn {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.75rem;
+    min-height: 48px;
+    padding: 0.75rem 1rem;
+    text-align: left;
+  }
+
+  .mobile-nav-btn .icon-24 {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .mobile-nav-btn .btn-text {
+    font-size: 0.875rem;
+    margin: 0;
+  }
+
+  /* Mobile sign out button */
+  .mobile-signout-btn {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: white;
+  }
+
+  .mobile-signout-btn:hover {
+    background: #c82333;
+    border-color: #bd2130;
+    color: white;
+  }
+
+  /* Desktop buttons keep original layout */
+  .navbar-nav .btn:not(.mobile-nav-btn) {
+    width: 100%;
+    justify-content: center;
+    min-height: 48px;
+    font-size: 0.85rem;
+    padding: 0.6rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .navbar-nav .btn:not(.mobile-nav-btn) .icon-24 {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+  }
+
+  .navbar-nav .btn:not(.mobile-nav-btn) .btn-text {
+    font-size: 0.75rem;
+    margin: 0;
+  }
+
+  /* Desktop dropdown - hide on mobile */
+  .navbar-nav .dropdown {
+    width: 100%;
   }
 
   .navbar-nav .dropdown-menu {
@@ -412,21 +549,11 @@ async function logout() {
     background: var(--color-bg-purple-tint);
   }
 
-  /* Backdrop overlay */
-  .navbar-collapse.show::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 280px;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: -1;
-  }
+  /* Backdrop overlay - removed to fix animation */
 
   /* Dark mode support for mobile menu */
   :root.dark-mode .navbar-collapse {
-    background: var(--color-bg-dark);
+    background: #1a1a1a !important;
     border-right: 1px solid rgba(255, 255, 255, 0.1);
   }
 
@@ -436,6 +563,11 @@ async function logout() {
 
   :root.dark-mode .btn-close {
     filter: invert(1);
+  }
+
+  :root.dark-mode .navbar-nav .dropdown-item {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-text-white);
   }
 }
 

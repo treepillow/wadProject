@@ -62,14 +62,14 @@ export default {
       </div>
     </nav>
 
-    <!-- Mobile: Bootstrap grid with 2 rows of 4 -->
+    <!-- Mobile: 2 rows of 4 -->
     <div class="d-lg-none">
-      <div class="row g-3 justify-content-center categories-mobile-grid">
+      <div class="row g-2 justify-content-center">
         <div
           v-for="opt in options" :key="opt"
           class="col-3"
         >
-          <div class="category-wrapper-grid">
+          <div class="category-wrapper-mobile">
             <button
               type="button"
               class="category btn-reset"
@@ -98,16 +98,19 @@ hr { border: 1; opacity: 0.25; }
   padding: 0;
 }
 
+/* Desktop styles */
 .category-wrapper {
   display: inline-block;
   text-align: center;
 }
 
-.category-wrapper-grid {
+/* Mobile grid styles */
+.category-wrapper-mobile {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
+  width: 100%;
 }
 
 .category {
@@ -154,7 +157,7 @@ hr { border: 1; opacity: 0.25; }
 }
 
 .category.active {
-  box-shadow: 0 0 0 4px var(--color-primary); /* This replaces the outline */
+  box-shadow: 0 0 0 4px var(--color-primary);
 }
 
 .category-text {
@@ -162,81 +165,56 @@ hr { border: 1; opacity: 0.25; }
   margin-top: 8px;
 }
 
-/* Mobile grid specific styles */
-.categories-mobile-grid {
-  max-width: 100%;
-}
-
-.categories-mobile-grid .col-3 {
-  padding: 0.5rem;
-}
-
-@media (max-width: 767.98px) {
+/* Mobile specific adjustments - 2 rows of 4 */
+@media (max-width: 991.98px) {
   .category {
-    width: 85px;
-    height: 85px;
+    width: 70px;
+    height: 70px;
     padding: 12px;
   }
 
   .category-text {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     margin-top: 6px;
-    line-height: 1.2;
-  }
-
-  .categories-mobile-grid .col-3 {
-    padding: 0.4rem;
+    line-height: 1.1;
   }
 }
 
 @media (max-width: 575.98px) {
   .category {
-    width: 70px;
-    height: 70px;
+    width: 65px;
+    height: 65px;
     padding: 10px;
   }
 
   .category-text {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     margin-top: 4px;
-    line-height: 1.1;
-  }
-
-  .categories-mobile-grid .col-3 {
-    padding: 0.3rem;
-  }
-
-  .categories-mobile-grid {
-    gap: 0.5rem !important;
   }
 }
 
 @media (max-width: 380px) {
   .category {
-    width: 60px;
-    height: 60px;
+    width: 55px;
+    height: 55px;
     padding: 8px;
   }
 
   .category-text {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
     margin-top: 3px;
   }
-
-  .categories-mobile-grid .col-3 {
-    padding: 0.25rem;
-  }
 }
+
 :root.dark-mode .category .iconify {
-  color: #ffffff; /* Set icon color to white in dark mode */
+  color: #ffffff;
 }
 
-/* If you are using font-awesome icons (fa-solid:fire), ensure the color changes accordingly */
 :root.dark-mode .category .iconify[data-icon='fa-solid:fire'] {
-  color: #ffffff; /* Set the fire icon to white in dark mode */
+  color: #ffffff;
 }
 
 :root.dark-mode .category:hover .iconify {
-  color: var(--color-primary); /* Optionally, add hover effect color */
+  color: var(--color-primary);
 }
 </style>

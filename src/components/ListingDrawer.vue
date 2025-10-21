@@ -906,4 +906,152 @@ watch(() => props.open, (isOpen) => {
 .reviewer-avatar-clickable:hover {
   transform: scale(1.05);
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 767.98px) {
+  .drawer-panel {
+    padding: 16px;
+    width: 100vw;
+    border-radius: 0;
+  }
+
+  /* Fix header badge positioning - move below on mobile */
+  .header {
+    flex-wrap: wrap;
+  }
+
+  .header .badge {
+    order: 3;
+    width: 100%;
+    margin-top: 0.5rem;
+    text-align: center;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  /* Fix Google Maps button - center and resize */
+  .d-flex.align-items-center.justify-content-between {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0.75rem;
+  }
+
+  .btn-outline-primary {
+    width: 100%;
+    text-align: center;
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  /* Fix reviews display - single row */
+  .reviews-section .d-flex.align-items-center.justify-content-between {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+
+  .reviews-section .d-flex.align-items-center.gap-2 {
+    flex-wrap: nowrap;
+    gap: 0.35rem !important;
+  }
+
+  .stars-display .star {
+    font-size: 14px;
+  }
+
+  .reviews-section .fw-semibold {
+    font-size: 0.9rem;
+  }
+
+  .reviews-section .text-muted.small {
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  /* Better spacing */
+  .section-title {
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .gallery {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 6px;
+  }
+
+  .map {
+    height: 280px !important;
+  }
+
+  /* Review form */
+  .review-form .card-body {
+    padding: 0.85rem !important;
+  }
+
+  .stars-input .star {
+    font-size: 24px;
+  }
+
+  /* Nearby items */
+  .nearby-list {
+    max-height: 200px !important;
+  }
+
+  .thumb {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .drawer-panel {
+    padding: 12px;
+  }
+
+  .close-btn {
+    top: 8px;
+    right: 8px;
+  }
+
+  .header .avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  h4 {
+    font-size: 1.1rem;
+  }
+
+  h6 {
+    font-size: 0.9rem;
+  }
+
+  .section-title {
+    font-size: 0.85rem;
+  }
+
+  .btn-outline-primary {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.85rem;
+  }
+
+  .gallery {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .map {
+    height: 240px !important;
+  }
+
+  .stars-display .star {
+    font-size: 12px;
+  }
+
+  .reviews-section .fw-semibold {
+    font-size: 0.85rem;
+  }
+
+  .reviews-section .text-muted.small {
+    font-size: 0.7rem;
+  }
+}
 </style>

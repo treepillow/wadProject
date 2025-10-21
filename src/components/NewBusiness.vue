@@ -376,13 +376,13 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
                   <label class="form-label fw-semibold">
                     Block <Icon icon="mdi:home" />
                   </label>
-                  <input class="form-control" v-model.trim="locationBlk" placeholder="e.g 485B" />
+                  <input class="form-control" v-model.trim="locationBlk" placeholder="e.g 495A" />
                 </div>
                 <div class="flex-grow-1">
                   <label class="form-label fw-semibold">
                     Street Address <Icon icon="mdi:map-marker" />
                   </label>
-                  <input class="form-control" v-model.trim="locationStreet" placeholder="e.g Tampines Ave 9" />
+                  <input class="form-control" v-model.trim="locationStreet" placeholder="e.g Tampines Ave 2" />
                 </div>
               </div>
 
@@ -906,6 +906,33 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
   .row.g-3 {
     --bs-gutter-x: 0.65rem;
     --bs-gutter-y: 0.75rem;
+  }
+
+  /* Operating hours mobile fix */
+  .d-flex.align-items-center.gap-3 {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+  }
+
+  .d-flex.align-items-center.gap-3 .form-check {
+    width: 100%;
+  }
+
+  .d-flex.align-items-center.gap-3 .d-flex.align-items-center.gap-2 {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .d-flex.align-items-center.gap-3 .form-control-sm {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .d-flex.align-items-center.gap-3 .text-muted {
+    flex-shrink: 0;
+    padding: 0 0.25rem;
   }
 }
 

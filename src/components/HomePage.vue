@@ -426,7 +426,7 @@ onBeforeUnmount(() => {
 
       <!-- listings grid -->
       <div v-else>
-        <div class="row g-3 row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xxl-5">
+        <div class="row g-3 row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xxl-5">
           <div class="col" v-for="l in listings" :key="l.id">
             <div class="card-sm">
               <ListingCard
@@ -606,8 +606,8 @@ input[type='range'] {
 
 @media (max-width: 767.98px) {
   .container {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
 
   .filter-drawer {
@@ -615,19 +615,14 @@ input[type='range'] {
     right: -90%;
   }
 
-  /* Force single column on mobile */
+  /* 2 cards per row on mobile */
   .row.g-3 {
-    --bs-gutter-x: 1rem;
-    --bs-gutter-y: 1rem;
-  }
-
-  .row-cols-2 > * {
-    width: 100% !important;
-    max-width: 100% !important;
+    --bs-gutter-x: 0.75rem;
+    --bs-gutter-y: 0.75rem;
   }
 
   .card-sm :deep(.img-box) {
-    height: 200px !important;
+    height: 180px !important;
   }
 
   .chip-bar {
@@ -647,8 +642,14 @@ input[type='range'] {
     border-radius: 0;
   }
 
+  /* Keep 2 cards per row, adjust gutter */
+  .row.g-3 {
+    --bs-gutter-x: 0.5rem;
+    --bs-gutter-y: 0.75rem;
+  }
+
   .card-sm :deep(.img-box) {
-    height: 220px !important;
+    height: 170px !important;
   }
 
   .btn {
@@ -657,8 +658,8 @@ input[type='range'] {
   }
 
   .container {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
 
   .py-3 {
@@ -678,6 +679,23 @@ input[type='range'] {
 
   .pb-5 {
     padding-bottom: 2rem !important;
+  }
+}
+
+/* Extra small devices */
+@media (max-width: 380px) {
+  .row.g-3 {
+    --bs-gutter-x: 0.4rem;
+    --bs-gutter-y: 0.6rem;
+  }
+
+  .card-sm :deep(.img-box) {
+    height: 160px !important;
+  }
+
+  .container {
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
   }
 }
 

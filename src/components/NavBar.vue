@@ -54,19 +54,20 @@ async function logout() {
 <template>
   <header class="sticky-top elevate">
     <nav class="navbar navbar-expand-lg navbar-light bg-page shadow-sm border-bottom">
-<div class="container">
+<div class="container-fluid">
 
-        <RouterLink to="/" class="navbar-brand d-flex align-items-center gap-2 text-decoration-none">
-          <img src="../assets/homes_logo.png" alt="Homes" class="brand-logo" />
-          <span class="brand-name">Homes</span>
-        </RouterLink>
-
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+        <!-- Hamburger on left for mobile -->
+        <button class="navbar-toggler order-0 me-2" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
                 aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
         </button>
 
-        <div id="mainNav" class="collapse navbar-collapse">
+        <RouterLink to="/" class="navbar-brand d-flex align-items-center gap-2 text-decoration-none order-1 flex-grow-1">
+          <img src="../assets/homes_logo.png" alt="Homes" class="brand-logo" />
+          <span class="brand-name">Homes</span>
+        </RouterLink>
+
+        <div id="mainNav" class="collapse navbar-collapse order-2">
           <!-- Close button for mobile -->
           <div class="d-lg-none d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
             <span class="fw-bold">Menu</span>
@@ -95,9 +96,9 @@ async function logout() {
                 </RouterLink>
               </li>
               <li class="nav-item me-1">
-                <RouterLink to="/createService" class="btn btn-brand">
-                  <Icon icon="mdi:plus-circle" class="me-1" />
-                  Create Service
+                <RouterLink to="/createService" class="btn btn-brand d-flex align-items-center">
+                  <Icon icon="mdi:plus-circle" class="icon-24 me-1" />
+                  <span class="btn-text">Create Service</span>
                 </RouterLink>
               </li>
               <li class="nav-item dropdown">
@@ -210,6 +211,25 @@ async function logout() {
   .navbar-nav .nav-item {
     margin-bottom: 0.5rem;
   }
+
+  /* Make Create Service button more compact on small screens */
+  .btn-text {
+    font-size: 0.813rem;
+  }
+}
+
+/* Extra responsive for very small screens */
+@media (max-width: 380px) {
+  .btn-brand .btn-text {
+    font-size: 0.75rem;
+  }
+
+  .btn-brand,
+  .btn-outline-primary,
+  .btn-primary {
+    padding: 0.35rem 0.6rem;
+    min-width: 90px;
+  }
 }
 
 /* Specific styles for .btn-brand */
@@ -289,26 +309,37 @@ async function logout() {
 /* Mobile side menu slide from left */
 @media (max-width: 991.98px) {
   .navbar-collapse {
-    position: fixed;
+    position: fixed !important;
     top: 0;
     left: -100%;
     width: 280px;
     height: 100vh;
     background: var(--color-bg-white);
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
-    transition: left 0.3s ease-in-out;
+    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
     z-index: 1050;
     overflow-y: auto;
     padding: 1.5rem 1rem;
+    display: block !important;
+    visibility: hidden;
   }
 
-  .navbar-collapse.show,
-  .navbar-collapse.collapsing {
+  .navbar-collapse.show {
     left: 0;
+    visibility: visible;
   }
 
   .navbar-collapse.collapsing {
-    transition: left 0.3s ease-in-out;
+    left: -100%;
+    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.35s !important;
+    height: 100vh !important;
+    visibility: hidden;
+  }
+
+  .navbar-collapse.show.collapsing {
+    left: 0;
+    visibility: visible;
+    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
 
   .navbar-nav {

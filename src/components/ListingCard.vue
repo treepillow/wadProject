@@ -311,15 +311,50 @@ function goToUserProfile(event) {
 
 @media (max-width: 767.98px) {
   .img-box {
-    height: 180px !important;
+    height: 200px !important;
   }
 
   .card-body {
-    padding: 0.65rem 0.85rem !important;
+    padding: 0.85rem 1rem !important;
   }
 
   .card-footer {
-    padding: 0.45rem 0.85rem !important;
+    padding: 0.65rem 1rem !important;
+  }
+
+  .card-title {
+    font-size: 1rem !important;
+  }
+
+  .badge {
+    font-size: 0.7rem !important;
+    padding: 0.35rem 0.65rem;
+  }
+
+  .rating-text {
+    font-size: 0.8rem;
+  }
+
+  .stars-small .star {
+    font-size: 13px;
+  }
+
+  .fw-bold {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .img-box {
+    height: 220px !important;
+  }
+
+  .card-body {
+    padding: 0.75rem 0.9rem !important;
+  }
+
+  .card-footer {
+    padding: 0.6rem 0.9rem !important;
   }
 
   .card-title {
@@ -328,45 +363,25 @@ function goToUserProfile(event) {
 
   .badge {
     font-size: 0.65rem !important;
-  }
-
-  .rating-text {
-    font-size: 0.75rem;
-  }
-
-  .stars-small .star {
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 575.98px) {
-  .img-box {
-    height: 160px !important;
-  }
-
-  .card-body {
-    padding: 0.5rem 0.75rem !important;
-  }
-
-  .card-footer {
-    padding: 0.4rem 0.75rem !important;
-  }
-
-  .card-title {
-    font-size: 0.875rem !important;
-  }
-
-  .badge {
-    font-size: 0.6rem !important;
+    padding: 0.3rem 0.6rem;
   }
 
   .btn-sm {
     font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
+    padding: 0.3rem 0.6rem;
   }
 
   .small {
     font-size: 0.75rem !important;
+  }
+
+  .avatar-box {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .fw-bold {
+    font-size: 0.9rem;
   }
 }
 </style>

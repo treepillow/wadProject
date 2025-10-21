@@ -62,12 +62,12 @@ export default {
       </div>
     </nav>
 
-    <!-- Mobile: Bootstrap grid with multiple rows -->
+    <!-- Mobile: Bootstrap grid with 2 rows of 4 -->
     <div class="d-lg-none">
-      <div class="row g-3 justify-content-center">
+      <div class="row g-3 justify-content-center categories-mobile-grid">
         <div
           v-for="opt in options" :key="opt"
-          class="col-6 col-sm-4 col-md-3"
+          class="col-3"
         >
           <div class="category-wrapper-grid">
             <button
@@ -162,29 +162,69 @@ hr { border: 1; opacity: 0.25; }
   margin-top: 8px;
 }
 
+/* Mobile grid specific styles */
+.categories-mobile-grid {
+  max-width: 100%;
+}
+
+.categories-mobile-grid .col-3 {
+  padding: 0.5rem;
+}
+
 @media (max-width: 767.98px) {
   .category {
-    width: 90px;
-    height: 90px;
-    padding: 15px;
+    width: 85px;
+    height: 85px;
+    padding: 12px;
   }
 
   .category-text {
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     margin-top: 6px;
+    line-height: 1.2;
+  }
+
+  .categories-mobile-grid .col-3 {
+    padding: 0.4rem;
   }
 }
 
 @media (max-width: 575.98px) {
   .category {
-    width: 80px;
-    height: 80px;
-    padding: 12px;
+    width: 70px;
+    height: 70px;
+    padding: 10px;
   }
 
   .category-text {
-    font-size: 0.813rem;
+    font-size: 0.65rem;
     margin-top: 4px;
+    line-height: 1.1;
+  }
+
+  .categories-mobile-grid .col-3 {
+    padding: 0.3rem;
+  }
+
+  .categories-mobile-grid {
+    gap: 0.5rem !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .category {
+    width: 60px;
+    height: 60px;
+    padding: 8px;
+  }
+
+  .category-text {
+    font-size: 0.6rem;
+    margin-top: 3px;
+  }
+
+  .categories-mobile-grid .col-3 {
+    padding: 0.25rem;
   }
 }
 :root.dark-mode .category .iconify {

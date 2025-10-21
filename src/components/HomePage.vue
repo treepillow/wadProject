@@ -615,12 +615,19 @@ input[type='range'] {
     right: -90%;
   }
 
-  .row-cols-2 {
-    --bs-columns: 1;
+  /* Force single column on mobile */
+  .row.g-3 {
+    --bs-gutter-x: 1rem;
+    --bs-gutter-y: 1rem;
+  }
+
+  .row-cols-2 > * {
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   .card-sm :deep(.img-box) {
-    height: 180px !important;
+    height: 200px !important;
   }
 
   .chip-bar {
@@ -641,7 +648,7 @@ input[type='range'] {
   }
 
   .card-sm :deep(.img-box) {
-    height: 160px !important;
+    height: 220px !important;
   }
 
   .btn {
@@ -657,6 +664,20 @@ input[type='range'] {
   .py-3 {
     padding-top: 0.75rem !important;
     padding-bottom: 0.75rem !important;
+  }
+
+  /* Better spacing on mobile */
+  .my-3 {
+    margin-top: 0.75rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .mt-3 {
+    margin-top: 0.75rem !important;
+  }
+
+  .pb-5 {
+    padding-bottom: 2rem !important;
   }
 }
 

@@ -168,8 +168,10 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  background-color: rgb(245, 239, 239);
+  min-height: 100vh;
+  background: rgb(245, 239, 239);
+  padding: 20px;
+  overflow-y: auto;
 }
 
 .login-card {

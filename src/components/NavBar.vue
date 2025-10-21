@@ -67,6 +67,12 @@ async function logout() {
         </button>
 
         <div id="mainNav" class="collapse navbar-collapse">
+          <!-- Close button for mobile -->
+          <div class="d-lg-none d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+            <span class="fw-bold">Menu</span>
+            <button type="button" class="btn-close" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-label="Close menu"></button>
+          </div>
+
           <ul class="navbar-nav ms-auto align-items-center gap-lg-2">
 
             <li class="nav-item">
@@ -263,12 +269,87 @@ async function logout() {
 }
 
 /* Navbar Toggler */
-.navbar-toggler { 
-  border-color: rgba(0,0,0,.15); 
+.navbar-toggler {
+  border-color: rgba(0,0,0,.15);
 }
 
-.navbar-toggler:focus { 
-  box-shadow: 0 0 0 .15rem rgba(75,42,166,.15); 
+.navbar-toggler:focus {
+  box-shadow: 0 0 0 .15rem rgba(75,42,166,.15);
+}
+
+/* Dark mode hamburger visibility */
+:root.dark-mode .navbar-toggler {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+:root.dark-mode .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.85%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Mobile side menu slide from left */
+@media (max-width: 991.98px) {
+  .navbar-collapse {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 280px;
+    height: 100vh;
+    background: var(--color-bg-white);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+    transition: left 0.3s ease-in-out;
+    z-index: 1050;
+    overflow-y: auto;
+    padding: 1.5rem 1rem;
+  }
+
+  .navbar-collapse.show,
+  .navbar-collapse.collapsing {
+    left: 0;
+  }
+
+  .navbar-collapse.collapsing {
+    transition: left 0.3s ease-in-out;
+  }
+
+  .navbar-nav {
+    padding-top: 1rem;
+    gap: 0.75rem !important;
+  }
+
+  .navbar-nav .nav-item {
+    width: 100%;
+  }
+
+  .navbar-nav .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Backdrop overlay */
+  .navbar-collapse.show::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 280px;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: -1;
+  }
+
+  /* Dark mode support for mobile menu */
+  :root.dark-mode .navbar-collapse {
+    background: var(--color-bg-dark);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  :root.dark-mode .navbar-collapse .border-bottom {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  :root.dark-mode .btn-close {
+    filter: invert(1);
+  }
 }
 
 </style>

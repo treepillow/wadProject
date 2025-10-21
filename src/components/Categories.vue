@@ -43,7 +43,8 @@ export default {
 
 <template>
   <div class="container-fluid">
-    <nav class="navbar">
+    <!-- Desktop: horizontal scrolling navbar -->
+    <nav class="navbar d-none d-lg-flex">
       <div
         v-for="opt in options" :key="opt"
         class="category-wrapper"
@@ -60,6 +61,30 @@ export default {
         <div class="category-text text-center fs-5">{{ opt }}</div>
       </div>
     </nav>
+
+    <!-- Mobile: Bootstrap grid with multiple rows -->
+    <div class="d-lg-none">
+      <div class="row g-3 justify-content-center">
+        <div
+          v-for="opt in options" :key="opt"
+          class="col-6 col-sm-4 col-md-3"
+        >
+          <div class="category-wrapper-grid">
+            <button
+              type="button"
+              class="category btn-reset"
+              :class="{ active: isActive(opt) }"
+              @click="toggle(opt)"
+            >
+              <img v-if="images[opt]" :src="images[opt]" alt="category image" width="50" height="50" />
+              <Icon v-else :icon="icons[opt]" width="50" height="50" />
+            </button>
+            <div class="category-text text-center">{{ opt }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <hr />
   </div>
 </template>
@@ -75,6 +100,13 @@ hr { border: 1; opacity: 0.25; }
 
 .category-wrapper {
   display: inline-block;
+  text-align: center;
+}
+
+.category-wrapper-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 

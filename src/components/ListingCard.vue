@@ -345,43 +345,70 @@ function goToUserProfile(event) {
 }
 
 @media (max-width: 575.98px) {
+  .card {
+    border-radius: 12px;
+  }
+
   .img-box {
-    height: 220px !important;
+    height: 200px !important;
+    border-radius: 10px !important;
+  }
+
+  .card-header {
+    padding: 0.75rem 0.9rem 0.5rem !important;
   }
 
   .card-body {
-    padding: 0.75rem 0.9rem !important;
+    padding: 0.65rem 0.9rem !important;
   }
 
   .card-footer {
-    padding: 0.6rem 0.9rem !important;
+    padding: 0.65rem 0.9rem !important;
   }
 
   .card-title {
-    font-size: 0.95rem !important;
+    font-size: 0.9rem !important;
+    margin-bottom: 0.4rem !important;
   }
 
   .badge {
-    font-size: 0.65rem !important;
-    padding: 0.3rem 0.6rem;
+    font-size: 0.625rem !important;
+    padding: 0.25rem 0.5rem;
   }
 
   .btn-sm {
-    font-size: 0.75rem;
-    padding: 0.3rem 0.6rem;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
   }
 
   .small {
-    font-size: 0.75rem !important;
+    font-size: 0.7rem !important;
   }
 
   .avatar-box {
-    width: 32px !important;
-    height: 32px !important;
+    width: 28px !important;
+    height: 28px !important;
   }
 
   .fw-bold {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+  }
+
+  .rating-display {
+    gap: 4px;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .rating-text {
+    font-size: 0.7rem;
+  }
+
+  .stars-small .star {
+    font-size: 11px;
+  }
+
+  .fw-semibold {
+    font-size: 0.75rem !important;
   }
 }
 </style>

@@ -801,43 +801,111 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 
 @media (max-width: 575.98px) {
   .container {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .listing-card {
+    max-width: 100%;
+    margin: 0;
   }
 
   .card {
-    padding: 1rem;
+    padding: 1rem 0.85rem;
+    border-radius: 12px;
   }
 
   h2 {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
+    margin-bottom: 1rem;
   }
 
   h5 {
-    font-size: 1rem;
+    font-size: 0.95rem;
+  }
+
+  .form-label {
+    font-size: 0.95rem;
+    padding-top: 8px;
   }
 
   .btn {
-    font-size: 0.875rem;
-    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    padding: 0.6rem 1rem;
+    border-radius: 10px;
+  }
+
+  .btn-primary {
+    min-height: 44px;
   }
 
   .form-control,
   .form-select {
-    font-size: 0.875rem;
+    font-size: 0.85rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+  }
+
+  .input-group-text {
+    font-size: 0.85rem;
+    padding: 0.6rem 0.75rem;
   }
 
   .upload-zone {
-    min-height: 120px;
+    min-height: 140px;
+    padding: 1rem;
+  }
+
+  .camera-icon {
+    font-size: 20px;
+  }
+
+  .upload-title {
+    font-size: 0.9rem;
+  }
+
+  .upload-hint {
+    font-size: 0.75rem;
   }
 
   .thumbs .thumb {
-    width: 64px;
-    height: 64px;
+    width: 70px;
+    height: 70px;
+  }
+
+  .remove-btn {
+    font-size: 0.75rem;
+    padding: 2px 6px;
   }
 
   .menu-item-card {
+    padding: 0.85rem;
+    margin-bottom: 0.75rem;
+  }
+
+  /* Better spacing for form groups */
+  .mb-3 {
+    margin-bottom: 0.85rem !important;
+  }
+
+  .mb-4 {
+    margin-bottom: 1.25rem !important;
+  }
+
+  /* Booking section */
+  .booking-section {
+    padding: 1rem;
+  }
+
+  .day-row {
     padding: 0.75rem;
+    margin-bottom: 0.65rem;
+  }
+
+  /* Row spacing for 2-column layout */
+  .row.g-3 {
+    --bs-gutter-x: 0.65rem;
+    --bs-gutter-y: 0.75rem;
   }
 }
 

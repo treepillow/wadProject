@@ -374,16 +374,42 @@ async function logout() {
 
   .navbar-nav {
     padding-top: 1rem;
-    gap: 0.75rem !important;
+    gap: 1rem !important;
   }
 
   .navbar-nav .nav-item {
     width: 100%;
+    margin-bottom: 0;
   }
 
   .navbar-nav .btn {
     width: 100%;
     justify-content: center;
+    min-height: 44px;
+    font-size: 0.95rem;
+  }
+
+  .navbar-nav .btn-brand,
+  .navbar-nav .btn-primary,
+  .navbar-nav .btn-outline-primary {
+    padding: 0.65rem 1rem;
+  }
+
+  .navbar-nav .dropdown-menu {
+    position: static !important;
+    width: 100%;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+    margin-top: 0.5rem;
+  }
+
+  .navbar-nav .dropdown-item {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    background: var(--color-bg-purple-tint);
   }
 
   /* Backdrop overlay */

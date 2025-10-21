@@ -665,12 +665,12 @@ input[type='range'] {
 
   /* Keep 2 cards per row, adjust gutter */
   .row.g-3 {
-    --bs-gutter-x: 0.5rem;
-    --bs-gutter-y: 0.75rem;
+    --bs-gutter-x: 0.6rem;
+    --bs-gutter-y: 0.85rem;
   }
 
   .card-sm :deep(.img-box) {
-    height: 170px !important;
+    height: 200px !important;
   }
 
   .btn {
@@ -679,18 +679,18 @@ input[type='range'] {
   }
 
   .py-3 {
-    padding-top: 0.75rem !important;
-    padding-bottom: 0.75rem !important;
+    padding-top: 0.65rem !important;
+    padding-bottom: 0.65rem !important;
   }
 
   /* Better spacing on mobile */
   .my-3 {
-    margin-top: 0.75rem !important;
-    margin-bottom: 0.75rem !important;
+    margin-top: 0.65rem !important;
+    margin-bottom: 0.65rem !important;
   }
 
   .mt-3 {
-    margin-top: 0.75rem !important;
+    margin-top: 0.65rem !important;
   }
 
   .pb-5 {

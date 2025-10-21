@@ -54,7 +54,7 @@ async function logout() {
 <template>
   <header class="sticky-top elevate">
     <nav class="navbar navbar-expand-lg navbar-light bg-page shadow-sm border-bottom">
-<div class="container-fluid">
+      <div class="navbar-container">
 
         <!-- Hamburger on left for mobile -->
         <button class="navbar-toggler order-0 me-2" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
@@ -129,8 +129,38 @@ async function logout() {
   transition: background var(--transition-normal);
 }
 
-.elevate { 
-  z-index: 1045; 
+.elevate {
+  z-index: 1045;
+}
+
+.navbar {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.navbar-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 991.98px) {
+  .navbar-container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .navbar-container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
 }
 
 .brand-logo { 
@@ -311,7 +341,7 @@ async function logout() {
   .navbar-collapse {
     position: fixed !important;
     top: 0;
-    left: -100%;
+    left: -280px;
     width: 280px;
     height: 100vh;
     background: var(--color-bg-white);
@@ -330,7 +360,7 @@ async function logout() {
   }
 
   .navbar-collapse.collapsing {
-    left: -100%;
+    left: -280px;
     transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.35s !important;
     height: 100vh !important;
     visibility: hidden;

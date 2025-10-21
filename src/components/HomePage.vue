@@ -390,10 +390,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="container-fluid">
+  <div class="page-wrapper">
     <NavBar />
 
-    <div class="container py-3">
+    <div class="content-container py-3">
       <SearchBar @search="handleSearch" />
       <div class="categories-row mt-3">
         <Categories :selected="selectedCats" @toggle="toggleCategory" />
@@ -417,7 +417,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="container pb-5">
+    <div class="content-container pb-5">
       <!-- loading / error -->
       <div v-if="loading" class="d-flex justify-content-center my-5">
         <div class="spinner-border" role="status" aria-label="Loading"></div>
@@ -501,6 +501,32 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.page-wrapper {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.content-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (max-width: 991.98px) {
+  .content-container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .content-container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
 .categories-row {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -605,11 +631,6 @@ input[type='range'] {
 }
 
 @media (max-width: 767.98px) {
-  .container {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-  }
-
   .filter-drawer {
     width: 90%;
     right: -90%;
@@ -657,11 +678,6 @@ input[type='range'] {
     padding: 0.4rem 0.75rem;
   }
 
-  .container {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-  }
-
   .py-3 {
     padding-top: 0.75rem !important;
     padding-bottom: 0.75rem !important;
@@ -691,11 +707,6 @@ input[type='range'] {
 
   .card-sm :deep(.img-box) {
     height: 160px !important;
-  }
-
-  .container {
-    padding-left: 0.4rem;
-    padding-right: 0.4rem;
   }
 }
 

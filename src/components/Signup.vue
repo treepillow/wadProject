@@ -74,7 +74,7 @@
 
             <!-- DOB -->
             <div class="dob-container">
-              <label style="color: #000; font-weight: 500; margin-bottom: 5px;">Date of Birth:</label>
+              <label class="dob-label">Date of Birth:</label>
               <input type="date" v-model="signup.dateOfBirth" required />
             </div>
 
@@ -158,19 +158,19 @@
             <input
               type="text"
               v-model="signup.blk"
-              :placeholder="signup.isLanded ? 'House No. (optional)' : 'Block Number (required)'"
+              :placeholder="signup.isLanded ? 'House No. (optional)' : 'Block Number (555A)'"
               :required="!signup.isLanded"
             />
             <input
               type="text"
               v-model="signup.street"
-              placeholder="Street (e.g. Tampines Ave 9)"
+              placeholder="Street (e.g. Tampines Ave 111)"
               required
             />
             <input
               type="text"
               v-model="signup.postal"
-              placeholder="Postal Code (e.g. 521485)"
+              placeholder="Postal Code (e.g. 123456)"
               maxlength="6"
               required
             />
@@ -939,9 +939,39 @@ button.signup-btn:hover { transform: scale(1.05); }
 .toggle-password:hover { opacity: .8; }
 
 .dob-container { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
-.dob-container label { font-weight: 500; color: var(--color-text-primary); }
+.dob-label {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: 5px;
+}
+.dob-container input[type="date"] {
+  color: var(--color-text-primary);
+}
+/* Style the calendar icon in date input for dark mode */
+.dob-container input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: var(--calendar-icon-filter, none);
+}
+:root.dark-mode .dob-container input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
 
 .profile-picture-container { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.profile-label {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+.profile-picture-container input[type="file"] {
+  color: var(--color-text-primary);
+}
+.profile-picture-container input[type="file"]::file-selector-button {
+  background-color: var(--color-bg-main);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-right: 10px;
+}
 .custom-file-upload {
   display: flex; align-items: center; justify-content: center;
   padding: 10px 15px; border: 1px solid var(--color-border); border-radius: 8px;
@@ -1054,7 +1084,7 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
 
 .validation-error {
   padding: 8px 12px;
-  background: #fff5f5;
+  background: var(--color-bg-white);
   border: 1px solid var(--color-error);
   border-left: 3px solid var(--color-error);
   border-radius: 8px;
@@ -1068,7 +1098,7 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
 
 .validation-success {
   padding: 8px 12px;
-  background: #f0fff4;
+  background: var(--color-bg-white);
   border: 1px solid var(--color-success);
   border-left: 3px solid var(--color-success);
   border-radius: 8px;
@@ -1096,20 +1126,21 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background-color: white;
-  border: 1px solid #ccc;
+  background-color: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
   padding: 10px;
   border-radius: 20px;
   cursor: pointer;
   width: 100%;
   font-weight: 600;
   margin-bottom: 15px;
-  transition: all 0.2s; 
+  transition: all 0.2s;
 }
 
 .google-btn:hover {
-  background-color: #f7f7f7;
-  transform: scale(1.05); 
+  background-color: var(--color-bg-main);
+  transform: scale(1.05);
 }
 
 
@@ -1129,22 +1160,26 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
 .toggle-btn {
   flex: 1;
   padding: 10px 15px;
-  border: none;
-  background: rgb(245, 239, 239);
-  color: black;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg-main);
+  color: var(--color-text-primary);
   border-radius: 20px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  opacity: 0.4;
+  opacity: 0.5;
 }
 .toggle-btn:hover {
   transform: scale(1.02);
-  opacity: 0.6;
+  opacity: 0.7;
+  border-color: var(--color-primary);
 }
 .toggle-btn.active {
   opacity: 1;
   transform: scale(1.05);
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
@@ -1155,7 +1190,8 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
   right: 20px;
   min-width: 320px;
   max-width: 500px;
-  background: white;
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   animation: slideInRight 0.3s ease-out;
@@ -1165,12 +1201,12 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
 
 .notification-toast.danger {
   border-left-color: var(--color-error);
-  background: #fff5f5;
+  background: var(--color-bg-white);
 }
 
 .notification-toast.success {
   border-left-color: var(--color-success);
-  background: #f0fff4;
+  background: var(--color-bg-white);
 }
 
 .notification-content {
@@ -1334,8 +1370,9 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
   justify-content: center;
   gap: 8px;
   padding: 12px 15px;
-  background: #d4edda;
-  color: #155724;
+  background: var(--color-bg-white);
+  color: var(--color-success);
+  border: 2px solid var(--color-success);
   border-radius: 20px;
   font-weight: 600;
   animation: fadeIn 0.5s ease;
@@ -1344,7 +1381,7 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
 .checkmark {
   font-size: 20px;
   font-weight: bold;
-  color: #28a745;
+  color: var(--color-success);
 }
 
 @keyframes fadeIn {
@@ -1372,7 +1409,8 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
 }
 
 .popup-card {
-  background: #fff;
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
   border-radius: 20px;
   padding: 30px;
   width: 90%;
@@ -1398,7 +1436,7 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
 
 .popup-card h3 {
   margin-bottom: 20px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .popup-card form {
@@ -1410,8 +1448,13 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
 .popup-card input {
   padding: 10px;
   border: none;
-  border-bottom: 2px solid #000;
+  border-bottom: 2px solid var(--color-border-dark);
   background: transparent;
+  color: var(--color-text-primary);
+}
+
+.popup-card input::placeholder {
+  color: var(--color-text-secondary);
 }
 
 .popup-submit {

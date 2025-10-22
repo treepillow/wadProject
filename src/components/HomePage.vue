@@ -600,7 +600,8 @@ onBeforeUnmount(() => {
   right: -75%;
   width: 75%;
   height: 100vh;
-  background: #fff;
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
   box-shadow: -4px 0 15px rgba(0, 0, 0, 0.2);
   transition: right 0.35s ease;
   z-index: 1050;
@@ -613,6 +614,12 @@ onBeforeUnmount(() => {
 .drawer-content {
   max-width: 600px;
   margin: 0 auto;
+}
+.filter-drawer .form-label {
+  color: var(--color-text-primary);
+}
+.filter-drawer h4 {
+  color: var(--color-text-primary);
 }
 .drawer-overlay {
   position: fixed;

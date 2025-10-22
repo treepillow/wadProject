@@ -248,18 +248,30 @@ onBeforeUnmount(() => {
 
   <!-- CENTERED GRID + TITLE -->
   <section class="about-section">
-    <div class="content text-center px-3 mb-4">
-      <h1 class="about-title fw-semibold" style="font-size: clamp(32px,6vw,70px)">
+    <div class="content text-center px-3 mb-5">
+      <h1 class="about-title fw-semibold" style="font-size: clamp(28px,5vw,55px)">
         One app for <br class="d-none d-md-block">all you need
       </h1>
     </div>
 
     <!-- Clean, centered, responsive grid -->
-    <div class="about-grid">
-      <img src="../assets/category_images/fitness.png" alt="Fitness" />
-      <img src="../assets/category_images/arts_craft.png" alt="Arts & Craft" />
-      <img src="../assets/category_images/education.png" alt="Education" />
-      <img src="../assets/category_images/food_drinks.png" alt="Food & Drinks" />
+    <div class="about-grid mb-4">
+      <div class="category-item">
+        <img src="../assets/category_images/fitness.png" alt="Fitness" />
+        <p class="category-label">Fitness</p>
+      </div>
+      <div class="category-item">
+        <img src="../assets/category_images/arts_craft.png" alt="Arts & Craft" />
+        <p class="category-label">Arts & Craft</p>
+      </div>
+      <div class="category-item">
+        <img src="../assets/category_images/education.png" alt="Education" />
+        <p class="category-label">Education</p>
+      </div>
+      <div class="category-item">
+        <img src="../assets/category_images/food_drinks.png" alt="Food & Drinks" />
+        <p class="category-label">Food & Drinks</p>
+      </div>
     </div>
 
     <div class="mission px-3">
@@ -441,8 +453,24 @@ onBeforeUnmount(() => {
   max-width: 1100px;
   display: grid;
   grid-template-columns: repeat( auto-fit, minmax(220px, 1fr) );
-  gap: 20px;
+  gap: 30px;
   place-items: center;   /* centers items in their cells */
+}
+
+.category-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.category-label {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: center;
 }
 
 /* Image cards */
@@ -474,14 +502,14 @@ onBeforeUnmount(() => {
 }
 
 /* Simple fade-in on scroll (once) */
-.about-section.in-view .about-grid img {
+.about-section.in-view .about-grid .category-item img {
   animation: fadeIn .5s ease-out forwards;
 }
-.about-section.in-view .about-grid img:nth-child(1){ animation-delay: .00s; }
-.about-section.in-view .about-grid img:nth-child(2){ animation-delay: .05s; }
-.about-section.in-view .about-grid img:nth-child(3){ animation-delay: .10s; }
-.about-section.in-view .about-grid img:nth-child(4){ animation-delay: .15s; }
-.about-section.in-view .about-grid img:nth-child(5){ animation-delay: .20s; }
+.about-section.in-view .about-grid .category-item:nth-child(1) img { animation-delay: .00s; }
+.about-section.in-view .about-grid .category-item:nth-child(2) img { animation-delay: .05s; }
+.about-section.in-view .about-grid .category-item:nth-child(3) img { animation-delay: .10s; }
+.about-section.in-view .about-grid .category-item:nth-child(4) img { animation-delay: .15s; }
+.about-section.in-view .about-grid .category-item:nth-child(5) img { animation-delay: .20s; }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }

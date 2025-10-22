@@ -336,6 +336,17 @@ export default {
             price:(m.price||'').trim()
           }))
 
+        // Convert operating hours to the format expected by ListingDrawer
+        const operatingHoursFormatted = {
+          mon: this.operatingHours.monday.enabled ? { open: this.operatingHours.monday.start, close: this.operatingHours.monday.end } : { closed: true },
+          tue: this.operatingHours.tuesday.enabled ? { open: this.operatingHours.tuesday.start, close: this.operatingHours.tuesday.end } : { closed: true },
+          wed: this.operatingHours.wednesday.enabled ? { open: this.operatingHours.wednesday.start, close: this.operatingHours.wednesday.end } : { closed: true },
+          thu: this.operatingHours.thursday.enabled ? { open: this.operatingHours.thursday.start, close: this.operatingHours.thursday.end } : { closed: true },
+          fri: this.operatingHours.friday.enabled ? { open: this.operatingHours.friday.start, close: this.operatingHours.friday.end } : { closed: true },
+          sat: this.operatingHours.saturday.enabled ? { open: this.operatingHours.saturday.start, close: this.operatingHours.saturday.end } : { closed: true },
+          sun: this.operatingHours.sunday.enabled ? { open: this.operatingHours.sunday.start, close: this.operatingHours.sunday.end } : { closed: true }
+        }
+
         // Add document to 'allListings' and get reference
 const allListingsDocRef = await addDoc(collection(db, 'allListings'), {
   businessName: this.businessName.trim(),
@@ -351,7 +362,7 @@ const allListingsDocRef = await addDoc(collection(db, 'allListings'), {
   },
   locationFormatted,
   menu,
-  operatingHours: this.operatingHours,
+  operatingHours: operatingHoursFormatted,
   createdAt: serverTimestamp(),
   viewCount: 0
 });
@@ -866,6 +877,23 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
   color: var(--color-text-primary);
 }
 
+/* Ensure select dropdown arrow is visible */
+.form-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23666' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px 12px;
+  padding-right: 2.5rem;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+/* Dark mode - lighter arrow color */
+:root.dark-mode .form-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ccc' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+
 /* Placeholder styling for form-control (input) and form-select (select) */
 .form-control::placeholder,
 .form-select::placeholder,
@@ -878,6 +906,12 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 /* The first option (which acts as a placeholder) for select elements */
 .form-select option:first-child {
   color: var(--color-text-secondary);
+}
+
+/* Ensure option elements have proper colors in dark mode */
+.form-select option {
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
 }
 
 /* Input focus state */

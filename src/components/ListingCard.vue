@@ -213,7 +213,7 @@ function goToUserProfile(event) {
 <style scoped>
 .card-border {
   border: 1px solid var(--color-border);
-  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,245,251,0.95) 100%);
+  background: var(--color-bg-white);
   backdrop-filter: blur(10px);
   position: relative;
   overflow: hidden;
@@ -258,7 +258,7 @@ function goToUserProfile(event) {
 .img-box {
   height: 220px;
   position: relative;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e8e2f3 100%);
+  background: var(--color-bg-purple-tint);
   border-radius: 0.75rem;
   overflow: hidden;
   box-shadow: inset 0 2px 8px rgba(75, 42, 166, 0.05);
@@ -267,19 +267,47 @@ function goToUserProfile(event) {
 .img-visible { opacity: 1; }
 .skeleton { position: absolute; inset: 0; background: linear-gradient(90deg,#eee 0%,#f5f5f5 20%,#eee 40%,#eee 100%); background-size:200% 100%; animation: shimmer 1.1s infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
-.img-fallback { position:absolute; inset:0; background:#f0f2f5; color:#999; display:flex; justify-content:center; align-items:center; }
+.img-fallback { position:absolute; inset:0; background: var(--color-bg-purple-tint); color: var(--color-text-secondary); display:flex; justify-content:center; align-items:center; }
 
 .rating-display { display: flex; align-items: center; gap: 6px; }
 .stars-small { display: flex; gap: 1px; }
-.stars-small .star { color: #ddd; font-size: 14px; }
+.stars-small .star { color: var(--color-border); font-size: 14px; }
 .stars-small .star.filled { color: #ffc107; }
-.rating-text { font-size: 0.85rem; font-weight: 600; color: #666; }
+.rating-text { font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary); }
 
 .boost-timer {
-  background: #f7f4ff;
+  background: var(--color-bg-purple-tint);
   border-radius: 6px;
   padding: 4px 8px;
   display: inline-block;
+}
+
+.card-title {
+  color: var(--color-text-primary);
+}
+
+.card-header {
+  color: var(--color-text-primary);
+}
+
+.bg-secondary-subtle {
+  background: var(--color-bg-purple-tint) !important;
+}
+
+.text-secondary {
+  color: var(--color-text-secondary) !important;
+}
+
+.text-muted {
+  color: var(--color-text-secondary) !important;
+}
+
+.avatar-box {
+  border: 1px solid var(--color-border);
+}
+
+.fw-bold {
+  color: var(--color-text-primary);
 }
 
 .seller-name-link {

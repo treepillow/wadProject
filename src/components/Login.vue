@@ -72,10 +72,16 @@ import {
   where,
   getDoc,
 } from "firebase/firestore";
+import { useDarkMode } from "@/composables/useDarkMode";
 
 export default {
   name: "Login",
   components: { AuthLayout },
+  setup() {
+    // Initialize dark mode
+    useDarkMode();
+    return {};
+  },
   data() {
     return {
       login: {
@@ -169,16 +175,16 @@ export default {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: rgb(245, 239, 239);
+  background: var(--color-bg-main);
   padding: 20px;
   overflow-y: auto;
 }
 
 .login-card {
-  background: white;
+  background: var(--color-bg-white);
   border-radius: 20px;
   padding: 40px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
   width: 500px;
   text-align: center;
 }
@@ -190,7 +196,7 @@ export default {
 
 h2 {
   margin-bottom: 25px;
-  color: black;
+  color: var(--color-text-primary);
 }
 
 form {
@@ -203,22 +209,22 @@ input {
   padding: 10px;
   border: none;
   outline: none;
-  border-bottom: 2px solid black;
+  border-bottom: 2px solid var(--color-border-dark);
   background: transparent;
-  color: black;
+  color: var(--color-text-primary);
 }
 
 input::placeholder {
-  color: gray;
+  color: var(--color-text-light);
   opacity: 1;
 }
 
 button {
-  background-color: rgb(245, 239, 239);
+  background-color: var(--color-bg-main);
   border: none;
   padding: 10px 0px;
   border-radius: 20px;
-  color: black;
+  color: var(--color-text-primary);
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s;
@@ -233,7 +239,7 @@ button:hover {
 .toggle-link {
   cursor: pointer;
   text-decoration: underline;
-  color: black;
+  color: var(--color-text-primary);
 }
 
 .password-container {
@@ -252,7 +258,7 @@ button:hover {
   top: 50%;
   transform: translateY(-50%);
   cursor: pointer;
-  color: black;
+  color: var(--color-text-primary);
   font-size: 1.1rem;
 }
 
@@ -265,19 +271,20 @@ button:hover {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background-color: white;
-  border: 1px solid #ccc;
+  background-color: var(--color-bg-white);
+  border: 1px solid var(--color-border);
   padding: 10px;
   border-radius: 20px;
   cursor: pointer;
   width: 100%;
   font-weight: 600;
   margin-bottom: 15px;
+  color: var(--color-text-primary);
   /* transition: background 0.2s; */
 }
 
 .google-btn:hover {
-  background-color: #f7f7f7;
+  background-color: var(--color-bg-purple-tint);
 }
 
 .google-icon {
@@ -290,7 +297,7 @@ button:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #999; /* subtle gray */
+  color: var(--color-text-light);
   font-size: 14px;
   margin: 20px 0;
 }
@@ -299,7 +306,7 @@ button:hover {
 .divider::after {
   content: "";
   flex: 1;
-  border-bottom: 1px solid #ccc; /* subtle line */
+  border-bottom: 1px solid var(--color-border);
   margin: 0 10px;
 }
 

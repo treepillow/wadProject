@@ -4,10 +4,17 @@ import { auth, db, storage } from '@/firebase'
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
 import NavBar from './NavBar.vue'
 import { Icon } from '@iconify/vue';
+import { useDarkMode } from '@/composables/useDarkMode'
 
 export default {
   name: 'CreateListing',
   components: { NavBar },
+
+  setup() {
+    // Initialize dark mode
+    useDarkMode()
+    return {}
+  },
 
   data() {
     return {
@@ -327,10 +334,10 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 </script>
 
 <template>
-  <div class="container-fluid bg-page">
+  <div class="bg-page">
     <NavBar />
 
-    <!-- content zone (mirrors HomePage’s container pb-5) -->
+    <!-- content zone (mirrors HomePage's container pb-5) -->
     <div class="container pb-5 mt-5">
       <div class="d-flex justify-content-center">
         <div class="listing-card shadow-soft rounded-4 p-4 p-md-5">
@@ -554,18 +561,19 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 }
 
 .bg-page {
-  background: var(--page-bg, rgb(245, 239, 239));
+  background: var(--color-bg-main);
 }
 
 .shadow-soft {
-  box-shadow: 0 8px 28px rgba(0, 0, 0, .06);
+  box-shadow: var(--shadow-md);
 }
 
 .listing-card {
   max-width: 920px;
   width: 100%;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, .05);
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
 }
 
 /* Global font styles */
@@ -581,7 +589,7 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 /* Labels */
 .form-label {
   font-size: var(--font-size-large);
-  color: #4b3f7f;
+  color: var(--color-primary);
   font-weight: 600;
   padding-top: 12px;
 }
@@ -591,9 +599,9 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 .form-select {
   font-size: var(--font-size-input);
   font-family: var(--font-family);
-  background: #fff;
-  border-color: #e6e3f4;
-  color: #55596a;
+  background: var(--color-bg-white);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
 }
 
 /* Placeholder styling for form-control (input) and form-select (select) */
@@ -601,27 +609,28 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 .form-select::placeholder,
 .form-select option:disabled {
   font-size: var(--font-size-placeholder);
-  color: #a8a8a8; /* Lighter placeholder color */
+  color: var(--color-text-secondary);
   opacity: 1; /* Override default opacity of placeholder */
 }
 
 /* The first option (which acts as a placeholder) for select elements */
 .form-select option:first-child {
-  color: #a8a8a8; /* Lighter placeholder color */
+  color: var(--color-text-secondary);
 }
 
 /* Input focus state */
 .form-control:focus,
 .form-select:focus {
-  border-color: #a889ff;
-  box-shadow: 0 0 0 .2rem rgba(168, 137, 255, .15);
+  border-color: var(--color-primary-lighter);
+  box-shadow: var(--focus-ring);
 }
 
 /* Input group */
 .input-group-text {
   font-size: var(--font-size-input);
-  background: #f5f3ff;
-  border-color: #e6e3f4;
+  background: var(--color-bg-purple-tint);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
 }
 
 /* Button Styles */
@@ -640,49 +649,50 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 }
 
 .btn-outline-secondary {
-  color: #55596a;
-  border-color: #dedbea;
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
 }
 
 .btn-outline-secondary:hover {
-  background: #f3f1ff;
-  border-color: #cfc9ee;
+  background: var(--color-bg-purple-tint);
+  border-color: var(--color-border-dark);
 }
 
 /* Upload Zone */
 .upload-zone {
-  border: 2px dashed #d7ccff;
-  background: #fff;
+  border: 2px dashed var(--color-primary-pale);
+  background: var(--color-bg-white);
   min-height: 180px;
   cursor: pointer;
   transition: background .2s, border-color .2s;
 }
 
 .upload-zone.dragging {
-  background: #f7f3ff;
-  border-color: #bda8ff;
+  background: var(--color-bg-purple-tint);
+  border-color: var(--color-primary-light);
 }
 
 .camera-icon {
   font-size: 28px;
+  color: var(--color-text-secondary);
 }
 
 .upload-title {
   font-weight: 600;
-  color: var(--brand);
+  color: var(--color-primary);
 }
 
 .upload-hint {
   font-size: 0.875rem;
-  color: #7a7a7a;
+  color: var(--color-text-secondary);
 }
 
 /* Thumbnails */
 .thumbs .thumb {
   width: 88px;
   height: 88px;
-  background: #fff;
-  border: 1px solid #eee;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
 }
 
 .thumbs .thumb img {
@@ -703,14 +713,14 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 /* Form styling */
 .form-control:focus,
 .form-select:focus {
-  border-color: #a889ff;
-  box-shadow: 0 0 0 .2rem rgba(168, 137, 255, .15);
+  border-color: var(--color-primary-lighter);
+  box-shadow: var(--focus-ring);
 }
 
 /* Booking System Styles */
 .booking-section {
-  background: #f8f9fa;
-  border: 2px solid #e6e3f4;
+  background: var(--color-bg-purple-tint);
+  border: 2px solid var(--color-border);
 }
 
 .booking-section h5 {
@@ -729,31 +739,31 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 }
 
 .day-row {
-  background: white;
-  border: 1px solid #e6e3f4;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
   transition: all 0.2s ease;
 }
 
 .day-row:hover {
-  border-color: #a889ff;
-  box-shadow: 0 2px 8px rgba(122, 90, 248, 0.1);
+  border-color: var(--color-primary-lighter);
+  box-shadow: var(--shadow-sm);
 }
 
 .alert-info {
-  background-color: #e7f3ff;
-  border-color: #b3d9ff;
-  color: #004085;
+  background-color: var(--color-bg-purple-tint);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
 }
 
 .menu-item-card {
-  background: #fafafa;
-  border: 1px solid #e6e3f4;
+  background: var(--color-bg-purple-tint);
+  border: 1px solid var(--color-border);
   transition: all 0.2s ease;
 }
 
 .menu-item-card:hover {
-  border-color: #a889ff;
-  box-shadow: 0 2px 8px rgba(122, 90, 248, 0.1);
+  border-color: var(--color-primary-lighter);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Mobile responsive styles */

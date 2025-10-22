@@ -198,10 +198,16 @@ import AuthLayout from "./AuthLayout.vue";
 import { auth, db } from "../firebase";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useDarkMode } from "@/composables/useDarkMode";
 
 export default {
   name: "Signup",
   components: { AuthLayout },
+  setup() {
+    // Initialize dark mode
+    useDarkMode();
+    return {};
+  },
   data() {
     return {
       signup: {
@@ -404,17 +410,17 @@ export default {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: rgb(245, 239, 239);
+  background: var(--color-bg-main);
   padding: 20px;
   overflow-y: auto;
 }
 .signup-card {
-  background: #fff;
+  background: var(--color-bg-white);
   border-radius: 20px;
   padding: 40px;
   width: 500px;
   max-width: 500px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  box-shadow: var(--shadow-lg);
   text-align: center;
   position: relative;
   max-height: 90vh;
@@ -428,46 +434,46 @@ export default {
 @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(5px)} }
 @keyframes fadeUp { 0%,100%{opacity:.8} 50%{opacity:.4} }
 
-.signup-card h2 { margin-bottom: 25px; color: black; }
+.signup-card h2 { margin-bottom: 25px; color: var(--color-text-primary); }
 .signup-card form { display: flex; flex-direction: column; gap: 15px; }
 
 .signup-card input, .signup-card select {
-  border: none; border-bottom: 2px solid black; border-radius: 0;
-  background: transparent; color: black; padding: 10px;
+  border: none; border-bottom: 2px solid var(--color-border-dark); border-radius: 0;
+  background: transparent; color: var(--color-text-primary); padding: 10px;
 }
-.signup-card input::placeholder { color: gray; }
+.signup-card input::placeholder { color: var(--color-text-light); }
 
 button.signup-btn {
-  background: rgb(245, 239, 239);
+  background: var(--color-bg-main);
   border: none; padding: 10px 20px; border-radius: 20px;
-  color: black; font-weight: 600; cursor: pointer; transition: transform .2s;
+  color: var(--color-text-primary); font-weight: 600; cursor: pointer; transition: transform .2s;
   width: 100%;
 }
 button.signup-btn:hover { transform: scale(1.05); }
 
-.google-btn { margin-bottom: 10px; background-color: rgb(245, 239, 239); }
+.google-btn { margin-bottom: 10px; background-color: var(--color-bg-white); border: 1px solid var(--color-border); color: var(--color-text-primary); }
 
 .password-container { position: relative; width: 100%; }
 .password-container input { width: 100%; padding-right: 40px; }
 .toggle-password {
   position: absolute; right: 10px; top: 50%;
-  transform: translateY(-50%); cursor: pointer; color: black; font-size: 1.1rem;
+  transform: translateY(-50%); cursor: pointer; color: var(--color-text-primary); font-size: 1.1rem;
 }
 .toggle-password:hover { opacity: .8; }
 
 .dob-container { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
-.dob-container label { font-weight: 500; color: #333; }
+.dob-container label { font-weight: 500; color: var(--color-text-primary); }
 
 .profile-picture-container { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .custom-file-upload {
   display: flex; align-items: center; justify-content: center;
-  padding: 10px 15px; border: 1px solid #ccc; border-radius: 8px;
-  cursor: pointer; background-color: rgb(245, 239, 239);
-  color: black; transition: background .2s;
+  padding: 10px 15px; border: 1px solid var(--color-border); border-radius: 8px;
+  cursor: pointer; background-color: var(--color-bg-main);
+  color: var(--color-text-primary); transition: background .2s;
 }
 .preview-container img.profile-preview {
   width: 60px; height: 60px; border-radius: 50%; object-fit: cover;
-  border: 2px solid #ccc; cursor: pointer;
+  border: 2px solid var(--color-border); cursor: pointer;
 }
 
 .image-modal {
@@ -488,17 +494,17 @@ button.signup-btn:hover { transform: scale(1.05); }
 
 .toggle-link {
   cursor: pointer;
-  color: black;
+  color: var(--color-text-primary);
   text-decoration: underline;
   font-size: 0.9rem;
 }
 
 
 input {
-  padding: 10px; border: none; outline: none; border-bottom: 2px solid black;
-  background: transparent; color: black;
+  padding: 10px; border: none; outline: none; border-bottom: 2px solid var(--color-border-dark);
+  background: transparent; color: var(--color-text-primary);
 }
-input::placeholder { color: gray; opacity: 1; }
+input::placeholder { color: var(--color-text-light); opacity: 1; }
 
 .login-link {
   /* position: sticky; */

@@ -8,6 +8,7 @@ import {
   onSnapshot, getCountFromServer, setDoc, deleteDoc
 } from 'firebase/firestore'
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { useDarkMode } from '@/composables/useDarkMode'
 
 import NavBar from './NavBar.vue'
 import ListingCard from '@/components/ListingCard.vue'
@@ -22,6 +23,9 @@ export default {
   components: { NavBar, RouterLink, ListingCard, ListingDrawer }, // <-- add ListingDrawer
 
   setup() {
+    // Initialize dark mode
+    useDarkMode()
+
     /* ---------------- Tabs ---------------- */
     const activeTab = ref('profile') // 'profile' | 'my' | 'liked'
     const openTab = (t) => {
@@ -497,7 +501,7 @@ export default {
 </script>
 
 <template>
-  <div class="container-fluid bg-page">
+  <div class="bg-page">
     <NavBar />
 
     <div class="container py-3" aria-hidden="true"></div>
@@ -682,18 +686,107 @@ export default {
 </template>
 
 <style scoped>
-.bg-page { background: var(--page-bg, rgb(245,239,239)); }
-.shadow-soft { box-shadow: 0 8px 28px rgba(0,0,0,.06); }
-.object-fit-cover { object-fit: cover; }
+.bg-page {
+  background: var(--color-bg-main);
+}
 
-.nav-tabs .nav-link { border: none; padding: .75rem 1rem; }
-.nav-tabs .nav-link.active { background: #fff; border-bottom: 2px solid #7a5af8; color: #7a5af8; }
-.border { border-color: rgba(0,0,0,.06) !important; }
+.shadow-soft {
+  box-shadow: 0 8px 28px rgba(0,0,0,.06);
+}
 
-.form-label { color: #4b3f7f; }
-.form-control:focus { border-color: #a889ff; box-shadow: 0 0 0 .2rem rgba(168,137,255,.15); }
-.btn-primary { background: #7a5af8; border-color: #7a5af8; }
-.btn-primary:hover { background: #6948f2; border-color: #6948f2; }
+.object-fit-cover {
+  object-fit: cover;
+}
+
+.nav-tabs {
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+}
+
+.nav-tabs .nav-link {
+  border: none;
+  padding: .75rem 1rem;
+  color: var(--color-text-primary);
+  transition: all 0.2s ease;
+}
+
+.nav-tabs .nav-link.active {
+  background: var(--color-bg-white);
+  border-bottom: 2px solid var(--color-primary);
+  color: var(--color-primary);
+}
+
+.bg-white {
+  background: var(--color-bg-white) !important;
+  color: var(--color-text-primary);
+}
+
+.border {
+  border-color: var(--color-border) !important;
+}
+
+.text-muted {
+  color: var(--color-text-secondary) !important;
+}
+
+.form-label {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.form-control, input[type="date"] {
+  background: var(--color-bg-white);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.form-control:disabled {
+  background: var(--color-bg-purple-tint);
+  color: var(--color-text-secondary);
+}
+
+.form-control::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.form-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 .2rem rgba(122, 90, 248, 0.15);
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
+}
+
+h3, h4 {
+  color: var(--color-text-primary);
+}
+
+.alert {
+  background: var(--color-bg-white);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.btn-light {
+  background: var(--color-bg-white);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.btn-light:hover {
+  background: var(--color-bg-purple-tint);
+  border-color: var(--color-border);
+}
 
 /* Star Rating Display */
 .stars-display {
@@ -710,28 +803,30 @@ export default {
 .stars-display .star.filled {
   color: #ffc107;
 }
+
 .boost-badge {
-  background: #f7f4ff;
-  color: #5a43c5;
+  background: var(--color-bg-purple-tint);
+  color: var(--color-primary);
   font-size: 0.85rem;
   font-weight: 500;
   padding: 4px 8px;
   border-radius: 8px;
   display: inline-block;
 }
+
 .boost-section .btn {
-  height: 50px;          /* or 55px, tweak as needed */
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1rem;
-  background-color: #7a4de8;
-  border-color: #7a4de8;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .boost-section .btn:hover {
-  background-color: #693ccc;
-  border-color: #693ccc;
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
 /* Mobile responsive styles */

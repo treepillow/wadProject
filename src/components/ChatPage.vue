@@ -5,7 +5,7 @@ import ChatBox from './ChatBox.vue'
 </script>
 
 <template>
-  <div class="container-fluid">
+  <div>
     <NavBar />
 
     <!-- Top section (search) -->

@@ -49,9 +49,15 @@ function handleSearch(e) {
   min-width: 0;
   padding: 15px;
   border-radius: 8px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
   transition: border-color 0.3s ease;
   height: 52px;
+}
+
+.home-business::placeholder {
+  color: var(--color-text-secondary);
 }
 
 .home-business:focus {
@@ -65,8 +71,14 @@ function handleSearch(e) {
   padding: 15px;
   border-radius: 8px;
   border: 2px solid var(--color-border);
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
   transition: border-color var(--transition-normal);
   height: 52px;
+}
+
+.location-search::placeholder {
+  color: var(--color-text-secondary);
 }
 
 .location-search:focus {

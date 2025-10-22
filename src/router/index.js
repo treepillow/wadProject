@@ -11,9 +11,11 @@ import ForgotPassword from '../components/ForgotPassword.vue';
 import NewBusiness from '../components/NewBusiness.vue';
 import Boosting from '../components/Boosting.vue'
 import UserProfile from '../components/UserProfile.vue'
+import EmailVerified from '../components/EmailVerified.vue'
 
-import { auth } from "@/firebase";
+import { auth, db } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 
 const router = createRouter({
@@ -78,6 +80,11 @@ const router = createRouter({
       component: UserProfile,
       meta: { requiresAuth: true }
     },
+    {
+      path: '/email-verified',
+      name: 'emailVerified',
+      component: EmailVerified
+    },
   ],
 })
 
@@ -96,12 +103,21 @@ router.beforeEach(async (to, _from, next) => {
   const user = await getCurrentUser();
 
   if (to.meta.requiresAuth && !user) {
-    
     return next({ name: "about", query: { redirect: to.fullPath } });
   }
 
   if (to.meta.guestOnly && user) {
     return next({ name: "home" });
+  }
+
+  // Check if authenticated user has completed profile
+  if (user && to.meta.requiresAuth && to.name !== 'signup') {
+    const userDocRef = doc(db, "users", user.uid);
+    const userDoc = await getDoc(userDocRef);
+
+    if (!userDoc.exists() || !userDoc.data().profileComplete) {
+      return next({ name: "signup" });
+    }
   }
 
   next();

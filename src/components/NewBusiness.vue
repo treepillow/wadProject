@@ -25,6 +25,7 @@ export default {
       locationStreet: '',
       locationPostal: '',
       locationUnit: '',
+      isLanded: false,
 
       photos: [],
       isDragging: false,
@@ -32,6 +33,9 @@ export default {
       menuItems: [{ name: '', price: '', operatingHours: { start: '09:00', end: '17:00' } }],
 
       addrError: '',
+      addrWarning: '',
+      validatingAddress: false,
+      validationTimeout: null,
 
       // Booking system
       acceptsBookings: false,
@@ -59,6 +63,12 @@ export default {
         ? 'Please ensure each menu item has a name and price.'
         : 'Please ensure each service has a name and price.'
     }
+  },
+
+  watch: {
+    locationBlk() { this.triggerValidation() },
+    locationStreet() { this.triggerValidation() },
+    isLanded() { this.triggerValidation() }
   },
 
   methods: {
@@ -129,7 +139,7 @@ export default {
       throw lastErr||new Error('All OneMap endpoints failed')
     },
 
-    async validateAddressWithOneMap({ blk, street, postal }, threshold=0.80) {
+    async validateAddressWithOneMap({ blk, street, postal, isLanded }, threshold=0.80) {
       if(!/^[0-9]{6}$/.test(postal)) return { ok:false, reason:'Postal Code must be 6 digits.' }
 
       let json
@@ -142,7 +152,7 @@ export default {
       const results = Array.isArray(json?.results) ? json.results : []
       const exact = results.filter(r => r.POSTAL === postal)
       const candidates = exact.length ? exact : results
-      if (!candidates.length) return { ok:false, reason:'Invalid address in Singapore.' }
+      if (!candidates.length) return { ok:false, reason:'Address not found. Please check your street name and postal code.' }
 
       const userStreet = this.expandAbbrev(street || '')
       let best=null,score=-1
@@ -151,19 +161,69 @@ export default {
       const omBlk=this.normalizeStr(best?.BLK_NO||''), omRoad=this.expandAbbrev(best?.ROAD_NAME||'')
       const omBldg=this.normalizeStr(best?.BUILDING||''), userBlk=this.normalizeStr(blk||'')
 
-      if (userBlk && omBlk && userBlk !== omBlk && score < 0.92)
-        return { ok:false, reason:`Block mismatch (OneMap: ${omBlk||'—'}, You: ${userBlk}).` }
+      // Only validate block for non-landed properties
+      if (!isLanded && userBlk && omBlk && userBlk !== omBlk)
+        return { ok:false, reason:'Address not found. Please check your block, street name, and postal code.' }
+
+      // Extract and compare street numbers (must match exactly)
+      const extractStreetNumber = (str) => {
+        const match = str.match(/\b(\d+[A-Z]?)\b/)
+        return match ? match[1] : null
+      }
+
+      const userNumber = extractStreetNumber(userStreet)
+      const omNumber = extractStreetNumber(omRoad)
+
+      if (userNumber && omNumber && userNumber !== omNumber)
+        return { ok:false, reason:'Address not found. Please check your street name and postal code.' }
 
       const streetOk = score >= threshold
       const buildingOk = omBldg && this.similarity(this.normalizeStr(street||''), omBldg) >= threshold
       if (!streetOk && !buildingOk)
-        return { ok:false, reason:`Street doesn’t match OneMap (score ${score.toFixed(2)}).` }
+        return { ok:false, reason:'Address not found. Please check your street name and postal code.' }
 
-      return { ok:true, data:{ blk: omBlk||userBlk, road: omRoad||userStreet, postal, building: best?.BUILDING||'', confidence: Math.max(score, buildingOk?1:0) } }
+      return { ok:true, data:{ blk: omBlk||userBlk, road: omRoad||userStreet, postal, building: best?.BUILDING||'', address: best?.ADDRESS||'', confidence: Math.max(score, buildingOk?1:0) } }
+    },
+
+    /* ---------- Real-time validation ---------- */
+    async validateAddressRealtime() {
+      this.addrError = ''
+      this.addrWarning = ''
+
+      const { locationPostal, locationStreet, locationBlk, isLanded } = this
+
+      if (!locationPostal || locationPostal.length !== 6) {
+        this.validatingAddress = false
+        return
+      }
+
+      this.validatingAddress = true
+
+      try {
+        const check = await this.validateAddressWithOneMap({
+          blk: locationBlk,
+          street: locationStreet,
+          postal: locationPostal,
+          isLanded: isLanded
+        }, 0.80)
+
+        if (check.ok) {
+          this.addrWarning = `✓ Valid address: ${check.data.address}`
+        } else {
+          this.addrError = check.reason
+        }
+      } catch (err) {
+        this.addrError = 'Unable to verify address. Please check your internet connection and try again.'
+      } finally {
+        this.validatingAddress = false
+      }
     },
 
     /* ---------- Input formatters ---------- */
-    handlePostalInput(e){ this.locationPostal = e.target.value.replace(/\D/g,'').slice(0,6) },
+    handlePostalInput(e){
+      this.locationPostal = e.target.value.replace(/\D/g,'').slice(0,6)
+      this.triggerValidation()
+    },
     handleUnitInput(e){
       let v=e.target.value.toUpperCase().replace(/\s+/g,'')
       const m=v.match(/^#?(\d{0,2})(-)?(\d{0,3})$/)
@@ -174,6 +234,12 @@ export default {
         else v=`#${a}`
       }
       this.locationUnit=v
+    },
+    triggerValidation() {
+      if (this.validationTimeout) clearTimeout(this.validationTimeout)
+      this.validationTimeout = setTimeout(() => {
+        this.validateAddressRealtime()
+      }, 500)
     },
 
     /* ---------- Upload ---------- */
@@ -204,11 +270,24 @@ export default {
         alert('Please fill in Service Name, Description, and Category.'); return
       }
 
-      if(!this.locationBlk.trim() || !this.locationStreet.trim() || !this.locationPostal.trim() || !this.locationUnit.trim()){
-        alert('Please fill in BLK, Street Address, Postal Code, and Unit No.'); return
+      // Validate address fields
+      if (!this.isLanded && !this.locationBlk.trim()) {
+        alert('Block number is required for HDB/Condominium. Toggle "Landed Property" if applicable.')
+        return
       }
-      if(!/^[0-9]{6}$/.test(this.locationPostal.trim())){ alert('Postal Code must be a 6-digit number (Singapore).'); return }
-      if(!/^#?[0-9]{2}-[0-9]{3}$/.test(this.locationUnit.trim())){ alert('Unit No must look like #09-142.'); return }
+
+      if(!this.locationStreet.trim() || !this.locationPostal.trim() || !this.locationUnit.trim()){
+        alert('Please fill in Street Address, Postal Code, and Unit No.')
+        return
+      }
+      if(!/^[0-9]{6}$/.test(this.locationPostal.trim())){
+        alert('Postal Code must be a 6-digit number (Singapore).')
+        return
+      }
+      if(!/^#?[0-9]{2}-[0-9]{3}$/.test(this.locationUnit.trim())){
+        alert('Unit No must look like #09-142.')
+        return
+      }
 
       if (this.photos.length < 1) {
         this.photoError = 'Please upload at least 1 photo of your business.'
@@ -216,11 +295,20 @@ export default {
         return
       }
 
+      // Validate address with OneMap
       this.addrError = ''
       const check = await this.validateAddressWithOneMap({
-        blk: this.locationBlk, street: this.locationStreet, postal: this.locationPostal
+        blk: this.locationBlk,
+        street: this.locationStreet,
+        postal: this.locationPostal,
+        isLanded: this.isLanded
       }, 0.80)
-      if (!check.ok) { this.addrError = check.reason || 'Invalid address.'; return }
+
+      if (!check.ok) {
+        this.addrError = check.reason || 'Invalid address.'
+        alert('Please provide a valid Singapore address.')
+        return
+      }
 
       const { blk, road: street, postal } = check.data
       for(const m of this.menuItems){ if(!m.name.trim() || !m.price.trim()){ alert(this.emptyLineAlertText); return } }
@@ -315,6 +403,8 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
       this.photos.forEach(p=>p.url && URL.revokeObjectURL(p.url)); this.photos=[]
       this.photoError=''
       this.addrError=''
+      this.addrWarning=''
+      this.isLanded = false
       this.acceptsBookings = false
       this.bookingDuration = 60
       this.availableSlots = {
@@ -377,20 +467,33 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
                 <textarea class="form-control" rows="4" v-model="businessDesc" placeholder="Describe your service"></textarea>
               </div>
 
-              <!-- Block and Street (side by side) -->
-              <div class="d-flex gap-3 mb-3">
-                <div class="flex-grow-1">
-                  <label class="form-label fw-semibold">
-                    Block <Icon icon="mdi:home" />
+              <!-- Property Type Toggle -->
+              <div class="mb-4">
+                <div class="form-check form-switch mb-2">
+                  <input class="form-check-input" type="checkbox" id="isLanded" v-model="isLanded">
+                  <label class="form-check-label fw-semibold" for="isLanded">
+                    Landed Property
                   </label>
-                  <input class="form-control" v-model.trim="locationBlk" placeholder="e.g 495A" />
                 </div>
-                <div class="flex-grow-1">
-                  <label class="form-label fw-semibold">
-                    Street Address <Icon icon="mdi:map-marker" />
-                  </label>
-                  <input class="form-control" v-model.trim="locationStreet" placeholder="e.g Tampines Ave 2" />
+                <div class="text-muted small ms-0">
+                  Toggle this if your property does not have a block number (e.g., Bungalow, Terrace, Semi-Detached)
                 </div>
+              </div>
+
+              <!-- Block (conditional) -->
+              <div v-if="!isLanded" class="mb-3">
+                <label class="form-label fw-semibold">
+                  Block <Icon icon="mdi:home" />
+                </label>
+                <input class="form-control" v-model.trim="locationBlk" placeholder="e.g 495A" />
+              </div>
+
+              <!-- Street Address (full width) -->
+              <div class="mb-3">
+                <label class="form-label fw-semibold">
+                  Street Address <Icon icon="mdi:map-marker" />
+                </label>
+                <input class="form-control" v-model.trim="locationStreet" placeholder="e.g Tampines Avenue 9" />
               </div>
 
               <!-- Postal and Unit No (side by side) -->
@@ -414,7 +517,13 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
                 </div>
               </div>
 
-              <div v-if="addrError" class="text-danger small mt-n2 mb-2">{{ addrError }}</div>
+              <!-- Validation Messages -->
+              <div v-if="validatingAddress" class="text-primary small mt-n2 mb-2">
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                Validating address...
+              </div>
+              <div v-if="addrError" class="text-danger small mt-n2 mb-2">❌ {{ addrError }}</div>
+              <div v-if="addrWarning" class="text-success small mt-n2 mb-2">{{ addrWarning }}</div>
 
               <!-- Menu Items Section -->
               <div class="mb-3">

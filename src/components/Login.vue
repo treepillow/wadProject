@@ -1,6 +1,15 @@
 <template>
   <AuthLayout :isSignup="false">
     <div class="login-wrapper">
+      <!-- Notification Toast -->
+      <div v-if="notification.show" :class="['notification-toast', notification.type]">
+        <div class="notification-content">
+          <span class="notification-icon">{{ notification.type === 'danger' ? '⚠️' : '✓' }}</span>
+          <span class="notification-message">{{ notification.message }}</span>
+          <button class="notification-close" @click="closeNotification">✕</button>
+        </div>
+      </div>
+
       <div class="login-card">
         <img src="@/assets/homes_logo.png" alt="Homes Logo" class="logo" />
         <h2>Log in</h2>
@@ -90,10 +99,26 @@ export default {
       },
       showPassword: false,
       googleLoading: false,
+      notification: {
+        show: false,
+        message: '',
+        type: 'danger'
+      }
     };
   },
 
   methods: {
+    showNotification(message, type = "danger") {
+      this.notification = { show: true, message: message, type: type };
+      setTimeout(() => {
+        this.notification.show = false;
+      }, 5000);
+    },
+
+    closeNotification() {
+      this.notification.show = false;
+    },
+
     togglePassword() {
       this.showPassword = !this.showPassword;
     },
@@ -115,16 +140,31 @@ export default {
         if (!foundEmail) {
           const emailRegex = /^[\w.+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
           if (!emailRegex.test(identifier)) {
-            alert("❌ No user found with that username or invalid email.");
+            this.showNotification("No user found with that username or invalid email.", "danger");
             return;
           }
           foundEmail = identifier;
         }
 
-        await signInWithEmailAndPassword(auth, foundEmail, this.login.password);
+        const userCredential = await signInWithEmailAndPassword(auth, foundEmail, this.login.password);
+        const user = userCredential.user;
+
+        // Check if user has completed their profile
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (!userDoc.exists() || !userDoc.data().profileComplete) {
+          this.showNotification("Incomplete sign up details. Please sign up again using the same email to complete your profile.", "danger");
+          await auth.signOut();
+          setTimeout(() => {
+            this.$router.replace("/signup");
+          }, 2000);
+          return;
+        }
+
         this.$router.replace("/home");
       } catch (err) {
-        alert(`❌ Login failed: ${err.message}`);
+        this.showNotification(`Login failed: ${err.message}`, "danger");
       }
     },
 
@@ -136,26 +176,28 @@ export default {
       try {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
-        const usernameKey = (user.displayName || user.email.split("@")[0]).trim();
 
-        await setDoc(
-          doc(db, "users", user.uid),
-          {
-            username: usernameKey,
-            email: user.email,
-            profilePicture: user.photoURL,
-            createdAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
+        // Check if user profile exists and is complete
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
 
+        if (!userDoc.exists() || !userDoc.data().profileComplete) {
+          this.showNotification("Incomplete sign up details. Please sign up again using the same email to complete your profile.", "danger");
+          await auth.signOut();
+          setTimeout(() => {
+            this.$router.replace("/signup");
+          }, 2000);
+          return;
+        }
+
+        // Profile is complete, allow login
         this.$router.replace("/home");
       } catch (err) {
         if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
           this.googleLoading = false;
           return;
         }
-        alert(`❌ Google sign-in failed: ${err.message}`);
+        this.showNotification(`Google sign-in failed: ${err.message}`, "danger");
         this.googleLoading = false;
       } finally {
         this.googleLoading = false;
@@ -363,6 +405,88 @@ button:hover {
   .divider {
     font-size: 12px;
     margin: 15px 0;
+  }
+}
+
+/* Notification Toast Styles */
+.notification-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  min-width: 300px;
+  max-width: 500px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.3s ease-out;
+}
+
+.notification-toast.danger {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  color: white;
+}
+
+.notification-toast.success {
+  background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%);
+  color: white;
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notification-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.notification-message {
+  flex: 1;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.notification-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .notification-toast {
+    right: 10px;
+    left: 10px;
+    min-width: unset;
+    max-width: unset;
   }
 }
 

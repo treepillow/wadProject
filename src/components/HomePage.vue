@@ -103,7 +103,7 @@ function startProfileListener(uid) {
   const unsub = onSnapshot(doc(db, 'users', uid), snap => {
     const data = snap.data() || {}
     const displayName = data.username || data.displayName || ''
-    const photoURL    = data.profilePicture || data.photoURL || data.avatarUrl || data.profilePhoto || ''
+    const photoURL    = data.photoURL || data.profilePicture || data.avatarUrl || data.profilePhoto || ''
     profileMap.value = { ...profileMap.value, [uid]: { displayName, photoURL } }
   })
   profileUnsubs.set(uid, unsub)

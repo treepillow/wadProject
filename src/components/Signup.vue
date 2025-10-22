@@ -60,6 +60,18 @@
           <input type="text" placeholder="First Name" v-model="signup.firstName" required />
             <input type="text" placeholder="Last Name" v-model="signup.lastName" required />
 
+            <!-- Username -->
+            <div class="username-container">
+              <input
+                type="text"
+                placeholder="Username (no spaces allowed)"
+                v-model="signup.username"
+                @input="validateUsername"
+                required
+              />
+              <small v-if="usernameError" class="error-text">{{ usernameError }}</small>
+            </div>
+
             <!-- DOB -->
             <div class="dob-container">
               <label style="color: #000; font-weight: 500; margin-bottom: 5px;">Date of Birth:</label>
@@ -344,6 +356,9 @@ export default {
       validatingAddress: false,
       validationTimeout: null,
 
+      // Username validation
+      usernameError: "",
+
       // Image modal
       showImageModal: false,
 
@@ -371,6 +386,24 @@ export default {
 
     closeNotification() {
       this.notification.show = false;
+    },
+
+    // Username validation
+    validateUsername() {
+      const username = this.signup.username.trim();
+
+      // Check for spaces
+      if (/\s/.test(username)) {
+        this.usernameError = "Username cannot contain spaces";
+        // Remove spaces automatically
+        this.signup.username = username.replace(/\s/g, '');
+      } else if (username.length > 0 && username.length < 3) {
+        this.usernameError = "Username must be at least 3 characters";
+      } else if (username.length > 20) {
+        this.usernameError = "Username must be less than 20 characters";
+      } else {
+        this.usernameError = "";
+      }
     },
 
     // Signup Methods
@@ -403,7 +436,7 @@ export default {
         }
 
         // Store temporary data for profile completion - DO NOT create Firestore doc yet
-        this.signup.username = user.displayName || "";
+        this.signup.username = ""; // Leave empty for user to enter their own username
         this.signup.email = user.email || "";
         this.signup.profilePreview = user.photoURL || "";
         this.signup.isGoogle = true;
@@ -482,6 +515,25 @@ export default {
         const uid = this.currentUserUid || auth.currentUser?.uid;
         if (!uid) return this.showNotification("User not found.", "danger");
 
+        // Validate username
+        const username = this.signup.username.trim();
+        if (!username) {
+          this.showNotification("Username is required.", "danger");
+          return;
+        }
+        if (/\s/.test(username)) {
+          this.showNotification("Username cannot contain spaces.", "danger");
+          return;
+        }
+        if (username.length < 3) {
+          this.showNotification("Username must be at least 3 characters.", "danger");
+          return;
+        }
+        if (username.length > 20) {
+          this.showNotification("Username must be less than 20 characters.", "danger");
+          return;
+        }
+
         // Validate address first before submitting
         if (!this.signup.isLanded) {
           // For HDB/Condo, block is required
@@ -531,7 +583,7 @@ export default {
           userDocRef,
           {
             email: this.signup.email,
-            username: this.signup.username,
+            username: username, // Use validated and trimmed username
             firstName: this.signup.firstName,
             lastName: this.signup.lastName,
             dateOfBirth: this.signup.dateOfBirth,
@@ -1025,6 +1077,20 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
   margin-top: 8px;
   font-weight: 500;
 }
+
+.username-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.username-container .error-text {
+  color: var(--color-error);
+  font-size: 0.75rem;
+  margin-top: 4px;
+  margin-left: 2px;
+}
+
 .google-btn {
   display: flex;
   align-items: center;

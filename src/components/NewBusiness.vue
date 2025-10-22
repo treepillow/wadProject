@@ -30,7 +30,18 @@ export default {
       photos: [],
       isDragging: false,
       photoError: '',
-      menuItems: [{ name: '', price: '', operatingHours: { start: '09:00', end: '17:00' } }],
+      menuItems: [{ name: '', price: '' }],
+
+      // Weekly operating hours
+      operatingHours: {
+        monday: { enabled: true, start: '09:00', end: '17:00' },
+        tuesday: { enabled: true, start: '09:00', end: '17:00' },
+        wednesday: { enabled: true, start: '09:00', end: '17:00' },
+        thursday: { enabled: true, start: '09:00', end: '17:00' },
+        friday: { enabled: true, start: '09:00', end: '17:00' },
+        saturday: { enabled: true, start: '09:00', end: '17:00' },
+        sunday: { enabled: true, start: '09:00', end: '17:00' }
+      },
 
       addrError: '',
       addrWarning: '',
@@ -98,7 +109,7 @@ export default {
     },
 
     /* ---------- Menu/Services ---------- */
-    addMenuItem() { this.menuItems.push({ name: '', price: '', operatingHours: { start: '09:00', end: '17:00' } }) },
+    addMenuItem() { this.menuItems.push({ name: '', price: '' }) },
     removeMenuItem(i) { if (this.menuItems.length > 1) this.menuItems.splice(i, 1) },
 
     /* ---------- Address utils & OneMap (strict) ---------- */
@@ -322,8 +333,7 @@ export default {
           .filter(m=>(m.name||'').trim())
           .map(m=>({
             name:m.name.trim(),
-            price:(m.price||'').trim(),
-            operatingHours: m.operatingHours || { start: '09:00', end: '17:00' }
+            price:(m.price||'').trim()
           }))
 
         // Add document to 'allListings' and get reference
@@ -334,13 +344,14 @@ const allListingsDocRef = await addDoc(collection(db, 'allListings'), {
   userId: user.uid,
   location: {
     country: 'Singapore',
-    blk, 
+    blk,
     street,
     postal,
     unit: unitFormatted
   },
   locationFormatted,
   menu,
+  operatingHours: this.operatingHours,
   createdAt: serverTimestamp(),
   viewCount: 0
 });
@@ -399,7 +410,16 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
       this.locationStreet=''
       this.locationPostal=''
       this.locationUnit=''
-      this.menuItems=[{name:'',price:'', operatingHours: { start: '09:00', end: '17:00' }}]
+      this.menuItems=[{name:'',price:''}]
+      this.operatingHours = {
+        monday: { enabled: true, start: '09:00', end: '17:00' },
+        tuesday: { enabled: true, start: '09:00', end: '17:00' },
+        wednesday: { enabled: true, start: '09:00', end: '17:00' },
+        thursday: { enabled: true, start: '09:00', end: '17:00' },
+        friday: { enabled: true, start: '09:00', end: '17:00' },
+        saturday: { enabled: true, start: '09:00', end: '17:00' },
+        sunday: { enabled: true, start: '09:00', end: '17:00' }
+      }
       this.photos.forEach(p=>p.url && URL.revokeObjectURL(p.url)); this.photos=[]
       this.photoError=''
       this.addrError=''
@@ -469,31 +489,34 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 
               <!-- Property Type Toggle -->
               <div class="mb-4">
-                <div class="form-check form-switch mb-2">
-                  <input class="form-check-input" type="checkbox" id="isLanded" v-model="isLanded">
-                  <label class="form-check-label fw-semibold" for="isLanded">
+                <div class="custom-checkbox-wrapper mb-2">
+                  <input class="custom-checkbox-input" type="checkbox" id="isLanded" v-model="isLanded">
+                  <label class="custom-checkbox-label fw-semibold" for="isLanded">
+                    <span class="custom-checkbox-box">
+                      <Icon icon="mdi:check" class="custom-checkbox-icon" />
+                    </span>
                     Landed Property
                   </label>
                 </div>
-                <div class="text-muted small ms-0">
-                  Toggle this if your property does not have a block number (e.g., Bungalow, Terrace, Semi-Detached)
+                <div class="text-muted small" style="padding-left: 2rem;">
+                  Check this if your property does not have a block number (e.g., Bungalow, Terrace, Semi-Detached)
                 </div>
               </div>
 
-              <!-- Block (conditional) -->
-              <div v-if="!isLanded" class="mb-3">
-                <label class="form-label fw-semibold">
-                  Block <Icon icon="mdi:home" />
-                </label>
-                <input class="form-control" v-model.trim="locationBlk" placeholder="e.g 495A" />
-              </div>
-
-              <!-- Street Address (full width) -->
-              <div class="mb-3">
-                <label class="form-label fw-semibold">
-                  Street Address <Icon icon="mdi:map-marker" />
-                </label>
-                <input class="form-control" v-model.trim="locationStreet" placeholder="e.g Tampines Avenue 9" />
+              <!-- Block and Street Address (side by side) -->
+              <div class="d-flex gap-3 mb-3">
+                <div v-if="!isLanded" class="flex-grow-1">
+                  <label class="form-label fw-semibold">
+                    Block <Icon icon="mdi:home" />
+                  </label>
+                  <input class="form-control" v-model.trim="locationBlk" placeholder="e.g 485B" />
+                </div>
+                <div class="flex-grow-1">
+                  <label class="form-label fw-semibold">
+                    Street Address <Icon icon="mdi:map-marker" />
+                  </label>
+                  <input class="form-control" v-model.trim="locationStreet" placeholder="e.g Tampines Ave 9" />
+                </div>
               </div>
 
               <!-- Postal and Unit No (side by side) -->
@@ -525,6 +548,146 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
               <div v-if="addrError" class="text-danger small mt-n2 mb-2">❌ {{ addrError }}</div>
               <div v-if="addrWarning" class="text-success small mt-n2 mb-2">{{ addrWarning }}</div>
 
+              <!-- Operating Hours Section -->
+              <div class="mb-4">
+                <label class="form-label fw-semibold mb-3">
+                  Operating Hours <Icon icon="mdi:clock-outline" />
+                </label>
+
+                <!-- Monday -->
+                <div class="d-flex align-items-center gap-3 mb-2">
+                  <div class="custom-checkbox-wrapper" style="min-width: 120px;">
+                    <input class="custom-checkbox-input" type="checkbox" id="monEnabled" v-model="operatingHours.monday.enabled">
+                    <label class="custom-checkbox-label" for="monEnabled">
+                      <span class="custom-checkbox-box">
+                        <Icon icon="mdi:check" class="custom-checkbox-icon" />
+                      </span>
+                      Monday
+                    </label>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 flex-grow-1" v-if="operatingHours.monday.enabled">
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.monday.start">
+                    <span class="text-muted">to</span>
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.monday.end">
+                  </div>
+                  <span v-else class="text-muted small">Closed</span>
+                </div>
+
+                <!-- Tuesday -->
+                <div class="d-flex align-items-center gap-3 mb-2">
+                  <div class="custom-checkbox-wrapper" style="min-width: 120px;">
+                    <input class="custom-checkbox-input" type="checkbox" id="tueEnabled" v-model="operatingHours.tuesday.enabled">
+                    <label class="custom-checkbox-label" for="tueEnabled">
+                      <span class="custom-checkbox-box">
+                        <Icon icon="mdi:check" class="custom-checkbox-icon" />
+                      </span>
+                      Tuesday
+                    </label>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 flex-grow-1" v-if="operatingHours.tuesday.enabled">
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.tuesday.start">
+                    <span class="text-muted">to</span>
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.tuesday.end">
+                  </div>
+                  <span v-else class="text-muted small">Closed</span>
+                </div>
+
+                <!-- Wednesday -->
+                <div class="d-flex align-items-center gap-3 mb-2">
+                  <div class="custom-checkbox-wrapper" style="min-width: 120px;">
+                    <input class="custom-checkbox-input" type="checkbox" id="wedEnabled" v-model="operatingHours.wednesday.enabled">
+                    <label class="custom-checkbox-label" for="wedEnabled">
+                      <span class="custom-checkbox-box">
+                        <Icon icon="mdi:check" class="custom-checkbox-icon" />
+                      </span>
+                      Wednesday
+                    </label>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 flex-grow-1" v-if="operatingHours.wednesday.enabled">
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.wednesday.start">
+                    <span class="text-muted">to</span>
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.wednesday.end">
+                  </div>
+                  <span v-else class="text-muted small">Closed</span>
+                </div>
+
+                <!-- Thursday -->
+                <div class="d-flex align-items-center gap-3 mb-2">
+                  <div class="custom-checkbox-wrapper" style="min-width: 120px;">
+                    <input class="custom-checkbox-input" type="checkbox" id="thuEnabled" v-model="operatingHours.thursday.enabled">
+                    <label class="custom-checkbox-label" for="thuEnabled">
+                      <span class="custom-checkbox-box">
+                        <Icon icon="mdi:check" class="custom-checkbox-icon" />
+                      </span>
+                      Thursday
+                    </label>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 flex-grow-1" v-if="operatingHours.thursday.enabled">
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.thursday.start">
+                    <span class="text-muted">to</span>
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.thursday.end">
+                  </div>
+                  <span v-else class="text-muted small">Closed</span>
+                </div>
+
+                <!-- Friday -->
+                <div class="d-flex align-items-center gap-3 mb-2">
+                  <div class="custom-checkbox-wrapper" style="min-width: 120px;">
+                    <input class="custom-checkbox-input" type="checkbox" id="friEnabled" v-model="operatingHours.friday.enabled">
+                    <label class="custom-checkbox-label" for="friEnabled">
+                      <span class="custom-checkbox-box">
+                        <Icon icon="mdi:check" class="custom-checkbox-icon" />
+                      </span>
+                      Friday
+                    </label>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 flex-grow-1" v-if="operatingHours.friday.enabled">
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.friday.start">
+                    <span class="text-muted">to</span>
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.friday.end">
+                  </div>
+                  <span v-else class="text-muted small">Closed</span>
+                </div>
+
+                <!-- Saturday -->
+                <div class="d-flex align-items-center gap-3 mb-2">
+                  <div class="custom-checkbox-wrapper" style="min-width: 120px;">
+                    <input class="custom-checkbox-input" type="checkbox" id="satEnabled" v-model="operatingHours.saturday.enabled">
+                    <label class="custom-checkbox-label" for="satEnabled">
+                      <span class="custom-checkbox-box">
+                        <Icon icon="mdi:check" class="custom-checkbox-icon" />
+                      </span>
+                      Saturday
+                    </label>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 flex-grow-1" v-if="operatingHours.saturday.enabled">
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.saturday.start">
+                    <span class="text-muted">to</span>
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.saturday.end">
+                  </div>
+                  <span v-else class="text-muted small">Closed</span>
+                </div>
+
+                <!-- Sunday -->
+                <div class="d-flex align-items-center gap-3 mb-2">
+                  <div class="custom-checkbox-wrapper" style="min-width: 120px;">
+                    <input class="custom-checkbox-input" type="checkbox" id="sunEnabled" v-model="operatingHours.sunday.enabled">
+                    <label class="custom-checkbox-label" for="sunEnabled">
+                      <span class="custom-checkbox-box">
+                        <Icon icon="mdi:check" class="custom-checkbox-icon" />
+                      </span>
+                      Sunday
+                    </label>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 flex-grow-1" v-if="operatingHours.sunday.enabled">
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.sunday.start">
+                    <span class="text-muted">to</span>
+                    <input type="time" class="form-control form-control-sm" v-model="operatingHours.sunday.end">
+                  </div>
+                  <span v-else class="text-muted small">Closed</span>
+                </div>
+              </div>
+
               <!-- Menu Items Section -->
               <div class="mb-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
@@ -546,16 +709,6 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
                     </div>
                     <div class="d-flex justify-content-end mb-2">
                       <button class="btn btn-outline-danger btn-sm" type="button" @click="removeMenuItem(i)" :disabled="menuItems.length === 1">×</button>
-                    </div>
-                    <div class="d-flex align-items-center gap-3">
-                      <div class="form-check">
-                        <label class="form-label mb-0 small text-muted">Operating Hours:</label>
-                      </div>
-                      <div class="d-flex align-items-center gap-2">
-                        <input type="time" class="form-control form-control-sm" v-model="m.operatingHours.start">
-                        <span class="text-muted">to</span>
-                        <input type="time" class="form-control form-control-sm" v-model="m.operatingHours.end">
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -1053,6 +1206,73 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
     flex-shrink: 0;
     padding: 0 0.25rem;
   }
+}
+
+/* Custom Checkbox Styles */
+.custom-checkbox-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.custom-checkbox-input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.custom-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  margin: 0;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.custom-checkbox-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border-dark);
+  border-radius: 4px;
+  background: var(--color-bg-white);
+  transition: all 0.2s ease;
+}
+
+.custom-checkbox-icon {
+  font-size: 14px;
+  color: white;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.2s ease;
+}
+
+/* Checked state */
+.custom-checkbox-input:checked + .custom-checkbox-label .custom-checkbox-box {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.custom-checkbox-input:checked + .custom-checkbox-label .custom-checkbox-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Hover state */
+.custom-checkbox-label:hover .custom-checkbox-box {
+  border-color: var(--color-primary);
+}
+
+/* Focus state */
+.custom-checkbox-input:focus + .custom-checkbox-label .custom-checkbox-box {
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
 }
 
 </style>

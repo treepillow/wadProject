@@ -110,7 +110,7 @@ async function populateUserMeta(chat) {
       if (userSnap.exists()) {
         const userData = userSnap.data()
         // Check multiple photo fields like in Profile.vue
-        const photoURL = userData.profilePicture || userData.photoURL || userData.avatarUrl || userData.profilePhoto || ''
+        const photoURL = userData.photoURL || userData.profilePicture || userData.avatarUrl || userData.profilePhoto || ''
         const displayName = userData.username || userData.displayName || userData.firstName || 'User'
         userCache.value[uid] = {
           ...userData,

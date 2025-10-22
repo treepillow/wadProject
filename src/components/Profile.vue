@@ -235,7 +235,7 @@ export default {
           } else {
             address.value = ''
           }
-          avatarUrl.value = d.profilePicture || d.photoURL || u.photoURL || ''
+          avatarUrl.value = d.photoURL || d.profilePicture || u.photoURL || ''
           averageRating.value = d.averageRating || 0
           totalReviews.value = d.totalReviews || 0
 

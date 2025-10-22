@@ -104,8 +104,8 @@ onMounted(() => {
           <div class="d-flex align-items-center gap-4">
             <div class="profile-avatar">
               <img
-                v-if="userProfile.profilePicture || userProfile.photoURL"
-                :src="userProfile.profilePicture || userProfile.photoURL"
+                v-if="userProfile.photoURL || userProfile.profilePicture"
+                :src="userProfile.photoURL || userProfile.profilePicture"
                 alt="Profile Picture"
                 class="rounded-circle"
                 style="width: 120px; height: 120px; object-fit: cover;"
@@ -170,7 +170,7 @@ onMounted(() => {
                 <ListingCard
                   :listing="listing"
                   :sellerNameOverride="userProfile.username || userProfile.displayName"
-                  :sellerAvatarOverride="userProfile.profilePicture || userProfile.photoURL"
+                  :sellerAvatarOverride="userProfile.photoURL || userProfile.profilePicture"
                   @open="() => {}"
                 />
               </div>

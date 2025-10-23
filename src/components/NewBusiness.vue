@@ -79,7 +79,11 @@ export default {
   watch: {
     locationBlk() { this.triggerValidation() },
     locationStreet() { this.triggerValidation() },
-    isLanded() { this.triggerValidation() }
+    isLanded(newVal) {
+      // Clear/normalize unit when toggling formats, then re-validate
+      if (newVal) this.locationUnit = ''
+      this.triggerValidation()
+    }
   },
 
   methods: {
@@ -235,14 +239,25 @@ export default {
       this.locationPostal = e.target.value.replace(/\D/g,'').slice(0,6)
       this.triggerValidation()
     },
-    handleUnitInput(e){
-      let v=e.target.value.toUpperCase().replace(/\s+/g,'')
-      const m=v.match(/^#?(\d{0,2})(-)?(\d{0,3})$/)
-      if(m){
-        const a=m[1]||'', b=m[3]||''
-        if(a.length>=2&&b.length>0)v=`#${a.slice(0,2)}-${b.slice(0,3)}`
-        else if(a.length>=2)v=`#${a.slice(0,2)}-`
-        else v=`#${a}`
+    // UPDATED: dynamically formats Unit No depending on Landed toggle
+    handleDynamicUnitInput(e){
+      let v = e.target.value.toUpperCase().replace(/\s+/g,'')
+      if (this.isLanded) {
+        // Landed → #09 (2 digits)
+        const m = v.match(/^#?(\d{0,2})$/)
+        if (m) {
+          const digits = m[1] || ''
+          v = digits ? `#${digits}` : ''
+        }
+      } else {
+        // Non-landed → #09-142
+        const m = v.match(/^#?(\d{0,2})(-)?(\d{0,3})$/)
+        if (m){
+          const a=m[1]||'', b=m[3]||''
+          if(a.length>=2&&b.length>0)v=`#${a.slice(0,2)}-${b.slice(0,3)}`
+          else if(a.length>=2)v=`#${a.slice(0,2)}-`
+          else v=`#${a}`
+        }
       }
       this.locationUnit=v
     },
@@ -295,9 +310,18 @@ export default {
         alert('Postal Code must be a 6-digit number (Singapore).')
         return
       }
-      if(!/^#?[0-9]{2}-[0-9]{3}$/.test(this.locationUnit.trim())){
-        alert('Unit No must look like #09-142.')
-        return
+
+      // UPDATED: Unit validation depends on Landed toggle
+      if (this.isLanded) {
+        if(!/^#?[0-9]{2}$/.test(this.locationUnit.trim())){
+          alert('Unit No must look like #09 for landed properties.')
+          return
+        }
+      } else {
+        if(!/^#?[0-9]{2}-[0-9]{3}$/.test(this.locationUnit.trim())){
+          alert('Unit No must look like #09-142 for non-landed properties.')
+          return
+        }
       }
 
       if (this.photos.length < 1) {
@@ -348,62 +372,61 @@ export default {
         }
 
         // Add document to 'allListings' and get reference
-const allListingsDocRef = await addDoc(collection(db, 'allListings'), {
-  businessName: this.businessName.trim(),
-  businessDesc: this.businessDesc.trim(),
-  businessCategory: this.businessCategory.trim(),
-  userId: user.uid,
-  location: {
-    country: 'Singapore',
-    blk,
-    street,
-    postal,
-    unit: unitFormatted
-  },
-  locationFormatted,
-  menu,
-  operatingHours: operatingHoursFormatted,
-  createdAt: serverTimestamp(),
-  viewCount: 0
-});
+        const allListingsDocRef = await addDoc(collection(db, 'allListings'), {
+          businessName: this.businessName.trim(),
+          businessDesc: this.businessDesc.trim(),
+          businessCategory: this.businessCategory.trim(),
+          userId: user.uid,
+          location: {
+            country: 'Singapore',
+            blk,
+            street,
+            postal,
+            unit: unitFormatted
+          },
+          locationFormatted,
+          menu,
+          operatingHours: operatingHoursFormatted,
+          createdAt: serverTimestamp(),
+          viewCount: 0
+        });
 
-// Get the listing ID
-const listingId = allListingsDocRef.id;
+        // Get the listing ID
+        const listingId = allListingsDocRef.id;
 
-// Upload the photos and get the URLs
-const photoObjs = await this.uploadAllPhotos(user.uid, listingId);
-const photoUrls = photoObjs.map(p => p.url);
+        // Upload the photos and get the URLs
+        const photoObjs = await this.uploadAllPhotos(user.uid, listingId);
+        const photoUrls = photoObjs.map(p => p.url);
 
-// Prepare the final payload with photos and booking settings
-const payload = {
-  businessName: this.businessName.trim(),
-  businessDesc: this.businessDesc.trim(),
-  businessCategory: this.businessCategory.trim(),
-  userId: user.uid,
-  listingId,
-  location: {
-    country: 'Singapore',
-    blk,
-    street,
-    postal,
-    unit: unitFormatted
-  },
-  locationFormatted,
-  photos: photoObjs,
-  photoUrls,
-  menu,
-  createdAt: serverTimestamp(),
-  viewCount: 0,
-  // Booking settings
-  acceptsBookings: this.acceptsBookings,
-  bookingDuration: this.bookingDuration,
-  availableSlots: this.availableSlots
-};
+        // Prepare the final payload with photos and booking settings
+        const payload = {
+          businessName: this.businessName.trim(),
+          businessDesc: this.businessDesc.trim(),
+          businessCategory: this.businessCategory.trim(),
+          userId: user.uid,
+          listingId,
+          location: {
+            country: 'Singapore',
+            blk,
+            street,
+            postal,
+            unit: unitFormatted
+          },
+          locationFormatted,
+          photos: photoObjs,
+          photoUrls,
+          menu,
+          createdAt: serverTimestamp(),
+          viewCount: 0,
+          // Booking settings
+          acceptsBookings: this.acceptsBookings,
+          bookingDuration: this.bookingDuration,
+          availableSlots: this.availableSlots
+        };
 
-// Now you can save the payload to the correct collections
-await setDoc(allListingsDocRef, payload);
-await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
-
+        // Now you can save the payload to the correct collections
+        await setDoc(allListingsDocRef, payload);
+        await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
 
         alert('Listing Added Successfully!')
         this.clearForm()
@@ -546,8 +569,10 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
                     Unit No
                   </label>
                   <input class="form-control" v-model.trim="locationUnit"
-                         pattern="#?[0-9]{2}-[0-9]{3}" placeholder="#01-234"
-                         title="Format like #09-142" @input="handleUnitInput" />
+                         :pattern="isLanded ? '#?[0-9]{2}' : '#?[0-9]{2}-[0-9]{3}'"
+                         :placeholder="isLanded ? '#01' : '#01-234'"
+                         :title="isLanded ? 'Format like #09' : 'Format like #09-142'"
+                         @input="handleDynamicUnitInput" />
                 </div>
               </div>
 
@@ -822,7 +847,6 @@ await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
     </div>
   </div>
 </template>
-
 
 <style scoped>
 :root {

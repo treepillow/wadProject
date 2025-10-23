@@ -59,28 +59,65 @@ let markers = []
 let infoWindow = null
 let geocoder = null
 const geoCache = new Map()
+let resizeObs = null
 
 /* Load Maps JS once */
+// robust loader: safe to paste over your existing function
+
+
+// ✅ tiny loader used only if window.google is missing
 let mapsLoadingPromise
-function loadGoogleMaps() {
+function ensureMapsLoaded() {
   if (typeof window !== 'undefined' && window.google?.maps) return Promise.resolve()
   if (mapsLoadingPromise) return mapsLoadingPromise
   const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   if (!key) {
-    console.warn('Missing VITE_GOOGLE_MAPS_API_KEY')
+    console.warn('[Maps] Missing VITE_GOOGLE_MAPS_API_KEY')
     return Promise.resolve()
   }
   mapsLoadingPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-gmaps="1"]')
+    if (existing) {
+      const wait = () => (window.google?.maps ? resolve() : setTimeout(wait, 40))
+      wait()
+      return
+    }
     const s = document.createElement('script')
     s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places`
     s.async = true
     s.defer = true
-    s.onload = () => resolve()
-    s.onerror = () => reject(new Error('Failed to load Google Maps JS'))
+    s.dataset.gmaps = '1'
+    s.onload = () => {
+      const wait = () => (window.google?.maps ? resolve() : setTimeout(wait, 25))
+      wait()
+    }
+    s.onerror = () => reject(new Error('[Maps] Failed to load Google Maps JS'))
     document.head.appendChild(s)
   })
   return mapsLoadingPromise
 }
+
+// 🔁 When the drawer opens, (1) wait for DOM, (2) ensure maps, (3) init map, (4) resize
+watch(() => props.open, async (isOpen) => {
+  if (!isOpen) return
+  await nextTick()
+  await ensureMapsLoaded().catch(() => {})
+  // give CSS/transition one frame to size the container
+  await new Promise(r => requestAnimationFrame(r))
+
+  // ⬇️ call your existing map init function here
+  // e.g., await initMapAndMarkers() or initMap()
+  try { await initMapAndMarkers?.() } catch {}
+  try { await initMap?.() } catch {}
+
+  // final resize “kick” in case transition is still settling
+  setTimeout(() => {
+    try { window.google.maps.event.trigger(map, 'resize') } catch {}
+  }, 120)
+})
+
+
+
 
 /* Geocode helpers */
 async function getLatLngForListing(L) {
@@ -141,16 +178,23 @@ async function fetchNearby(centerLL, category) {
   if (!centerLL || !category) { nearby.value = []; return }
   loadingNearby.value = true
   errorNearby.value = ''
+
   try {
+    // Make sure Google Maps JS is available before geocoding
+    if (!window.google?.maps) {
+      await ensureMapsLoaded().catch(() => {})
+    }
+
+    // Query listings in the same category
     const qy = query(
       collection(db, 'allListings'),
       where('businessCategory', '==', category),
       fsLimit(props.nearbyCap)
     )
     const snap = await getDocs(qy)
-    const raw = []
-    snap.forEach(d => raw.push({ listingId: d.id, ...d.data() }))
+    const raw = snap.docs.map(d => ({ listingId: d.id, ...d.data() }))
 
+    // Geocode each result (or reuse cached geo)
     const withGeo = []
     for (const L of raw) {
       try {
@@ -159,11 +203,13 @@ async function fetchNearby(centerLL, category) {
       } catch (_) {}
     }
 
+    // Exclude the active listing and compute distances
+    const currentId = props.listing?.listingId || props.listing?.id
     const within = withGeo
-      .filter(L => L.listingId !== props.listing?.listingId)
+      .filter(L => (L.listingId || L.id) !== currentId)
       .map(L => ({ ...L, _distanceM: distM(centerLL, L.geo) }))
-      .filter(L => L._distanceM <= props.radiusM)
-      .sort((a,b) => a._distanceM - b._distanceM)
+      .filter(L => Number.isFinite(L._distanceM) && L._distanceM <= (props.radiusM || 3000))
+      .sort((a, b) => a._distanceM - b._distanceM)
 
     nearby.value = within
   } catch (e) {
@@ -173,6 +219,7 @@ async function fetchNearby(centerLL, category) {
     loadingNearby.value = false
   }
 }
+
 
 /* Build / refresh map + markers */
 async function initMapAndMarkers() {
@@ -258,15 +305,53 @@ function formatDate(timestamp) {
 /* Orchestration */
 async function refreshAll() {
   if (!props.open || !props.listing) return
-  await loadGoogleMaps().catch(()=>{})
-  if (window.google && !geocoder) geocoder = new window.google.maps.Geocoder()
+
+  await nextTick()                 // ensure DOM is painted
+  await ensureMapsLoaded().catch(()=>{})
+
+
+  if (!window.google?.maps) return
+  if (!geocoder) geocoder = new window.google.maps.Geocoder()
+
+  // wait 2 frames so the sliding drawer finishes sizing the map container
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
 
   const center = await getLatLngForListing(props.listing)
   if (!center) return
 
   await fetchNearby(center, props.listing.businessCategory)
   await initMapAndMarkers()
+
+  // keep map responsive to container size changes
+  if (!resizeObs && mapEl.value) {
+    resizeObs = new ResizeObserver(() => {
+      try { window.google.maps.event.trigger(map, 'resize') } catch (_) {}
+    })
+    resizeObs.observe(mapEl.value)
+  }
+
+  // extra kick after CSS transition
+  setTimeout(() => {
+    try { window.google.maps.event.trigger(map, 'resize') } catch(_) {}
+  }, 150)
 }
+
+
+watch([() => props.open, () => props.listing?.listingId], async ([isOpen]) => {
+  if (isOpen) {
+    active.value = props.listing || null
+    await nextTick()
+    setTimeout(refreshAll, 10)
+  } else {
+    if (infoWindow) { try { infoWindow.close() } catch(_){} }
+    infoWindow = null
+    markers.forEach(m => m.setMap(null))
+    markers = []
+    map = null
+    // ✅ new:
+    if (resizeObs) { try { resizeObs.disconnect() } catch(_){} resizeObs = null }
+  }
+})
 
 /* Watchers */
 watch([() => props.open, () => props.listing?.listingId], async ([isOpen]) => {
@@ -282,6 +367,7 @@ watch([() => props.open, () => props.listing?.listingId], async ([isOpen]) => {
     markers = []
     map = null
     // do not clear geocoder/geoCache; re-use across opens
+    if (resizeObs) { try { resizeObs.disconnect() } catch(_){} resizeObs = null }
   }
 })
 
@@ -296,6 +382,7 @@ onBeforeUnmount(() => {
   markers.forEach(m => m.setMap(null))
   markers = []
   map = null
+  if (resizeObs) { try { resizeObs.disconnect() } catch(_){} resizeObs = null }
 })
 
 /* ========== REVIEWS & RATING SYSTEM ========== */
@@ -783,7 +870,7 @@ watch(() => props.open, (isOpen) => {
 @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
 .left .map {
   width: 100%; height: 360px;
-  border-radius: 12px; border: 1px solid var(--color-border); overflow: hidden; margin-bottom: 10px;
+  border-radius: 12px;min-height: 280px; border: 1px solid var(--color-border); overflow: hidden; margin-bottom: 10px;
 }
 .map-fallback { width: 100%; height: 100%; display:flex; align-items:center; justify-content:center; color: var(--color-text-secondary); font-size: .9rem; }
 .nearby .nearby-list { max-height: 240px; overflow:auto; }

@@ -200,11 +200,16 @@ function goToUserProfile(event) {
       </div>
       <div class="d-flex gap-2">
         <!-- ✅ Only show StartChatButton if this is NOT your own listing -->
+        <!-- ✅ Only show StartChatButton if this is NOT your own listing -->
         <StartChatButton
           v-if="listing.userId !== $auth?.currentUser?.uid"
           :targetUserId="listing.userId"
+          :listingId="listing.listingId || listing.id"         
+          :listingTitle="listing.businessName"                 
+          :listingCover="listing.photoUrls?.[0] || listing.photos?.[0]?.url"
           @click.stop
         />
+
       </div>
     </div>
   </div>

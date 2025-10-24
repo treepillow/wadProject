@@ -60,6 +60,8 @@ let infoWindow = null
 let geocoder = null
 const geoCache = new Map()
 let resizeObs = null
+const mapsLoadError = ref(false)
+const mapsLoading = ref(false)
 
 /* Load Maps JS once */
 // robust loader: safe to paste over your existing function
@@ -68,17 +70,31 @@ let resizeObs = null
 // ✅ tiny loader used only if window.google is missing
 let mapsLoadingPromise
 function ensureMapsLoaded() {
-  if (typeof window !== 'undefined' && window.google?.maps) return Promise.resolve()
+  if (typeof window !== 'undefined' && window.google?.maps) {
+    mapsLoadError.value = false
+    return Promise.resolve()
+  }
   if (mapsLoadingPromise) return mapsLoadingPromise
   const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   if (!key) {
     console.warn('[Maps] Missing VITE_GOOGLE_MAPS_API_KEY')
-    return Promise.resolve()
+    mapsLoadError.value = true
+    return Promise.reject(new Error('Missing API key'))
   }
+
+  mapsLoading.value = true
   mapsLoadingPromise = new Promise((resolve, reject) => {
     const existing = document.querySelector('script[data-gmaps="1"]')
     if (existing) {
-      const wait = () => (window.google?.maps ? resolve() : setTimeout(wait, 40))
+      const wait = () => {
+        if (window.google?.maps) {
+          mapsLoading.value = false
+          mapsLoadError.value = false
+          resolve()
+        } else {
+          setTimeout(wait, 40)
+        }
+      }
       wait()
       return
     }
@@ -88,10 +104,23 @@ function ensureMapsLoaded() {
     s.defer = true
     s.dataset.gmaps = '1'
     s.onload = () => {
-      const wait = () => (window.google?.maps ? resolve() : setTimeout(wait, 25))
+      const wait = () => {
+        if (window.google?.maps) {
+          mapsLoading.value = false
+          mapsLoadError.value = false
+          resolve()
+        } else {
+          setTimeout(wait, 25)
+        }
+      }
       wait()
     }
-    s.onerror = () => reject(new Error('[Maps] Failed to load Google Maps JS'))
+    s.onerror = () => {
+      mapsLoading.value = false
+      mapsLoadError.value = true
+      console.error('[Maps] Failed to load Google Maps JS - Check your API key, billing, and network connection')
+      reject(new Error('[Maps] Failed to load Google Maps JS'))
+    }
     document.head.appendChild(s)
   })
   return mapsLoadingPromise
@@ -101,18 +130,33 @@ function ensureMapsLoaded() {
 watch(() => props.open, async (isOpen) => {
   if (!isOpen) return
   await nextTick()
-  await ensureMapsLoaded().catch(() => {})
+  try {
+    await ensureMapsLoaded()
+  } catch (err) {
+    console.error('Failed to load Google Maps:', err)
+    mapsLoadError.value = true
+    return
+  }
   // give CSS/transition one frame to size the container
   await new Promise(r => requestAnimationFrame(r))
 
-  // ⬇️ call your existing map init function here
-  // e.g., await initMapAndMarkers() or initMap()
-  try { await initMapAndMarkers?.() } catch {}
-  try { await initMap?.() } catch {}
+  // Initialize map and markers
+  try {
+    await initMapAndMarkers()
+  } catch (e) {
+    console.error('Map init error:', e)
+    mapsLoadError.value = true
+  }
 
-  // final resize “kick” in case transition is still settling
+  // final resize "kick" in case transition is still settling
   setTimeout(() => {
-    try { window.google.maps.event.trigger(map, 'resize') } catch {}
+    try {
+      if (map && window.google?.maps?.event) {
+        window.google.maps.event.trigger(map, 'resize')
+      }
+    } catch (e) {
+      console.error('Map resize error:', e)
+    }
   }, 120)
 })
 
@@ -614,7 +658,7 @@ watch(() => props.open, (isOpen) => {
   </transition>
 
   <!-- Panel -->
-  <transition name="slide">
+  <transition name="modal-fade">
     <aside v-if="open" class="drawer-panel">
       <button class="btn-close close-btn" aria-label="Close" @click="$emit('close')" />
 
@@ -634,10 +678,10 @@ watch(() => props.open, (isOpen) => {
       </div>
 
       <!-- Title row -->
-      <div class="d-flex align-items-center justify-content-between mb-2">
-        <h4 class="mb-0 truncate">{{ active?.businessName || listing?.businessName }}</h4>
-        <a class="btn btn-outline-primary btn-sm" :href="gmapsLink" target="_blank" rel="noopener">
-          View in Google Maps
+      <div class="title-row">
+        <h3 class="mb-0 truncate listing-title">{{ active?.businessName || listing?.businessName }}</h3>
+        <a class="btn btn-outline-primary" :href="gmapsLink" target="_blank" rel="noopener">
+          <i class="fas fa-map-marker-alt me-2"></i>View in Maps
         </a>
       </div>
 
@@ -646,7 +690,22 @@ watch(() => props.open, (isOpen) => {
         <!-- Left -->
         <section class="left">
           <div class="map" ref="mapEl">
-            <div v-if="!active" class="map-fallback">Loading map…</div>
+            <div v-if="mapsLoadError" class="map-fallback error">
+              <div class="text-center p-4">
+                <i class="fas fa-exclamation-triangle mb-2" style="font-size: 2rem; color: #dc3545;"></i>
+                <p class="mb-2 fw-semibold">Map Failed to Load</p>
+                <p class="small text-muted mb-0">Please check your internet connection or try refreshing the page.</p>
+              </div>
+            </div>
+            <div v-else-if="mapsLoading" class="map-fallback">
+              <div class="text-center p-4">
+                <div class="spinner-border text-primary mb-2" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="small text-muted mb-0">Loading map...</p>
+              </div>
+            </div>
+            <div v-else-if="!active" class="map-fallback">Loading map…</div>
           </div>
 
           <div class="nearby card">
@@ -843,53 +902,227 @@ watch(() => props.open, (isOpen) => {
   z-index: 1050;
 }
 .drawer-panel {
-  position: fixed; top: 0; right: 0; height: 100vh;
-  width: min(1040px, 100vw);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(1200px, calc(100vw - 4rem));
+  max-height: calc(100vh - 4rem);
   background: var(--color-bg-main);
   color: var(--color-text-primary);
   z-index: 1060;
-  box-shadow: -10px 0 35px rgba(0,0,0,.18);
-  padding: 22px 24px;
-  padding-top: 60px; /* Space for close button */
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  padding: 32px 40px;
+  padding-top: 70px; /* Space for close button */
   overflow-y: auto;
-  border-top-left-radius: 14px;
-  border-bottom-left-radius: 14px;
+  border-radius: 20px;
+}
+
+/* Tablet - slightly smaller */
+@media (max-width: 991.98px) {
+  .drawer-panel {
+    width: calc(100vw - 2rem);
+    max-height: calc(100vh - 2rem);
+    padding: 24px 28px;
+    padding-top: 65px;
+  }
+}
+
+/* Mobile responsive - full screen on small devices */
+@media (max-width: 767.98px) {
+  .drawer-panel {
+    width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+    top: 0;
+    left: 0;
+    transform: none;
+    padding: 20px 16px;
+    padding-top: 60px;
+  }
 }
 .close-btn {
   position: absolute;
   top: 16px;
   right: 16px;
   z-index: 10;
+  filter: invert(var(--btn-close-invert, 0));
+}
+
+:root.dark-mode .close-btn {
+  --btn-close-invert: 1;
 }
 .header {
   padding-right: 20px; /* Extra space so badge doesn't touch close button */
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
 }
-.header .avatar { width:42px; height:42px; border:1px solid var(--color-border); }
-.truncate { max-width: 62ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
-@media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
+.header .avatar {
+  width: 48px;
+  height: 48px;
+  border: 2px solid var(--color-border);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.listing-title {
+  color: var(--color-text-primary);
+  font-size: 1.75rem;
+  font-weight: 700;
+  flex: 1;
+  min-width: 0; /* Allow truncation */
+}
+
+@media (max-width: 767.98px) {
+  .listing-title {
+    font-size: 1.5rem;
+  }
+  .title-row .btn {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.875rem;
+  }
+}
+.truncate {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+@media (max-width: 980px){
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
 .left .map {
-  width: 100%; height: 360px;
-  border-radius: 12px;min-height: 280px; border: 1px solid var(--color-border); overflow: hidden; margin-bottom: 10px;
+  width: 100%;
+  height: 400px;
+  border-radius: 16px;
+  min-height: 320px;
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  margin-bottom: 16px;
 }
-.map-fallback { width: 100%; height: 100%; display:flex; align-items:center; justify-content:center; color: var(--color-text-secondary); font-size: .9rem; }
-.nearby .nearby-list { max-height: 240px; overflow:auto; }
-.nearby-item { padding: 6px 8px; border-radius: 10px; border:1px solid transparent; cursor: pointer; }
-.nearby-item:hover { background: var(--color-bg-purple-tint); border-color: var(--color-border); }
-.nearby-item.is-active { background: var(--color-bg-purple-tint); border-color: var(--color-primary-pale); }
-.thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; border:1px solid var(--color-border); }
-.xsmall { font-size: .75rem; color: var(--color-text-secondary); }
-.section-title { color: var(--color-text-secondary); margin-bottom: .4rem; }
-.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-.gallery-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 10px; border: 1px solid var(--color-border); }
+.map-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  font-size: .9rem;
+}
+.nearby {
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+}
+.nearby h6 {
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+.nearby .nearby-list {
+  max-height: 280px;
+  overflow: auto;
+}
+.nearby-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  transition: all 0.2s ease;
+}
+.nearby-item:hover {
+  background: var(--color-bg-purple-tint);
+  border-color: var(--color-border);
+}
+.nearby-item.is-active {
+  background: var(--color-bg-purple-tint);
+  border-color: var(--color-primary-pale);
+}
+.nearby-item .fw-semibold {
+  color: var(--color-text-primary);
+}
+.thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+}
+.xsmall {
+  font-size: .8rem;
+  color: var(--color-text-secondary);
+}
+.section-title {
+  color: var(--color-text-primary);
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.gallery-img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  transition: transform 0.2s ease;
+  cursor: pointer;
+}
+.gallery-img:hover {
+  transform: scale(1.02);
+}
 .oh-table { display: grid; gap: 6px; }
 .oh-row { display:flex; justify-content:space-between; border-bottom:1px dashed var(--color-border); padding-bottom:4px; }
 .oh-day { width:64px; color: var(--color-text-secondary); }
 .oh-time { font-weight:600; color: var(--color-text-primary); }
 .fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-.slide-enter-active, .slide-leave-active { transition: transform .22s ease; }
-.slide-enter-from, .slide-leave-to { transform: translateX(100%); }
+
+/* Modal fade and scale animation */
+.modal-fade-enter-active, .modal-fade-leave-active {
+  transition: all .25s ease;
+}
+.modal-fade-enter-from, .modal-fade-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.95);
+}
+.modal-fade-enter-to, .modal-fade-leave-from {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Mobile - slide up from bottom */
+@media (max-width: 767.98px) {
+  .modal-fade-enter-from, .modal-fade-leave-to {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  .modal-fade-enter-to, .modal-fade-leave-from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 /* Reviews & Rating Styles */
 .reviews-section { border-top: 2px solid var(--color-border); padding-top: 20px; }
@@ -940,10 +1173,41 @@ watch(() => props.open, (isOpen) => {
   font-size: 0.95rem;
 }
 
+.review-form .form-label {
+  color: var(--color-text-primary);
+}
+
+.review-form .form-control {
+  background-color: var(--color-bg-white);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+.review-form .form-control::placeholder {
+  color: var(--color-text-light);
+}
+
 .review-item {
   border: 1px solid var(--color-border);
   background: var(--color-bg-white);
   transition: box-shadow 0.2s ease;
+  color: var(--color-text-primary);
+}
+
+.review-item .fw-semibold {
+  color: var(--color-text-primary) !important;
+}
+
+.review-item .text-muted {
+  color: var(--color-text-secondary) !important;
+}
+
+.review-item .small {
+  color: var(--color-text-secondary);
+}
+
+.review-item p {
+  color: var(--color-text-primary) !important;
 }
 
 .review-item:hover {

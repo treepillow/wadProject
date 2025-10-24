@@ -1,13 +1,13 @@
 <script>
-import { onMounted, onUnmounted, ref, computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getAuth } from 'firebase/auth'
 import {
   getFirestore, doc, getDoc, updateDoc, serverTimestamp,
   collection, getDocs, query, orderBy, where,
   onSnapshot, getCountFromServer, setDoc, deleteDoc
 } from 'firebase/firestore'
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { useDarkMode } from '@/composables/useDarkMode'
 
 import NavBar from './NavBar.vue'
@@ -26,12 +26,9 @@ export default {
     // Initialize dark mode
     useDarkMode()
 
-    /* ---------------- Tabs ---------------- */
-    const activeTab = ref('profile') // 'profile' | 'my' | 'liked'
-    const openTab = (t) => {
-      activeTab.value = t
-      if (t === 'liked' && likedListings.value.length === 0) loadLikedListings()
-    }
+    // Get route and router
+    const route = useRoute()
+    const router = useRouter()
 
     /* ---------------- Status ---------------- */
     const loading = ref(true)
@@ -65,9 +62,24 @@ export default {
     const myLoading      = ref(false)
     const likedListings  = ref([])
     const likedLoading   = ref(false)
+    const likedLoaded    = ref(false) // Track if we've attempted to load liked listings
 
     const likedSet   = ref(new Set())
     const likeCounts = ref({})
+
+    /* ---------------- Tabs (after state declarations) ---------------- */
+    const activeTab = ref('profile') // 'profile' | 'my' | 'liked'
+    const openTab = (t) => {
+      activeTab.value = t
+      if (t === 'liked' && !likedLoaded.value) loadLikedListings()
+    }
+
+    // Watch for route query changes and set active tab
+    watch(() => route.query.tab, (newTab) => {
+      if (newTab === 'my' || newTab === 'liked' || newTab === 'profile') {
+        openTab(newTab)
+      }
+    }, { immediate: true })
 
     // Live seller profiles (username/avatar)
     const profileMap = ref({})
@@ -295,7 +307,12 @@ export default {
         likedLoading.value = true
         const likesSnap = await getDocs(collection(db, 'users', user.value.uid, 'likedListings'))
         const ids = likesSnap.docs.map(d => d.data()?.listingId).filter(Boolean)
-        if (!ids.length) { likedListings.value = []; prepLikedBatch([]); return }
+        if (!ids.length) {
+          likedListings.value = []
+          prepLikedBatch([])
+          likedLoaded.value = true
+          return
+        }
 
         const batches = chunk(ids, 10)
         const resolved = []
@@ -312,6 +329,7 @@ export default {
         likedListings.value = resolved
         attachProfileListeners(resolved)
         prepLikedBatch(resolved)
+        likedLoaded.value = true
       } finally { likedLoading.value = false }
     }
 
@@ -375,6 +393,11 @@ export default {
       try {
         if (isLiked) {
           await Promise.all([ deleteDoc(userLikeRef), deleteDoc(publicLikeRef) ])
+          // If we're on the liked tab and just unliked, refresh the list
+          if (activeTab.value === 'liked') {
+            likedLoaded.value = false
+            await loadLikedListings()
+          }
         } else {
           const payload = { at: new Date() }
           await Promise.all([
@@ -473,7 +496,90 @@ export default {
       if (countdownInterval) clearInterval(countdownInterval)
     })
 
+    /* ---------------- Edit Listing ---------------- */
+    function startEditListing(listing) {
+      // Navigate to create service page with listing ID for editing
+      router.push({
+        path: '/createService',
+        query: { edit: listing.listingId || listing.id }
+      })
+    }
 
+    /* ---------------- Delete Listing ---------------- */
+    const deleting = ref(false)
+    const showDeleteModal = ref(false)
+    const listingToDelete = ref(null)
+
+    function confirmDeleteListing(listing) {
+      listingToDelete.value = listing
+      showDeleteModal.value = true
+    }
+
+    function cancelDelete() {
+      showDeleteModal.value = false
+      listingToDelete.value = null
+    }
+
+    async function proceedDelete() {
+      if (!listingToDelete.value) return
+
+      const listing = listingToDelete.value
+      const listingId = listing.listingId || listing.id
+
+      showDeleteModal.value = false
+      deleting.value = true
+      try {
+        const u = auth.currentUser
+        if (!u) throw new Error('Not authenticated')
+
+        // Delete from allListings
+        await deleteDoc(doc(db, 'allListings', listingId))
+
+        // Delete from user's myListings
+        await deleteDoc(doc(db, 'users', u.uid, 'myListings', listingId))
+
+        // Delete photos from storage
+        if (listing.photoUrls && Array.isArray(listing.photoUrls)) {
+          for (const photoUrl of listing.photoUrls) {
+            try {
+              const photoRef = storageRef(storage, photoUrl)
+              await deleteObject(photoRef)
+            } catch (photoErr) {
+              console.warn('Failed to delete photo:', photoUrl, photoErr)
+            }
+          }
+        }
+
+        // Delete reviews subcollection
+        try {
+          const reviewsSnapshot = await getDocs(collection(db, 'allListings', listingId, 'reviews'))
+          for (const reviewDoc of reviewsSnapshot.docs) {
+            await deleteDoc(reviewDoc.ref)
+          }
+        } catch (reviewErr) {
+          console.warn('Failed to delete reviews:', reviewErr)
+        }
+
+        // Delete from listingLikes collection
+        try {
+          const likesSnapshot = await getDocs(collection(db, 'listingLikes', listingId, 'users'))
+          for (const likeDoc of likesSnapshot.docs) {
+            await deleteDoc(likeDoc.ref)
+          }
+          await deleteDoc(doc(db, 'listingLikes', listingId))
+        } catch (likeErr) {
+          console.warn('Failed to delete likes:', likeErr)
+        }
+
+        // Refresh the listings
+        await loadMyListings()
+      } catch (error) {
+        console.error('Error deleting listing:', error)
+      } finally {
+        deleting.value = false
+        listingToDelete.value = null
+      }
+    }
 
 
     return {
@@ -495,6 +601,9 @@ export default {
       drawerOpen, drawerListing, drawerSellerName, drawerSellerAvatar,
       openDrawer, closeDrawer,
       formatCountdown,
+      /* edit & delete */
+      startEditListing, confirmDeleteListing, deleting,
+      showDeleteModal, listingToDelete, cancelDelete, proceedDelete,
     }
   }
 }
@@ -633,14 +742,28 @@ export default {
                     ⏰ Boost ends in: <strong>{{ formatCountdown(l.boostedUntil) }}</strong>
                   </div>
 
-                  <!-- Boost Button -->
+                  <!-- Action Buttons -->
                   <div class="d-flex gap-2 boost-section">
                     <router-link
-                      class="btn btn-sm btn-primary w-100"
+                      class="btn btn-sm btn-primary"
                       :to="{ path: '/boosting', query: { listingId: l.listingId || l.id } }"
+                      style="flex: 1;"
                     >
                       Boost
                     </router-link>
+                    <button
+                      class="btn btn-sm btn-primary"
+                      @click="startEditListing(l)"
+                      style="flex: 1;"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      class="btn btn-sm btn-outline-danger"
+                      @click="confirmDeleteListing(l)"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               </div>
@@ -682,6 +805,26 @@ export default {
       :sellerAvatar="drawerSellerAvatar"
       @close="closeDrawer"
     />
+
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteModal" class="modal-backdrop" @click="cancelDelete">
+      <div class="modal-dialog" @click.stop>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Confirm Delete</h5>
+            <button type="button" class="btn-close-custom" @click="cancelDelete">×</button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to delete "<strong>{{ listingToDelete?.businessName }}</strong>"?</p>
+            <p class="text-danger mb-0">This action cannot be undone.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="cancelDelete">Cancel</button>
+            <button type="button" class="btn btn-danger" @click="proceedDelete">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -827,6 +970,108 @@ h3, h4 {
 .boost-section .btn:hover {
   background-color: var(--color-primary-hover);
   border-color: var(--color-primary-hover);
+}
+
+/* Fix Edit button visibility in both light and dark mode */
+.boost-section .btn-outline-primary {
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  background-color: transparent !important;
+}
+
+.boost-section .btn-outline-primary:hover {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: white !important;
+}
+
+.boost-section .btn-outline-danger {
+  color: #dc3545 !important;
+  border-color: #dc3545 !important;
+  background-color: transparent !important;
+}
+
+.boost-section .btn-outline-danger:hover {
+  background-color: #dc3545 !important;
+  border-color: #dc3545 !important;
+  color: white !important;
+}
+
+/* Delete Modal Styles */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-dialog {
+  max-width: 500px;
+  width: 90%;
+}
+
+.modal-content {
+  background: var(--color-bg-white);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  color: var(--color-text-primary);
+}
+
+.modal-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.btn-close-custom {
+  background: transparent;
+  border: none;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-close-custom:hover {
+  opacity: 0.7;
+}
+
+.modal-body {
+  padding: 1.5rem 1.25rem;
+}
+
+.modal-body p {
+  color: var(--color-text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.modal-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
 }
 
 /* Mobile responsive styles */

@@ -25,13 +25,26 @@ let unsubAuth = null
 onMounted(() => {
   unsubAuth = onAuthStateChanged(auth, async (u) => {
     user.value = u
-    if (!u) { avatarUrl.value = userPng; return }
+    if (!u) {
+      avatarUrl.value = userPng
+      return
+    }
+
+    // First, set the avatar from Firebase Auth immediately to avoid "User avatar" text
+    avatarUrl.value = u.photoURL || userPng
+
+    // Then try to get the stored photoURL from Firestore
     try {
       const snap = await getDoc(doc(db, 'users', u.uid))
-      const url = snap.exists() && snap.data().photoURL ? snap.data().photoURL : (u.photoURL || userPng)
-      avatarUrl.value = url || userPng
-    } catch {
-      avatarUrl.value = u.photoURL || userPng
+      if (snap.exists()) {
+        const data = snap.data()
+        // Prefer Firestore photoURL, fallback to Firebase Auth photoURL, then default
+        const url = data.photoURL || data.profilePicture || u.photoURL || userPng
+        avatarUrl.value = url
+      }
+    } catch (err) {
+      console.error('Error loading user avatar:', err)
+      // Keep the Firebase Auth photoURL on error
     }
   })
 })
@@ -120,8 +133,26 @@ async function logout() {
                 </div>
               </li>
 
-              <!-- Messages button -->
+              <!-- My Listings button -->
               <li class="nav-item order-mobile-2">
+                <RouterLink to="/profile?tab=my" class="btn btn-brand mobile-nav-btn">
+                  <Icon icon="mdi:store" class="icon-24" />
+                  <span class="btn-text d-lg-none">My Listings</span>
+                  <span class="d-none d-lg-inline ms-1">My Listings</span>
+                </RouterLink>
+              </li>
+
+              <!-- Liked button -->
+              <li class="nav-item order-mobile-3">
+                <RouterLink to="/profile?tab=liked" class="btn btn-brand mobile-nav-btn">
+                  <Icon icon="mdi:heart" class="icon-24" />
+                  <span class="btn-text d-lg-none">Liked</span>
+                  <span class="d-none d-lg-inline ms-1">Liked</span>
+                </RouterLink>
+              </li>
+
+              <!-- Messages button -->
+              <li class="nav-item order-mobile-4">
                 <RouterLink to="/chat" class="btn btn-brand mobile-nav-btn">
                   <Icon icon="mdi:email" class="icon-24" />
                   <span class="btn-text d-lg-none">Messages</span>
@@ -130,7 +161,7 @@ async function logout() {
               </li>
 
               <!-- Create button -->
-              <li class="nav-item order-mobile-3">
+              <li class="nav-item order-mobile-5">
                 <RouterLink to="/createService" class="btn btn-brand mobile-nav-btn">
                   <Icon icon="mdi:plus-circle" class="icon-24" />
                   <span class="btn-text">Create</span>
@@ -138,7 +169,7 @@ async function logout() {
               </li>
 
               <!-- Sign out button (mobile only) -->
-              <li class="nav-item order-mobile-4 d-lg-none">
+              <li class="nav-item order-mobile-6 d-lg-none">
                 <button class="btn btn-danger mobile-nav-btn mobile-signout-btn" @click="logout" :disabled="loggingOut">
                   <Icon icon="mdi:logout" class="icon-24" />
                   <span class="btn-text">{{ loggingOut ? 'Signing out…' : 'Sign out' }}</span>
@@ -231,10 +262,21 @@ async function logout() {
   background: #fff;
 }
 
-.avatar-btn { 
-  background: transparent; 
-  border: 0; 
-  border-radius: 999px; 
+.avatar-btn {
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+}
+
+/* Fix dropdown arrow visibility in dark mode */
+.dropdown-toggle::after {
+  border-top-color: var(--color-text-primary);
+  border-right-color: transparent;
+  border-left-color: transparent;
+}
+
+:root.dark-mode .dropdown-toggle::after {
+  border-top-color: var(--color-text-white);
 }
 
 /* Button styling */
@@ -438,6 +480,14 @@ async function logout() {
 
   .order-mobile-4 {
     order: 4;
+  }
+
+  .order-mobile-5 {
+    order: 5;
+  }
+
+  .order-mobile-6 {
+    order: 6;
   }
 
   .order-mobile-last {

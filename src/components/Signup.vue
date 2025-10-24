@@ -196,19 +196,26 @@
           <div class="profile-picture-container">
             <span class="profile-label">Set a profile picture:</span>
             <input type="file" id="profilePicture" accept="image/*" @change="handleProfilePicture" />
+
             <div v-if="signup.profilePreview" class="preview-container">
               <img
                 :src="signup.profilePreview"
                 alt="Profile Preview"
                 class="profile-preview"
+                referrerpolicy="no-referrer"
                 @click="showImageModal = true"
+                @error="handleImageError"
+                @load="handleImageLoad"
               />
+            </div>
+            <div v-else class="text-muted" style="margin: 10px 0;">
+              No profile picture set yet
             </div>
           </div>
 
           <!-- Image Modal -->
           <div v-if="showImageModal" class="image-modal" @click="showImageModal = false">
-            <img :src="signup.profilePreview" alt="Full Image Preview" />
+            <img :src="signup.profilePreview" alt="Full Image Preview" referrerpolicy="no-referrer" />
           </div>
 
             <button
@@ -442,6 +449,10 @@ export default {
         this.signup.isGoogle = true;
         this.currentUserUid = user.uid;
 
+        // Debug: Log the Google photo URL
+        console.log('Google profile photo URL:', user.photoURL);
+        console.log('Profile preview set to:', this.signup.profilePreview);
+
         // Google accounts are automatically verified by Firebase
         // But we still need to check manually in case
         await user.reload();
@@ -595,7 +606,8 @@ export default {
               postal: this.signup.postal,
               unit: this.signup.unit,
             },
-            profilePicture: this.signup.profilePreview || null,
+            photoURL: this.signup.profilePreview || null, // Use photoURL for consistency
+            profilePicture: this.signup.profilePreview || null, // Keep for backward compatibility
             emailVerified: user.emailVerified,
             profileComplete: true,
             createdAt: serverTimestamp(),
@@ -712,6 +724,18 @@ export default {
         this.signup.profilePreview = e.target.result;
       };
       reader.readAsDataURL(file);
+    },
+
+    handleImageError() {
+      console.error('Failed to load profile image:', this.signup.profilePreview);
+      console.error('Image error event triggered - This is usually a Google rate limit (429) or CORS issue');
+      console.error('The image will still be saved to Firestore and should work after signup');
+      // Don't try to reload - this causes more 429 errors
+      // The URL is valid and will be saved to the user's profile
+    },
+
+    handleImageLoad() {
+      console.log('Profile image loaded successfully!');
     },
 
     // OneMap API Address Validation

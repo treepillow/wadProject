@@ -162,9 +162,22 @@ export default {
           return;
         }
 
-        this.$router.replace("/home");
+        // Show success message
+        this.showNotification("Login successful!", "success");
+        setTimeout(() => {
+          this.$router.replace("/home");
+        }, 1000);
       } catch (err) {
-        this.showNotification(`Login failed: ${err.message}`, "danger");
+        // Simplify error message
+        if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+          this.showNotification("Username/Password is incorrect", "danger");
+        } else if (err.code === 'auth/too-many-requests') {
+          this.showNotification("Too many failed attempts. Please try again later.", "danger");
+        } else if (err.code === 'auth/network-request-failed') {
+          this.showNotification("Network error. Please check your connection.", "danger");
+        } else {
+          this.showNotification("Login failed. Please try again.", "danger");
+        }
       }
     },
 
@@ -191,13 +204,16 @@ export default {
         }
 
         // Profile is complete, allow login
-        this.$router.replace("/home");
+        this.showNotification("Login successful!", "success");
+        setTimeout(() => {
+          this.$router.replace("/home");
+        }, 1000);
       } catch (err) {
         if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
           this.googleLoading = false;
           return;
         }
-        this.showNotification(`Google sign-in failed: ${err.message}`, "danger");
+        this.showNotification("Google sign-in failed. Please try again.", "danger");
         this.googleLoading = false;
       } finally {
         this.googleLoading = false;

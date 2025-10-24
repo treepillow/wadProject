@@ -208,13 +208,18 @@ onMounted(() => {
 
 <style scoped>
 .bg-page {
-  background: rgb(245, 239, 239);
+  background: var(--color-bg-main);
   min-height: 100vh;
 }
 
 .profile-header {
-  background: white;
+  background: var(--color-bg-white);
   border-radius: 12px;
+  color: var(--color-text-primary);
+}
+
+.profile-header h2 {
+  color: var(--color-text-primary);
 }
 
 .stats-row {
@@ -255,7 +260,17 @@ onMounted(() => {
 
 .review-card {
   border-radius: 8px;
-  border: 1px solid #e6e3f4;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
+}
+
+.review-card h6 {
+  color: var(--color-text-primary);
+}
+
+.review-card p {
+  color: var(--color-text-primary);
 }
 
 .stars {
@@ -264,7 +279,7 @@ onMounted(() => {
 }
 
 .star {
-  color: #ddd;
+  color: var(--color-border);
   font-size: 18px;
 }
 

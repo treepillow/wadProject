@@ -1,10 +1,11 @@
 <script>
-import { addDoc, collection, doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { addDoc, collection, doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore'
 import { auth, db, storage } from '@/firebase'
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
 import NavBar from './NavBar.vue'
 import { Icon } from '@iconify/vue';
 import { useDarkMode } from '@/composables/useDarkMode'
+import { useRoute, useRouter } from 'vue-router'
 
 export default {
   name: 'CreateListing',
@@ -13,11 +14,15 @@ export default {
   setup() {
     // Initialize dark mode
     useDarkMode()
-    return {}
+    const route = useRoute()
+    const router = useRouter()
+    return { route, router }
   },
 
   data() {
     return {
+      editMode: false,
+      editingListingId: null,
       businessName: '',
       businessDesc: '',
       businessCategory: '',
@@ -28,6 +33,7 @@ export default {
       isLanded: false,
 
       photos: [],
+      existingPhotoUrls: [], // For edit mode - existing photos
       isDragging: false,
       photoError: '',
       menuItems: [{ name: '', price: '' }],
@@ -47,6 +53,9 @@ export default {
       addrWarning: '',
       validatingAddress: false,
       validationTimeout: null,
+
+      // Loading state for creating listing
+      isCreatingListing: false,
 
       // Booking system
       acceptsBookings: false,
@@ -86,7 +95,95 @@ export default {
     }
   },
 
+  async mounted() {
+    // Check if we're in edit mode
+    const editId = this.route.query.edit
+    if (editId) {
+      this.editMode = true
+      this.editingListingId = editId
+      await this.loadListingForEdit(editId)
+    }
+  },
+
   methods: {
+    async loadListingForEdit(listingId) {
+      try {
+        const listingDoc = await getDoc(doc(db, 'allListings', listingId))
+        if (!listingDoc.exists()) {
+          alert('Listing not found')
+          this.router.push('/profile?tab=my')
+          return
+        }
+
+        const data = listingDoc.data()
+
+        // Check if current user owns this listing
+        if (data.userId !== auth.currentUser?.uid) {
+          alert('You can only edit your own listings')
+          this.router.push('/profile?tab=my')
+          return
+        }
+
+        // Populate form fields
+        this.businessName = data.businessName || ''
+        this.businessDesc = data.businessDesc || ''
+        this.businessCategory = data.businessCategory || ''
+
+        // Location
+        if (data.location) {
+          this.locationBlk = data.location.blk || ''
+          this.locationStreet = data.location.street || ''
+          this.locationPostal = data.location.postal || ''
+          this.locationUnit = data.location.unit || ''
+          this.isLanded = data.location.isLanded || false
+        }
+
+        // Photos
+        this.existingPhotoUrls = data.photoUrls || data.photos?.map(p => p.url) || []
+
+        // Menu items
+        if (data.menu && data.menu.length > 0) {
+          this.menuItems = data.menu.map(item => ({ name: item.name || '', price: item.price || '' }))
+        }
+
+        // Operating hours - convert from stored format to form format
+        if (data.operatingHours) {
+          const dayMap = {
+            mon: 'monday', tue: 'tuesday', wed: 'wednesday',
+            thu: 'thursday', fri: 'friday', sat: 'saturday', sun: 'sunday'
+          }
+          Object.keys(dayMap).forEach(key => {
+            const fullDay = dayMap[key]
+            const hours = data.operatingHours[key]
+            if (hours) {
+              if (hours.closed) {
+                this.operatingHours[fullDay] = { enabled: false, start: '09:00', end: '17:00' }
+              } else {
+                this.operatingHours[fullDay] = {
+                  enabled: true,
+                  start: hours.open || '09:00',
+                  end: hours.close || '17:00'
+                }
+              }
+            }
+          })
+        }
+
+        // Booking system
+        if (data.bookings) {
+          this.acceptsBookings = true
+          this.bookingDuration = data.bookings.duration || 60
+          this.bookingSlots = data.bookings.availableSlots || [{ start: '', end: '' }]
+        }
+
+      } catch (error) {
+        console.error('Error loading listing:', error)
+        alert('Failed to load listing for editing')
+        this.router.push('/profile?tab=my')
+      }
+    },
+
+
     /* ---------- Photos ---------- */
     openFilePicker() { this.$refs.photoInput?.click() },
     onPhotoPicked(e) {
@@ -292,21 +389,29 @@ export default {
       const user = auth.currentUser
       if(!user){ alert('You must be logged in to publish a listing.'); return }
 
+      // Set loading state
+      this.isCreatingListing = true
+
       if(!this.businessName.trim() || !this.businessDesc.trim() || !this.businessCategory.trim()){
-        alert('Please fill in Service Name, Description, and Category.'); return
+        this.isCreatingListing = false
+        alert('Please fill in Service Name, Description, and Category.')
+        return
       }
 
       // Validate address fields
       if (!this.isLanded && !this.locationBlk.trim()) {
+        this.isCreatingListing = false
         alert('Block number is required for HDB/Condominium. Toggle "Landed Property" if applicable.')
         return
       }
 
       if(!this.locationStreet.trim() || !this.locationPostal.trim() || !this.locationUnit.trim()){
+        this.isCreatingListing = false
         alert('Please fill in Street Address, Postal Code, and Unit No.')
         return
       }
       if(!/^[0-9]{6}$/.test(this.locationPostal.trim())){
+        this.isCreatingListing = false
         alert('Postal Code must be a 6-digit number (Singapore).')
         return
       }
@@ -314,18 +419,28 @@ export default {
       // UPDATED: Unit validation depends on Landed toggle
       if (this.isLanded) {
         if(!/^#?[0-9]{2}$/.test(this.locationUnit.trim())){
+          this.isCreatingListing = false
           alert('Unit No must look like #09 for landed properties.')
           return
         }
       } else {
         if(!/^#?[0-9]{2}-[0-9]{3}$/.test(this.locationUnit.trim())){
+          this.isCreatingListing = false
           alert('Unit No must look like #09-142 for non-landed properties.')
           return
         }
       }
 
-      if (this.photos.length < 1) {
+      // In edit mode, allow existing photos; in create mode, require at least 1 new photo
+      if (!this.editMode && this.photos.length < 1) {
+        this.isCreatingListing = false
         this.photoError = 'Please upload at least 1 photo of your business.'
+        this.$nextTick(() => this.$refs.uploadZone?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+        return
+      }
+      if (this.editMode && this.photos.length === 0 && this.existingPhotoUrls.length === 0) {
+        this.isCreatingListing = false
+        this.photoError = 'Please keep at least 1 photo of your business.'
         this.$nextTick(() => this.$refs.uploadZone?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
         return
       }
@@ -340,13 +455,20 @@ export default {
       }, 0.80)
 
       if (!check.ok) {
+        this.isCreatingListing = false
         this.addrError = check.reason || 'Invalid address.'
         alert('Please provide a valid Singapore address.')
         return
       }
 
       const { blk, road: street, postal } = check.data
-      for(const m of this.menuItems){ if(!m.name.trim() || !m.price.trim()){ alert(this.emptyLineAlertText); return } }
+      for(const m of this.menuItems){
+        if(!m.name.trim() || !m.price.trim()){
+          this.isCreatingListing = false
+          alert(this.emptyLineAlertText)
+          return
+        }
+      }
 
       const unit = this.locationUnit.trim()
       const unitFormatted = unit.startsWith('#') ? unit : `#${unit}`
@@ -371,32 +493,46 @@ export default {
           sun: this.operatingHours.sunday.enabled ? { open: this.operatingHours.sunday.start, close: this.operatingHours.sunday.end } : { closed: true }
         }
 
-        // Add document to 'allListings' and get reference
-        const allListingsDocRef = await addDoc(collection(db, 'allListings'), {
-          businessName: this.businessName.trim(),
-          businessDesc: this.businessDesc.trim(),
-          businessCategory: this.businessCategory.trim(),
-          userId: user.uid,
-          location: {
-            country: 'Singapore',
-            blk,
-            street,
-            postal,
-            unit: unitFormatted
-          },
-          locationFormatted,
-          menu,
-          operatingHours: operatingHoursFormatted,
-          createdAt: serverTimestamp(),
-          viewCount: 0
-        });
+        // Determine listing ID and whether we're creating or updating
+        let listingId
+        let allListingsDocRef
 
-        // Get the listing ID
-        const listingId = allListingsDocRef.id;
+        if (this.editMode) {
+          // Edit mode: use existing listing ID
+          listingId = this.editingListingId
+          allListingsDocRef = doc(db, 'allListings', listingId)
+        } else {
+          // Create mode: create new document
+          allListingsDocRef = await addDoc(collection(db, 'allListings'), {
+            businessName: this.businessName.trim(),
+            businessDesc: this.businessDesc.trim(),
+            businessCategory: this.businessCategory.trim(),
+            userId: user.uid,
+            location: {
+              country: 'Singapore',
+              blk,
+              street,
+              postal,
+              unit: unitFormatted
+            },
+            locationFormatted,
+            menu,
+            operatingHours: operatingHoursFormatted,
+            createdAt: serverTimestamp(),
+            viewCount: 0
+          })
+          listingId = allListingsDocRef.id
+        }
 
-        // Upload the photos and get the URLs
-        const photoObjs = await this.uploadAllPhotos(user.uid, listingId);
-        const photoUrls = photoObjs.map(p => p.url);
+        // Upload new photos and get the URLs
+        let photoObjs = []
+        let photoUrls = [...this.existingPhotoUrls] // Keep existing photos in edit mode
+
+        if (this.photos.length > 0) {
+          photoObjs = await this.uploadAllPhotos(user.uid, listingId)
+          const newPhotoUrls = photoObjs.map(p => p.url)
+          photoUrls = [...photoUrls, ...newPhotoUrls]
+        }
 
         // Prepare the final payload with photos and booking settings
         const payload = {
@@ -413,26 +549,41 @@ export default {
             unit: unitFormatted
           },
           locationFormatted,
-          photos: photoObjs,
+          photos: photoObjs.length > 0 ? photoObjs : undefined,
           photoUrls,
           menu,
-          createdAt: serverTimestamp(),
-          viewCount: 0,
+          operatingHours: operatingHoursFormatted,
+          viewCount: this.editMode ? undefined : 0, // Don't reset viewCount in edit mode
           // Booking settings
           acceptsBookings: this.acceptsBookings,
           bookingDuration: this.bookingDuration,
           availableSlots: this.availableSlots
         };
 
-        // Now you can save the payload to the correct collections
-        await setDoc(allListingsDocRef, payload);
-        await addDoc(collection(doc(db, 'users', user.uid), 'myListings'), payload);
+        // Only add createdAt for new listings
+        if (!this.editMode) {
+          payload.createdAt = serverTimestamp()
+        } else {
+          payload.updatedAt = serverTimestamp()
+        }
 
-        alert('Listing Added Successfully!')
-        this.clearForm()
+        // Remove undefined values
+        Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key])
+
+        // Now you can save the payload to the correct collections
+        await setDoc(allListingsDocRef, payload, { merge: true });
+        await setDoc(doc(db, 'users', user.uid, 'myListings', listingId), payload, { merge: true });
+
+        if (this.editMode) {
+          this.router.push('/profile?tab=my')
+        } else {
+          this.clearForm()
+        }
       }catch(e){
         console.error(e)
         alert('Failed to add listing, please try again')
+      } finally {
+        this.isCreatingListing = false
       }
     },
 
@@ -481,10 +632,22 @@ export default {
   <div class="bg-page">
     <NavBar />
 
+    <!-- Loading Popup -->
+    <div v-if="isCreatingListing" class="loading-overlay">
+      <div class="loading-popup">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <h5>{{ editMode ? 'Updating Listing...' : 'Creating Listing...' }}</h5>
+        <p class="text-muted">Please wait while we process your listing</p>
+      </div>
+    </div>
+
     <!-- content zone (mirrors HomePage's container pb-5) -->
     <div class="container pb-5 mt-5">
       <div class="d-flex justify-content-center">
         <div class="listing-card shadow-soft rounded-4 p-4 p-md-5">
+          <h2 class="mb-4 text-center">{{ editMode ? 'Edit Listing' : 'Create New Listing' }}</h2>
           <form @submit.prevent="handleSubmit" novalidate>
             <div class="d-flex flex-column">
 
@@ -500,7 +663,7 @@ export default {
                   <label class="form-label fw-semibold">
                     Category <Icon icon="mdi:view-dashboard" />
                   </label>
-                  <select class="form-select" v-model="businessCategory">
+                  <select class="form-select" v-model="businessCategory" required>
                     <option disabled value="">-- select category --</option>
                     <option>Food and Drinks</option>
                     <option>Beauty</option>
@@ -837,8 +1000,11 @@ export default {
 
               <!-- Submit & Clear Form Buttons -->
               <div class="mt-3 d-flex justify-content-center gap-3">
-                <button type="submit" class="btn btn-primary px-4 py-2">Publish Listing</button>
-                <button type="button" class="btn btn-outline-secondary px-4 py-2" @click="clearForm">Clear Form</button>
+                <button type="submit" class="btn btn-primary px-4 py-2">
+                  {{ editMode ? 'Update Listing' : 'Publish Listing' }}
+                </button>
+                <button v-if="!editMode" type="button" class="btn btn-outline-secondary px-4 py-2" @click="clearForm">Clear Form</button>
+                <button v-else type="button" class="btn btn-outline-secondary px-4 py-2" @click="router.push('/profile?tab=my')">Cancel</button>
               </div>
             </div>
           </form>
@@ -916,6 +1082,11 @@ export default {
 /* Dark mode - lighter arrow color */
 :root.dark-mode .form-select {
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ccc' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+
+/* When select has the placeholder (disabled) option selected, show it in secondary color like input placeholders */
+.form-select:invalid {
+  color: var(--color-text-secondary);
 }
 
 /* Placeholder styling for form-control (input) and form-select (select) */
@@ -1287,9 +1458,9 @@ export default {
   gap: 0.5rem;
   cursor: pointer;
   user-select: none;
+  color: var(--color-primary);
   margin: 0;
   font-weight: 500;
-  color: var(--color-text-primary);
 }
 
 .custom-checkbox-box {
@@ -1333,4 +1504,58 @@ export default {
   box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
 }
 
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-popup {
+  background: var(--color-bg-white);
+  padding: 3rem 4rem;
+  border-radius: 1rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  max-width: 400px;
+}
+
+.loading-popup h5 {
+  color: var(--color-text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.loading-popup .text-muted {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Fix helper text visibility in dark mode - use :deep() to override Bootstrap's global .text-muted */
+:deep(.text-muted) {
+  color: var(--color-text-secondary) !important;
+}
+
+/* Fix day labels visibility in dark mode */
+.day-row .form-check-label {
+  color: var(--color-text-primary);
+}
+
+</style>
+
+<style>
+/* Non-scoped style to override Bootstrap's .text-muted globally */
+.text-muted {
+  color: #b0b0b0 !important;
+}
+
+:root.dark-mode .text-muted {
+  color: #b0b0b0 !important;
+}
 </style>

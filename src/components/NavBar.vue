@@ -20,6 +20,7 @@ const db = getFirestore()
 const user = ref(null)
 const avatarUrl = ref(userPng)
 const loggingOut = ref(false)
+const isAdmin = ref(false)
 let unsubAuth = null
 
 onMounted(() => {
@@ -41,6 +42,8 @@ onMounted(() => {
         // Prefer Firestore photoURL, fallback to Firebase Auth photoURL, then default
         const url = data.photoURL || data.profilePicture || u.photoURL || userPng
         avatarUrl.value = url
+        // Check if user is admin
+        isAdmin.value = data.isAdmin || false
       }
     } catch (err) {
       console.error('Error loading user avatar:', err)
@@ -123,6 +126,7 @@ async function logout() {
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end">
                     <li><RouterLink to="/profile" class="dropdown-item">Profile</RouterLink></li>
+                    <li v-if="isAdmin"><RouterLink to="/admin" class="dropdown-item">Admin Dashboard</RouterLink></li>
                     <li><hr class="dropdown-divider" /></li>
                     <li>
                       <button class="dropdown-item text-danger" @click="logout" :disabled="loggingOut">
@@ -164,12 +168,20 @@ async function logout() {
               <li class="nav-item order-mobile-5">
                 <RouterLink to="/createService" class="btn btn-brand mobile-nav-btn">
                   <Icon icon="mdi:plus-circle" class="icon-24" />
-                  <span class="btn-text">Create</span>
+                  <span class="btn-text">Create Listing</span>
+                </RouterLink>
+              </li>
+
+              <!-- Admin button (mobile only) -->
+              <li v-if="isAdmin" class="nav-item order-mobile-6 d-lg-none">
+                <RouterLink to="/admin" class="btn btn-warning mobile-nav-btn">
+                  <Icon icon="mdi:shield-account" class="icon-24" />
+                  <span class="btn-text">Admin</span>
                 </RouterLink>
               </li>
 
               <!-- Sign out button (mobile only) -->
-              <li class="nav-item order-mobile-6 d-lg-none">
+              <li class="nav-item order-mobile-7 d-lg-none">
                 <button class="btn btn-danger mobile-nav-btn mobile-signout-btn" @click="logout" :disabled="loggingOut">
                   <Icon icon="mdi:logout" class="icon-24" />
                   <span class="btn-text">{{ loggingOut ? 'Signing out…' : 'Sign out' }}</span>

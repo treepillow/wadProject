@@ -315,16 +315,18 @@ export default {
         }
 
         const batches = chunk(ids, 10)
-        const resolved = []
-        for (const group of batches) {
+        // Parallelize batch queries for faster loading
+        const batchPromises = batches.map(async (group) => {
           const qRef = query(collection(db, 'allListings'), where('listingId', 'in', group))
           const snap = await getDocs(qRef)
-          snap.forEach(docSnap => {
-            const data = normalizePhotos({ id: docSnap.id, ...docSnap.data() })
-            resolved.push(data)
-            if (data.listingId) fetchLikesCount(data.listingId)
-          })
-        }
+          return snap.docs.map(docSnap => normalizePhotos({ id: docSnap.id, ...docSnap.data() }))
+        })
+        const batchResults = await Promise.all(batchPromises)
+        const resolved = batchResults.flat()
+        // Fetch likes count for all listings
+        resolved.forEach(data => {
+          if (data.listingId) fetchLikesCount(data.listingId)
+        })
         resolved.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
         likedListings.value = resolved
         attachProfileListeners(resolved)

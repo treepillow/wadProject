@@ -12,6 +12,7 @@ import NewBusiness from '../components/NewBusiness.vue';
 import Boosting from '../components/Boosting.vue'
 import UserProfile from '../components/UserProfile.vue'
 import EmailVerified from '../components/EmailVerified.vue'
+import AdminDashboard from '../components/AdminDashboard.vue'
 
 import { auth, db } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -85,6 +86,12 @@ const router = createRouter({
       name: 'emailVerified',
       component: EmailVerified
     },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminDashboard,
+      meta: { requiresAuth: true, requiresAdmin: true }
+    },
   ],
 })
 
@@ -117,6 +124,11 @@ router.beforeEach(async (to, _from, next) => {
 
     if (!userDoc.exists() || !userDoc.data().profileComplete) {
       return next({ name: "signup" });
+    }
+
+    // Check if route requires admin privileges
+    if (to.meta.requiresAdmin && !userDoc.data().isAdmin) {
+      return next({ name: "home" });
     }
   }
 

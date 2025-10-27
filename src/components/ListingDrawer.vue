@@ -21,8 +21,93 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
+/* Report Modal State */
+const showReportModal = ref(false)
+const reportReason = ref('')
+const reportExplanation = ref('')
+const submittingReport = ref(false)
+
+const reportReasons = [
+  'Scam/Fraud',
+  'Inappropriate Content',
+  'False Information',
+  'Spam',
+  'Duplicate Listing',
+  'Other'
+]
+
+async function submitReport() {
+  const user = auth.currentUser
+  if (!user) {
+    alert('Please log in to report this listing')
+    return
+  }
+
+  if (!reportReason.value) {
+    alert('Please select a reason for reporting')
+    return
+  }
+
+  if (!reportExplanation.value.trim()) {
+    alert('Please provide an explanation for your report')
+    return
+  }
+
+  try {
+    submittingReport.value = true
+
+    const listingId = active.value?.listingId || active.value?.id
+    await addDoc(collection(db, 'reports'), {
+      listingId,
+      listingName: active.value?.businessName,
+      reportedBy: user.uid,
+      reporterEmail: user.email,
+      reason: reportReason.value,
+      explanation: reportExplanation.value.trim(),
+      timestamp: serverTimestamp(),
+      status: 'pending'
+    })
+
+    // Update listing report count
+    const listingRef = doc(db, 'allListings', listingId)
+    await updateDoc(listingRef, {
+      reportCount: (active.value?.reportCount || 0) + 1
+    })
+
+    alert('Report submitted successfully. Our team will review it shortly.')
+    showReportModal.value = false
+    reportReason.value = ''
+    reportExplanation.value = ''
+  } catch (error) {
+    console.error('Error submitting report:', error)
+    alert('Failed to submit report. Please try again.')
+  } finally {
+    submittingReport.value = false
+  }
+}
+
+function openReportModal() {
+  reportReason.value = ''
+  reportExplanation.value = ''
+  showReportModal.value = true
+}
+
+function closeReportModal() {
+  showReportModal.value = false
+  reportReason.value = ''
+  reportExplanation.value = ''
+}
+
 /* Esc to close */
-function onEsc(e){ if (e.key === 'Escape') emit('close') }
+function onEsc(e){
+  if (e.key === 'Escape') {
+    if (showReportModal.value) {
+      closeReportModal()
+    } else {
+      emit('close')
+    }
+  }
+}
 onMounted(() => document.addEventListener('keydown', onEsc))
 onBeforeUnmount(() => document.removeEventListener('keydown', onEsc))
 
@@ -238,14 +323,16 @@ async function fetchNearby(centerLL, category) {
     const snap = await getDocs(qy)
     const raw = snap.docs.map(d => ({ listingId: d.id, ...d.data() }))
 
-    // Geocode each result (or reuse cached geo)
-    const withGeo = []
-    for (const L of raw) {
+    // Geocode all results in parallel (much faster than sequential)
+    const geoPromises = raw.map(async (L) => {
       try {
         const ll = await getLatLngForListing(L)
-        if (ll) withGeo.push({ ...L, geo: ll })
-      } catch (_) {}
-    }
+        return ll ? { ...L, geo: ll } : null
+      } catch (_) {
+        return null
+      }
+    })
+    const withGeo = (await Promise.all(geoPromises)).filter(Boolean)
 
     // Exclude the active listing and compute distances
     const currentId = props.listing?.listingId || props.listing?.id
@@ -379,23 +466,6 @@ async function refreshAll() {
     try { window.google.maps.event.trigger(map, 'resize') } catch(_) {}
   }, 150)
 }
-
-
-watch([() => props.open, () => props.listing?.listingId], async ([isOpen]) => {
-  if (isOpen) {
-    active.value = props.listing || null
-    await nextTick()
-    setTimeout(refreshAll, 10)
-  } else {
-    if (infoWindow) { try { infoWindow.close() } catch(_){} }
-    infoWindow = null
-    markers.forEach(m => m.setMap(null))
-    markers = []
-    map = null
-    // ✅ new:
-    if (resizeObs) { try { resizeObs.disconnect() } catch(_){} resizeObs = null }
-  }
-})
 
 /* Watchers */
 watch([() => props.open, () => props.listing?.listingId], async ([isOpen]) => {
@@ -680,9 +750,14 @@ watch(() => props.open, (isOpen) => {
       <!-- Title row -->
       <div class="title-row">
         <h3 class="mb-0 truncate listing-title">{{ active?.businessName || listing?.businessName }}</h3>
-        <a class="btn btn-outline-primary" :href="gmapsLink" target="_blank" rel="noopener">
-          <i class="fas fa-map-marker-alt me-2"></i>View in Maps
-        </a>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-primary" :href="gmapsLink" target="_blank" rel="noopener">
+            <i class="fas fa-map-marker-alt me-2"></i>View in Maps
+          </a>
+          <button class="btn btn-outline-danger" @click="openReportModal">
+            <i class="fas fa-flag me-2"></i>Report
+          </button>
+        </div>
       </div>
 
       <!-- Two-column layout -->
@@ -890,6 +965,49 @@ watch(() => props.open, (isOpen) => {
 
         </section>
       </div>
+
+      <!-- Report Modal -->
+      <div v-if="showReportModal" class="report-modal-backdrop" @click="closeReportModal">
+        <div class="report-modal" @click.stop>
+          <div class="report-modal-header">
+            <h4 class="mb-0">Report Listing</h4>
+            <button class="btn-close-custom" @click="closeReportModal">×</button>
+          </div>
+
+          <div class="report-modal-body">
+            <p class="text-muted mb-3">Help us keep the platform safe by reporting inappropriate or fraudulent listings.</p>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Reason for Report *</label>
+              <select v-model="reportReason" class="form-select">
+                <option value="">-- Select a reason --</option>
+                <option v-for="reason in reportReasons" :key="reason" :value="reason">{{ reason }}</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Explanation *</label>
+              <textarea
+                v-model="reportExplanation"
+                class="form-control"
+                rows="4"
+                placeholder="Please provide details about why you're reporting this listing..."
+                maxlength="500"
+              ></textarea>
+              <div class="text-end text-muted small mt-1">{{ reportExplanation.length }}/500</div>
+            </div>
+          </div>
+
+          <div class="report-modal-footer">
+            <button class="btn btn-secondary" @click="closeReportModal" :disabled="submittingReport">Cancel</button>
+            <button class="btn btn-danger" @click="submitReport" :disabled="submittingReport">
+              <span v-if="submittingReport" class="spinner-border spinner-border-sm me-2"></span>
+              {{ submittingReport ? 'Submitting...' : 'Submit Report' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
     </aside>
   </transition>
 </template>
@@ -1360,6 +1478,162 @@ h4, h5, h6 {
   .reviews-section .text-muted.small {
     font-size: 0.75rem;
     white-space: nowrap;
+  }
+
+  /* Report Modal Styles */
+  .report-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 1070;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .report-modal {
+    background: var(--color-bg-white);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+  }
+
+  .report-modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .report-modal-header h4 {
+    color: var(--color-text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .btn-close-custom {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+  }
+
+  .btn-close-custom:hover {
+    background: var(--color-bg-purple-tint);
+    color: var(--color-primary);
+  }
+
+  .report-modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+  }
+
+  .report-modal-body .form-label {
+    color: var(--color-text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .report-modal-body .form-select,
+  .report-modal-body .form-control {
+    background: var(--color-bg-white);
+    border: 2px solid var(--color-border);
+    color: var(--color-text-primary);
+    border-radius: 8px;
+    padding: 0.75rem;
+    transition: border-color 0.2s ease;
+  }
+
+  .report-modal-body .form-select:focus,
+  .report-modal-body .form-control:focus {
+    border-color: var(--color-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(75, 42, 166, 0.1);
+  }
+
+  .report-modal-body textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+
+  .report-modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+
+  .report-modal-footer .btn {
+    padding: 0.625rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+
+  .report-modal-footer .btn-secondary {
+    background: var(--color-bg-purple-tint);
+    color: var(--color-text-primary);
+    border: 2px solid var(--color-border);
+  }
+
+  .report-modal-footer .btn-secondary:hover:not(:disabled) {
+    background: var(--color-bg-white);
+    border-color: var(--color-primary);
+  }
+
+  .report-modal-footer .btn-danger {
+    background: #dc3545;
+    color: white;
+    border: none;
+  }
+
+  .report-modal-footer .btn-danger:hover:not(:disabled) {
+    background: #c82333;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+  }
+
+  .report-modal-footer .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 767.98px) {
+    .report-modal {
+      max-width: calc(100vw - 2rem);
+      max-height: calc(100vh - 2rem);
+    }
+
+    .report-modal-header,
+    .report-modal-body,
+    .report-modal-footer {
+      padding: 1rem;
+    }
+
+    .report-modal-footer {
+      flex-direction: column;
+    }
+
+    .report-modal-footer .btn {
+      width: 100%;
+    }
   }
 
   /* Better spacing */

@@ -19,10 +19,14 @@ import {
   limit as fsLimit
 } from 'firebase/firestore'
 import { useDarkMode } from '@/composables/useDarkMode'
+import { useMessageNotifications } from '@/composables/useMessageNotifications'
 import ListingDrawer from '../components/ListingDrawer.vue' // <-- keep same path as Home if needed
 
 // Initialize dark mode
 useDarkMode()
+
+// Message notifications
+const { markChatAsRead } = useMessageNotifications()
 
 const route = useRoute()
 const router = useRouter()
@@ -150,11 +154,19 @@ function selectChat(chat) {
 
   router.replace({ query: { chatId: chat.id } })
 
+  // Mark chat as read when selected
+  markChatAsRead(chat.id)
+
   if (unsubscribeMsgs) { unsubscribeMsgs(); unsubscribeMsgs = null }
 
   const q = query(collection(db, `chats/${chat.id}/messages`), orderBy('timestamp', 'asc'))
   unsubscribeMsgs = onSnapshot(q, (snap) => {
     messages.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    
+    // Mark as read when messages are loaded/updated (in case new messages arrive)
+    if (chat.id) {
+      markChatAsRead(chat.id)
+    }
   })
 
   const sellerId = getOtherUid(chat)

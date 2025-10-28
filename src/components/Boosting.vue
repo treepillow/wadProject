@@ -137,6 +137,12 @@
     // ✅ Handle success redirect from Stripe
     if (status === "success" && listingId && plan) {
       await applyBoost(listingId, plan);
+      
+      // Show success alert
+      const planNames = { "1day": "1 Day", "7days": "7 Days", "1month": "1 Month" };
+      const planName = planNames[plan] || plan;
+      alert(`🎉 Success! Your listing has been boosted for ${planName}. It will receive increased visibility on Explore & Trending pages!`);
+      
       router.replace("/profile#my");
       return;
     }
@@ -266,9 +272,13 @@
       });
   
       console.log(`✅ Boost applied to ${listingId} until ${newBoostedUntil.toDate()}`);
+      
+      // Success is already handled in onMounted when status === "success"
+      // This function is called from there, so we don't show alert here
+      // to avoid double alerts
     } catch (e) {
       console.error("❌ Failed to update boostedUntil:", e);
-      alert("Boost applied, but failed to update listing. Please refresh.");
+      alert("❌ Boost payment succeeded, but failed to update listing. Please contact support or refresh the page.");
     }
   }
   </script>

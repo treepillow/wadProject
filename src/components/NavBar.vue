@@ -5,7 +5,8 @@ import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
 import { getFirestore, doc, getDoc } from 'firebase/firestore'
 import userPng from '../assets/user.png'
 import DarkModeToggle from './DarkModeToggle.vue'
-import { Icon } from '@iconify/vue'; 
+import { Icon } from '@iconify/vue'
+import { useMessageNotifications } from '@/composables/useMessageNotifications' 
 
 const props = defineProps({
   // for about page - show login/signup instead of profile stuff
@@ -23,7 +24,13 @@ const loggingOut = ref(false)
 const isAdmin = ref(false)
 let unsubAuth = null
 
+// Message notifications
+const { unreadCount, startListening, stopListening } = useMessageNotifications()
+
 onMounted(() => {
+  // Start listening to message notifications
+  startListening()
+  
   unsubAuth = onAuthStateChanged(auth, async (u) => {
     user.value = u
     if (!u) {
@@ -51,7 +58,10 @@ onMounted(() => {
     }
   })
 })
-onBeforeUnmount(() => { unsubAuth && unsubAuth() })
+onBeforeUnmount(() => { 
+  unsubAuth && unsubAuth()
+  stopListening()
+})
 
 const isLoggedIn = computed(() => !!user.value)
 const showAuthCtas = computed(() => props.authCtasOnly)
@@ -157,10 +167,17 @@ async function logout() {
 
               <!-- Messages button -->
               <li class="nav-item order-mobile-4">
-                <RouterLink to="/chat" class="btn btn-brand mobile-nav-btn">
+                <RouterLink to="/chat" class="btn btn-brand mobile-nav-btn position-relative">
                   <Icon icon="mdi:email" class="icon-24" />
                   <span class="btn-text d-lg-none">Messages</span>
                   <span class="d-none d-lg-inline ms-1">Messages</span>
+                  <span 
+                    v-if="unreadCount > 0" 
+                    class="badge bg-danger position-absolute top-0 start-100 translate-middle notification-badge"
+                    style="font-size: 0.7rem; min-width: 18px; height: 18px; padding: 0 5px; display: flex; align-items: center; justify-content: center;"
+                  >
+                    {{ unreadCount > 99 ? '99+' : unreadCount }}
+                  </span>
                 </RouterLink>
               </li>
 
@@ -627,10 +644,22 @@ async function logout() {
     filter: invert(1);
   }
 
-  :root.dark-mode .navbar-nav .dropdown-item {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--color-text-white);
-  }
+:root.dark-mode .navbar-nav .dropdown-item {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-white);
+}
+
+/* Notification badge styling */
+.notification-badge {
+  border-radius: 10px;
+  font-weight: 600;
+  border: 2px solid var(--color-bg-white);
+  z-index: 10;
+}
+
+:root.dark-mode .notification-badge {
+  border-color: var(--color-bg-main);
+}
 }
 
 </style>

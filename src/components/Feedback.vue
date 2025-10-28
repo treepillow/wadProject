@@ -90,6 +90,7 @@ export default {
                     email: this.feedbackForm.email || null,
                     phone: this.feedbackForm.phone || null,
                     description: this.feedbackForm.description,
+                    reviewed: false,
                     createdAt: serverTimestamp(),
                 };
 

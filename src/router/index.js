@@ -14,6 +14,7 @@ import UserProfile from '../components/UserProfile.vue'
 import EmailVerified from '../components/EmailVerified.vue'
 import AdminDashboard from '../components/AdminDashboard.vue'
 import Feedback from '@/components/Feedback.vue';
+import ManageReport from '@/components/ManageReports.vue';
 
 import { auth, db } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -96,8 +97,13 @@ const router = createRouter({
     {
       path: '/feedback',
       name: 'feedback',
-      component: Feedback,
+      component: Feedback
     },
+    {
+      path: '/manageReport',
+      name: 'ManageReport',
+      component: ManageReport
+    }
   ],
 })
 

@@ -180,7 +180,19 @@
     if (!listing.value) return;
     checkingOut.value = true;
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4242';
+      // Use VITE_API_URL if set, otherwise use localhost for dev
+      // For production/Vercel, set VITE_API_URL in Vercel environment variables
+      const apiUrl = import.meta.env.VITE_API_URL || 
+        (import.meta.env.DEV ? 'http://localhost:4242' : '');
+      
+      if (!apiUrl) {
+        throw new Error('VITE_API_URL is not configured. Please set it in your environment variables.');
+      }
+      
+      // Create an AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const res = await fetch(`${apiUrl}/create-checkout-session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -188,18 +200,41 @@
           listingId: listing.value.id,
           planId: selectedPlanId.value,
         }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}: ${res.statusText}` }));
+        throw new Error(errorData.error || "Failed to create checkout session");
+      }
   
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create checkout session");
+      
+      if (!data.url) {
+        throw new Error("No checkout URL received from server");
+      }
   
       window.location.href = data.url; // Redirect to Stripe
     } catch (err) {
       console.error("Stripe checkout error:", err);
-      alert("Failed to start checkout. Please try again.");
-    } finally {
-      checkingOut.value = false;
+      
+      let errorMessage = "Failed to start checkout. Please try again.";
+      
+      if (err.name === 'AbortError') {
+        errorMessage = `The server at ${import.meta.env.VITE_API_URL || 'http://localhost:4242'} is not responding. Please make sure the backend server is running.`;
+      } else if (err.message.includes('Failed to fetch') || err.message.includes('network')) {
+        errorMessage = `Cannot connect to the payment server. Please make sure the backend server is running at ${import.meta.env.VITE_API_URL || 'http://localhost:4242'}.`;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      alert(errorMessage);
+      checkingOut.value = false; // Reset button state on error
     }
+    // Note: We don't reset checkingOut.value in finally anymore since we do it on error
+    // and on success we redirect, so it doesn't matter
   }
   
   /* ---------------- Apply Boost (STACK TIME) ---------------- */

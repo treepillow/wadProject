@@ -13,6 +13,7 @@ import Boosting from '../components/Boosting.vue'
 import UserProfile from '../components/UserProfile.vue'
 import EmailVerified from '../components/EmailVerified.vue'
 import AdminDashboard from '../components/AdminDashboard.vue'
+import Feedback from '@/components/Feedback.vue';
 
 import { auth, db } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -91,6 +92,11 @@ const router = createRouter({
       name: 'admin',
       component: AdminDashboard,
       meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/feedback',
+      name: 'feedback',
+      component: Feedback,
     },
   ],
 })

@@ -189,6 +189,16 @@ async function logout() {
                 </RouterLink>
               </li>
 
+              <li class="nav-item order-mobile-5">
+                <RouterLink to="/feedback" class="btn btn-brand mobile-nav-btn d-flex align-items-center">
+                  <!-- Feedback icon -->
+                  <Icon icon="mdi:comment" class="icon-24 me-2" />
+                  <!-- Report Issue icon -->
+                  <span class="btn-text">Feedback / Report Issue</span>
+                  <Icon icon="mdi:alert-circle" class="icon-24 mx-1" />
+                </RouterLink>
+              </li>
+
               <!-- Admin button (mobile only) -->
               <li v-if="isAdmin" class="nav-item order-mobile-6 d-lg-none">
                 <RouterLink to="/admin" class="btn btn-warning mobile-nav-btn">

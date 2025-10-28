@@ -1,4 +1,61 @@
+<script>
+import { ref, computed, onMounted } from 'vue'
+import { collection, getDocs, doc, updateDoc, getFirestore, query, orderBy } from 'firebase/firestore'
+import NavBar from './NavBar.vue';
+
+export default {
+    components: {NavBar},
+    setup() {
+        const submissions = ref([])
+        const filter = ref('all')
+        const dbInstance = getFirestore()
+
+        const fetchSubmissions = async () => {
+            const qFeedback = query(collection(dbInstance, 'feedback'), orderBy('createdAt', 'desc'))
+            const qIssues = query(collection(dbInstance, 'issues'), orderBy('createdAt', 'desc'))
+
+            const feedbackSnapshot = await getDocs(qFeedback)
+            const issuesSnapshot = await getDocs(qIssues)
+
+            const feedbacks = feedbackSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'feedback' }))
+            const issues = issuesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'issue' }))
+
+            submissions.value = [...feedbacks, ...issues].sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds || 0)
+        }
+
+        const markReviewed = async (item) => {
+            try {
+                const collectionName = item.type === 'feedback' ? 'feedback' : 'issues'
+                const docRef = doc(dbInstance, collectionName, item.id)
+                await updateDoc(docRef, { reviewed: true })
+                item.reviewed = true
+            } catch (err) {
+                console.error('Error marking reviewed:', err)
+            }
+        }
+
+        const formatDate = (timestamp) => {
+            if (!timestamp) return ''
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+            return date.toLocaleString()
+        }
+
+        const filteredSubmissions = computed(() => {
+            if (filter.value === 'all') return submissions.value
+            if (filter.value === 'reviewed') return submissions.value.filter(s => s.reviewed)
+            if (filter.value === 'unreviewed') return submissions.value.filter(s => !s.reviewed)
+            return submissions.value
+        })
+
+        onMounted(fetchSubmissions)
+
+        return { submissions, filteredSubmissions, filter, markReviewed, formatDate }
+    }
+}
+</script>
+
 <template>
+    <NavBar/>
     <div class="container my-5">
         <h2 class="text-center mb-4">User Feedback & Reported Issues</h2>
 
@@ -51,61 +108,6 @@
         </div>
     </div>
 </template>
-
-<script>
-import { ref, computed, onMounted } from 'vue'
-import { collection, getDocs, doc, updateDoc, getFirestore, query, orderBy } from 'firebase/firestore'
-import { db } from '@/firebase' // adjust to your firebase.js path
-
-export default {
-    setup() {
-        const submissions = ref([])
-        const filter = ref('all')
-        const dbInstance = getFirestore()
-
-        const fetchSubmissions = async () => {
-            const qFeedback = query(collection(dbInstance, 'feedback'), orderBy('createdAt', 'desc'))
-            const qIssues = query(collection(dbInstance, 'issues'), orderBy('createdAt', 'desc'))
-
-            const feedbackSnapshot = await getDocs(qFeedback)
-            const issuesSnapshot = await getDocs(qIssues)
-
-            const feedbacks = feedbackSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'feedback' }))
-            const issues = issuesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'issue' }))
-
-            submissions.value = [...feedbacks, ...issues].sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds || 0)
-        }
-
-        const markReviewed = async (item) => {
-            try {
-                const collectionName = item.type === 'feedback' ? 'feedback' : 'issues'
-                const docRef = doc(dbInstance, collectionName, item.id)
-                await updateDoc(docRef, { reviewed: true })
-                item.reviewed = true
-            } catch (err) {
-                console.error('Error marking reviewed:', err)
-            }
-        }
-
-        const formatDate = (timestamp) => {
-            if (!timestamp) return ''
-            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
-            return date.toLocaleString()
-        }
-
-        const filteredSubmissions = computed(() => {
-            if (filter.value === 'all') return submissions.value
-            if (filter.value === 'reviewed') return submissions.value.filter(s => s.reviewed)
-            if (filter.value === 'unreviewed') return submissions.value.filter(s => !s.reviewed)
-            return submissions.value
-        })
-
-        onMounted(fetchSubmissions)
-
-        return { submissions, filteredSubmissions, filter, markReviewed, formatDate }
-    }
-}
-</script>
 
 <style scoped>
 .card {

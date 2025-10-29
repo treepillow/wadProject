@@ -3,7 +3,6 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { db } from '@/firebase'
 import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore'
-import NavBar from './NavBar.vue'
 import ListingCard from './ListingCard.vue'
 
 const route = useRoute()
@@ -86,8 +85,6 @@ onMounted(() => {
 
 <template>
   <div class="container-fluid bg-page">
-    <NavBar />
-
     <div class="container py-5">
       <!-- Loading State -->
       <div v-if="loading" class="d-flex justify-content-center my-5">

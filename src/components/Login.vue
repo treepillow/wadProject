@@ -154,8 +154,8 @@ export default {
         const userDoc = await getDoc(userDocRef);
 
         if (!userDoc.exists() || !userDoc.data().profileComplete) {
-          this.showNotification("Incomplete sign up details. Please sign up again using the same email to complete your profile.", "danger");
-          await auth.signOut();
+          this.showNotification("Your profile setup is incomplete. Redirecting to complete your profile...", "warning");
+          // Don't sign out - let them complete their profile
           setTimeout(() => {
             this.$router.replace("/signup");
           }, 2000);
@@ -195,8 +195,8 @@ export default {
         const userDoc = await getDoc(userDocRef);
 
         if (!userDoc.exists() || !userDoc.data().profileComplete) {
-          this.showNotification("Incomplete sign up details. Please sign up again using the same email to complete your profile.", "danger");
-          await auth.signOut();
+          this.showNotification("Your profile setup is incomplete. Redirecting to complete your profile...", "warning");
+          // Don't sign out - let them complete their profile
           setTimeout(() => {
             this.$router.replace("/signup");
           }, 2000);

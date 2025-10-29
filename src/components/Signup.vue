@@ -79,12 +79,19 @@
             </div>
 
             <!-- Phone -->
-            <input
-              type="text"
-              placeholder="Phone Number (include +65, e.g. +65XXXXXXXX)"
-              v-model="signup.phone"
-              required
-            />
+            <div class="phone-input-wrapper">
+              <span class="phone-prefix">+65</span>
+              <input
+                type="text"
+                placeholder="Phone Number (8 digits)"
+                v-model="phoneNumber"
+                @input="handlePhoneInput"
+                maxlength="8"
+                pattern="[0-9]{8}"
+                required
+                class="phone-input-field"
+              />
+            </div>
 
             <!-- Email Verification Section -->
             <div class="verification-container">
@@ -329,6 +336,7 @@ export default {
   },
   data() {
     return {
+      phoneNumber: "", // Just the 8 digits
       signup: {
         username: "",
         email: "",
@@ -378,6 +386,14 @@ export default {
     };
   },
   methods: {
+    handlePhoneInput(e) {
+      // Only allow digits
+      const value = e.target.value.replace(/\D/g, '').slice(0, 8);
+      this.phoneNumber = value;
+      // Update the full phone number with +65 prefix
+      this.signup.phone = value ? `+65${value}` : '';
+    },
+
     showNotification(message, type = "danger") {
       this.notification = {
         show: true,
@@ -977,6 +993,32 @@ button.signup-btn:hover { transform: scale(1.05); }
 }
 :root.dark-mode .dob-container input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
+}
+
+/* Phone Input with +65 prefix */
+.phone-input-wrapper {
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid var(--color-border-dark);
+  gap: 8px;
+}
+.phone-prefix {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  padding: 10px 0;
+  padding-left: 10px;
+  white-space: nowrap;
+}
+.phone-input-field {
+  flex: 1;
+  border: none !important;
+  border-bottom: none !important;
+  padding: 10px !important;
+  background: transparent;
+  color: var(--color-text-primary);
+}
+.phone-input-field:focus {
+  outline: none;
 }
 
 .profile-picture-container { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

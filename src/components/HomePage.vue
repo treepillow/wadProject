@@ -8,7 +8,6 @@ import {
 import { onAuthStateChanged } from 'firebase/auth'
 import { db, auth } from '@/firebase'
 
-import NavBar from './NavBar.vue'
 import SearchBar from './SearchBar.vue'
 import Categories from './Categories.vue'
 import ListingCard from './ListingCard.vue'
@@ -374,8 +373,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="page-wrapper">
-    <NavBar />
-
     <div class="content-container py-3">
       <SearchBar @search="handleSearch" />
       <div class="categories-row mt-3">

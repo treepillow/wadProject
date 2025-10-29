@@ -75,6 +75,33 @@ async function logout() {
     loggingOut.value = false
   }
 }
+
+// Close mobile menu when navigation link is clicked
+function closeNavbar() {
+  const navbarCollapse = document.getElementById('mainNav')
+  if (!navbarCollapse) return
+
+  // Only close if it's currently open
+  if (navbarCollapse.classList.contains('show')) {
+    // Remove both show and collapsing classes for instant close
+    navbarCollapse.classList.remove('show', 'collapsing')
+
+    // Force immediate transition by setting a temporary no-transition class
+    navbarCollapse.style.transition = 'none'
+
+    // Reset transition after a frame
+    requestAnimationFrame(() => {
+      navbarCollapse.style.transition = ''
+    })
+
+    // Update the toggler button's state
+    const navbarToggler = document.querySelector('.navbar-toggler')
+    if (navbarToggler) {
+      navbarToggler.classList.add('collapsed')
+      navbarToggler.setAttribute('aria-expanded', 'false')
+    }
+  }
+}
 </script>
 
 <template>
@@ -125,7 +152,7 @@ async function logout() {
               <!-- Profile button -->
               <li class="nav-item order-mobile-1 order-lg-last">
                 <!-- Mobile: Profile button -->
-                <RouterLink to="/profile" class="btn btn-brand d-lg-none mobile-nav-btn">
+                <RouterLink to="/profile" class="btn btn-brand d-lg-none mobile-nav-btn" @click="closeNavbar">
                   <Icon icon="mdi:account" class="icon-24" />
                   <span class="btn-text">Profile</span>
                 </RouterLink>
@@ -149,7 +176,7 @@ async function logout() {
 
               <!-- My Listings button -->
               <li class="nav-item order-mobile-2">
-                <RouterLink to="/profile?tab=my" class="btn btn-brand mobile-nav-btn">
+                <RouterLink to="/profile?tab=my" class="btn btn-brand mobile-nav-btn" @click="closeNavbar">
                   <Icon icon="mdi:store" class="icon-24" />
                   <span class="btn-text d-lg-none">My Listings</span>
                   <span class="d-none d-lg-inline ms-1">My Listings</span>
@@ -158,7 +185,7 @@ async function logout() {
 
               <!-- Liked button -->
               <li class="nav-item order-mobile-3">
-                <RouterLink to="/profile?tab=liked" class="btn btn-brand mobile-nav-btn">
+                <RouterLink to="/profile?tab=liked" class="btn btn-brand mobile-nav-btn" @click="closeNavbar">
                   <Icon icon="mdi:heart" class="icon-24" />
                   <span class="btn-text d-lg-none">Liked</span>
                   <span class="d-none d-lg-inline ms-1">Liked</span>
@@ -167,12 +194,12 @@ async function logout() {
 
               <!-- Messages button -->
               <li class="nav-item order-mobile-4">
-                <RouterLink to="/chat" class="btn btn-brand mobile-nav-btn position-relative">
+                <RouterLink to="/chat" class="btn btn-brand mobile-nav-btn position-relative" @click="closeNavbar">
                   <Icon icon="mdi:email" class="icon-24" />
                   <span class="btn-text d-lg-none">Messages</span>
                   <span class="d-none d-lg-inline ms-1">Messages</span>
-                  <span 
-                    v-if="unreadCount > 0" 
+                  <span
+                    v-if="unreadCount > 0"
                     class="badge bg-danger position-absolute top-0 start-100 translate-middle notification-badge"
                     style="font-size: 0.7rem; min-width: 18px; height: 18px; padding: 0 5px; display: flex; align-items: center; justify-content: center;"
                   >
@@ -183,14 +210,14 @@ async function logout() {
 
               <!-- Create button -->
               <li class="nav-item order-mobile-5">
-                <RouterLink to="/createService" class="btn btn-brand mobile-nav-btn">
+                <RouterLink to="/createService" class="btn btn-brand mobile-nav-btn" @click="closeNavbar">
                   <Icon icon="mdi:plus-circle" class="icon-24" />
                   <span class="btn-text">Create Listing</span>
                 </RouterLink>
               </li>
 
               <li class="nav-item order-mobile-5">
-                <RouterLink to="/feedback" class="btn btn-brand mobile-nav-btn d-flex align-items-center">
+                <RouterLink to="/feedback" class="btn btn-brand mobile-nav-btn d-flex align-items-center" @click="closeNavbar">
                   <!-- Feedback icon -->
                   <Icon icon="mdi:comment" class="icon-24 me-2" />
                   <!-- Report Issue icon -->

@@ -1,12 +1,11 @@
 <script>
-import NavBar from './NavBar.vue'
 import { useDarkMode } from '@/composables/useDarkMode'
 import { useRoute, useRouter } from 'vue-router'
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/firebase"
 
 export default {
-    components: { NavBar },
+    components: { },
 
     setup() {
         useDarkMode()
@@ -123,8 +122,6 @@ export default {
 </script>
 
 <template>
-  <NavBar />
-
   <div class="container my-5">
     <h2 class="text-center mb-4">Share Feedback or Report an Issue</h2>
 

@@ -3,7 +3,6 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { auth, db } from '@/firebase'
 import { collection, query, orderBy, getDocs, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
-import NavBar from './NavBar.vue'
 
 const router = useRouter()
 const loading = ref(true)
@@ -204,8 +203,6 @@ function getStatusBadgeClass(status) {
 
 <template>
   <div class="admin-page">
-    <NavBar />
-
     <div class="container-fluid py-4">
       <div class="admin-container">
         <div class="admin-header mb-4">

@@ -1,6 +1,5 @@
 <template>
     <div class="bg-page min-vh-100">
-      <NavBar />
       <div class="container py-4">
         <div v-if="loading" class="text-center py-5">
           <div class="spinner-border"></div>
@@ -101,7 +100,6 @@
   <script setup>
   import { ref, computed, onMounted } from "vue";
   import { useRoute, useRouter } from "vue-router";
-  import NavBar from "@/components/NavBar.vue";
   import ListingCard from "@/components/ListingCard.vue";
   import { getFirestore, doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
   

@@ -1,10 +1,9 @@
 <script>
 import { ref, computed, onMounted } from 'vue'
 import { collection, getDocs, doc, updateDoc, getFirestore, query, orderBy } from 'firebase/firestore'
-import NavBar from './NavBar.vue';
 
 export default {
-    components: {NavBar},
+    components: {},
     setup() {
         const submissions = ref([])
         const filter = ref('all')
@@ -55,7 +54,6 @@ export default {
 </script>
 
 <template>
-    <NavBar/>
     <div class="container my-5">
         <h2 class="text-center mb-4">User Feedback & Reported Issues</h2>
 

@@ -1,13 +1,10 @@
 <script setup>
-import NavBar from './NavBar.vue'
 import SearchBar from './SearchBar.vue'
 import ChatBox from './ChatBox.vue'
 </script>
 
 <template>
   <div>
-    <NavBar />
-
     <!-- Top section (search) -->
     <div class="container py-3">
       <SearchBar />

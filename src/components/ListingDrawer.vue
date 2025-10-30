@@ -588,6 +588,7 @@ const totalReviews = ref(0)
 
 // Review form state
 const userRating = ref(0)
+const hoverRating = ref(0)
 const userReviewText = ref('')
 const submittingReview = ref(false)
 const reviewError = ref('')
@@ -1005,12 +1006,12 @@ watch(() => props.open, (isOpen) => {
                 <!-- Star Rating Input -->
                 <div class="mb-2">
                   <label class="form-label small mb-1">Your Rating:</label>
-                  <div class="stars-input">
+                  <div class="stars-input" @mouseleave="hoverRating = 0">
                     <span v-for="i in 5" :key="i"
                           class="star"
-                          :class="{ filled: i <= userRating, hover: i <= userRating }"
+                          :class="{ filled: i <= userRating, hover: hoverRating > 0 && i <= hoverRating }"
                           @click="userRating = i"
-                          @mouseenter="userRating = i">★</span>
+                          @mouseenter="hoverRating = i">★</span>
                   </div>
                 </div>
 
@@ -1080,7 +1081,7 @@ watch(() => props.open, (isOpen) => {
                             <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= review.rating }">★</span>
                           </div>
                         </div>
-                        <p class="mb-1 small">{{ review.reviewText }}</p>
+                        <p class="mb-1 small">{{ review.reviewText || review.comment }}</p>
                         <span class="text-muted xsmall">{{ formatDate(review.createdAt) }}</span>
                       </div>
                     </div>
@@ -1468,7 +1469,18 @@ watch(() => props.open, (isOpen) => {
 
 .stars-display .star.filled,
 .stars-display-small .star.filled {
-  color: #ffc107;
+  color: #ffc107 !important;
+}
+
+/* Dark mode for display stars */
+:root.dark-mode .stars-display .star,
+:root.dark-mode .stars-display-small .star {
+  color: #666;
+}
+
+:root.dark-mode .stars-display .star.filled,
+:root.dark-mode .stars-display-small .star.filled {
+  color: #ffc107 !important;
 }
 
 .stars-input {
@@ -1480,6 +1492,8 @@ watch(() => props.open, (isOpen) => {
 .stars-input .star {
   font-size: 28px;
   transition: all 0.2s ease;
+  color: #ddd;
+  cursor: pointer;
 }
 
 .stars-input .star:hover,

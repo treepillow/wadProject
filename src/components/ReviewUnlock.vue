@@ -220,7 +220,7 @@ export default {
           userId: user.uid,
           username: userData.username || 'Anonymous',
           rating: rating.value,
-          comment: comment.value.trim(),
+          reviewText: comment.value.trim(),
           createdAt: serverTimestamp()
         })
 

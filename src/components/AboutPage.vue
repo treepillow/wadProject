@@ -41,9 +41,10 @@ async function fetchRealReviews() {
         const reviewData = reviewDoc.data()
 
         // only include reviews with actual text and rating >= 4
-        if (reviewData.rating >= 4 && reviewData.comment && reviewData.comment.trim().length > 20) {
+        const reviewComment = reviewData.reviewText || reviewData.comment || ''
+        if (reviewData.rating >= 4 && reviewComment && reviewComment.trim().length > 20) {
           // fetch user data
-          let userName = reviewData.userName || 'Anonymous'
+          let userName = reviewData.userName || reviewData.username || 'Anonymous'
           let userLocation = 'Singapore'
 
           if (reviewData.userId) {
@@ -66,7 +67,7 @@ async function fetchRealReviews() {
           }
 
           allReviews.push({
-            text: reviewData.comment,
+            text: reviewComment,
             rating: reviewData.rating,
             userName: userName,
             userLocation: userLocation,

@@ -51,6 +51,7 @@ export default {
     const phone       = ref('')
     const dateOfBirth = ref('')   // ISO for <input type="date">
     const address     = ref('')
+    const addressObj  = ref(null)  // Store original address object
     const averageRating = ref(0)
     const totalReviews = ref(0)
 
@@ -250,11 +251,26 @@ export default {
           dateOfBirth.value = d.dateOfBirth || ''
           if (d.address) {
             const a = d.address
-            address.value = a.blk || a.street || a.postal || a.unit
-              ? `${a.blk || ''} ${a.street || ''} ${a.unit || ''} ${a.postal || ''}`.trim()
-              : ''
+            // Check if address is a string or object
+            if (typeof a === 'string') {
+              // Address is already a string
+              address.value = a
+              addressObj.value = null
+              console.log('[Profile] Loaded address as string:', address.value)
+            } else {
+              // Address is an object
+              addressObj.value = a
+              const parts = []
+              if (a.blk) parts.push(a.blk)
+              if (a.street) parts.push(a.street)
+              if (a.unit) parts.push(a.unit)
+              if (a.postal) parts.push(a.postal)
+              address.value = parts.join(' ').trim()
+              console.log('[Profile] Loaded address from object:', address.value, a)
+            }
           } else {
             address.value = ''
+            addressObj.value = null
           }
           avatarUrl.value = d.photoURL || d.profilePicture || u.photoURL || ''
           averageRating.value = d.averageRating || 0
@@ -420,17 +436,26 @@ export default {
           await uploadBytes(sref, avatarFile.value, { contentType: avatarFile.value.type })
           photoURL = await getDownloadURL(sref)
         }
-        await updateDoc(doc(db, 'users', user.value.uid), {
+        // Prepare update data
+        const updateData = {
           username: u,
           firstName: firstName.value.trim(),
           lastName:  lastName.value.trim(),
           phone: ph,
           dateOfBirth: (dateOfBirth.value || '').trim(),
-          address: address.value.trim(),
           email: email.value || user.value.email || '',
           photoURL,
           updatedAt: serverTimestamp()
-        })
+        }
+
+        // Update address - use object if available, otherwise use string
+        if (addressObj.value) {
+          updateData.address = addressObj.value
+        } else if (address.value) {
+          updateData.address = address.value.trim()
+        }
+
+        await updateDoc(doc(db, 'users', user.value.uid), updateData)
         ok.value = 'Profile saved!'
       } catch (e) {
         console.error(e); err.value = 'Failed to save. Please try again.'

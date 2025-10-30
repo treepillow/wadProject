@@ -225,11 +225,20 @@
           <form @submit.prevent="submitGoogleDetails">
             <!-- Password for Google users -->
             <div class="password-container">
-              <input :type="showPassword ? 'text' : 'password'" v-model="signup.password" placeholder="Create a Password" required />
+              <input :type="showPassword ? 'text' : 'password'" v-model="signup.password" placeholder="Create a Password" required minlength="6" />
               <span class="toggle-password" @click="showPassword = !showPassword">
                 <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
               </span>
             </div>
+
+            <!-- Confirm Password -->
+            <div class="password-container">
+              <input :type="showPassword ? 'text' : 'password'" v-model="confirmPassword" placeholder="Confirm Password" required />
+              <span class="toggle-password" @click="showPassword = !showPassword">
+                <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
+              </span>
+            </div>
+            <small v-if="passwordMismatch" class="error-text">Passwords do not match</small>
 
             <!-- Names -->
             <input type="text" placeholder="First Name" v-model="signup.firstName" required />
@@ -367,7 +376,7 @@
 <script>
 import AuthLayout from "./AuthLayout.vue";
 import { auth, db } from "../firebase";
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from "firebase/auth";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendEmailVerification, updatePassword } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { useDarkMode } from "@/composables/useDarkMode";
 
@@ -479,6 +488,8 @@ export default {
       },
       showDetailsPopup: false,
       showPassword: false,
+      confirmPassword: '',
+      passwordMismatch: false,
       currentUserUid: null,
       googleLoading: false,
 
@@ -735,6 +746,18 @@ export default {
         const uid = this.currentUserUid || auth.currentUser?.uid;
         if (!uid) return this.showNotification("User not found.", "danger");
 
+        // Validate password
+        if (!this.signup.password || this.signup.password.length < 6) {
+          this.showNotification("Password must be at least 6 characters.", "danger");
+          return;
+        }
+        if (this.signup.password !== this.confirmPassword) {
+          this.passwordMismatch = true;
+          this.showNotification("Passwords do not match.", "danger");
+          return;
+        }
+        this.passwordMismatch = false;
+
         // Validate username
         const username = this.signup.username.trim();
         if (!username) {
@@ -779,6 +802,16 @@ export default {
 
         // For Google users, email is already verified
         const user = auth.currentUser;
+
+        // Set password for Google user so they can login with email/password
+        try {
+          await updatePassword(user, this.signup.password);
+          console.log('Password set successfully for Google user');
+        } catch (passwordError) {
+          console.error('Error setting password:', passwordError);
+          this.showNotification(`Failed to set password: ${passwordError.message}`, "danger");
+          return;
+        }
 
         // Check if user profile already exists and is complete
         const userDocRef = doc(db, "users", uid);

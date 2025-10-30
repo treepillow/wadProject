@@ -37,6 +37,12 @@ const bookingTime = ref('')
 const bookingMessage = ref('')
 const submittingBooking = ref(false)
 
+// Socials
+const instagramHandle = ref('')
+const telegramHandle = ref('')
+const loadingHandles = ref(false)
+const handleError = ref('')
+
 const reportReasons = [
   'Scam/Fraud',
   'Inappropriate Content',
@@ -190,7 +196,50 @@ function onEsc(e){
     }
   }
 }
-onMounted(() => document.addEventListener('keydown', onEsc))
+
+async function fetchUserHandles(userId) {
+  if (!userId) return
+
+  try {
+    const userDocRef = doc(db, 'users', userId)
+    const userSnap = await getDoc(userDocRef)
+
+    if (!userSnap.exists()) {
+      console.warn('User not found:', userId)
+      return
+    }
+
+    const userData = userSnap.data() || {}
+
+    instagramHandle.value = userData.instagram || ''
+    telegramHandle.value = userData.telegram || ''
+
+    console.log('Fetched handles:', instagramHandle.value, telegramHandle.value)
+
+  } catch (e) {
+    console.error('Error fetching user handles:', e)
+  }
+}
+
+watch(
+  () => props.listing?.userId,
+  (newUserId) => {
+    if (newUserId) {
+      fetchUserHandles(newUserId)
+    } else {
+      instagramHandle.value = ''
+      telegramHandle.value = ''
+    }
+  },
+  { immediate: true } // fetch immediately on component mount
+)
+
+onMounted(() => {
+  document.addEventListener('keydown', onEsc)
+  if (props.listing?.userId) {
+      fetchUserHandles(props.listing.userId)
+    }
+})
 onBeforeUnmount(() => document.removeEventListener('keydown', onEsc))
 
 /* Hours helpers */
@@ -802,6 +851,7 @@ async function updateSellerRating(sellerId, newRating) {
 watch(() => props.listing?.listingId || props.listing?.id, (newId) => {
   if (newId && props.open) {
     fetchReviews()
+    fetchUserHandles(props.listing.userId)
   }
 }, { immediate: true })
 
@@ -866,6 +916,12 @@ watch(() => props.open, (isOpen) => {
             <SellerBadge :points="listing?.sellerStats ? (listing.sellerStats.reviews||0)+(listing.sellerStats.boosts||0)*5 : 0" :progress="false" />
           </div>
         </div>
+            <a v-if="instagramHandle" :href="`https://instagram.com/${instagramHandle}`" target="_blank" rel="noopener">
+          <img src="/src/assets/instagram.png" alt="Instagram" style="width:22px;height:22px;" />
+        </a>
+        <a v-if="telegramHandle" :href="`https://t.me/${telegramHandle}`" target="_blank" rel="noopener">
+          <img src="/src/assets/telegram.png" alt="Telegram" style="width:22px;height:22px;" />
+        </a>
         <span class="badge text-bg-primary">{{ active?.businessCategory || listing?.businessCategory }}</span>
       </div>
 

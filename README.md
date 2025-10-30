@@ -1,117 +1,84 @@
-# wad-project
+# Home Business Platform
 
-This template should help get you started developing with Vue 3 in Vite.
+A web application for discovering and connecting with local home businesses in Singapore.
 
-## Recommended IDE Setup
+## Prerequisites
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- Node.js (version 20.19.0 or higher)
+- npm (comes with Node.js)
 
-## Recommended Browser Setup
+## Installation
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd) 
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+Clone the repository and install dependencies:
 
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
+```bash
 npm install
 ```
 
-### Running the Application
+## Running the Application
 
-**IMPORTANT: You need to run BOTH the frontend AND backend servers for the Stripe boost feature to work.**
+Start the frontend development server:
+```bash
+npm run dev
+```
 
-1. **Frontend (Vite dev server):**
-   ```sh
-   npm run dev
-   ```
+Start the backend server (required for payment features):
+```bash
+npm run server
+```
 
-2. **Backend (Stripe payment server):**
-   ```sh
-   npm run server
-   # or
-   npm start
-   ```
+The frontend will be available at `http://localhost:5173`
+The backend runs on port 4242
 
-   The backend server will run on port 4242 by default (or the port specified in `PORT` env variable).
+## Environment Variables
 
-### Testing on Vercel Deployment
+Create a `.env` file in the root directory with the following:
 
-**For testing with your Vercel deployment (`https://homes-beige.vercel.app`):**
+```
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
 
-You have **two options**:
+STRIPE_SECRET_KEY=your_stripe_secret_key
+VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+PRICE_ID_1D=price_id_for_1_day
+PRICE_ID_7D=price_id_for_7_days
+PRICE_ID_30D=price_id_for_30_days
+```
 
-#### Option 1: Backend deployed (Recommended for production testing)
-1. Deploy `server.js` to Render, Railway, or another hosting service
-2. In Vercel dashboard → Settings → Environment Variables, add:
-   - `VITE_API_URL` = Your deployed backend URL (e.g., `https://your-backend.onrender.com`)
-3. Redeploy your Vercel frontend
+## Testing Payments
 
-#### Option 2: Local backend with Vercel frontend (For quick testing)
-This **WON'T work** because Vercel can't reach `localhost:4242`. You need to:
-- Either test fully locally (`localhost:5173` → `localhost:4242`)
-- Or deploy the backend first (Option 1)
+Use Stripe test cards for testing payment features:
+- Card: `4242 4242 4242 4242`
+- Expiry: Any future date
+- CVC: Any 3 digits
+- ZIP: Any 5 digits
 
-**Current setup check:**
-- Your frontend is at: `https://homes-beige.vercel.app`
-- Your backend needs to be deployed somewhere or run locally
-- If backend is deployed, set `VITE_API_URL` in Vercel to point to it
+## Features
 
-### Environment Variables
+- User authentication (Email/Password and Google Sign-In)
+- Browse businesses by category
+- Booking system with QR codes
+- Reviews and ratings
+- Stripe payment integration
+- Admin dashboard
+- Dark mode support
 
-Make sure your `.env` file contains:
-- `STRIPE_SECRET_KEY` - Your Stripe secret key (use `sk_test_...` for testing, `sk_live_...` for production)
-- `PRICE_ID_1D` - Stripe Price ID for 1 day boost
-- `PRICE_ID_7D` - Stripe Price ID for 7 days boost
-- `PRICE_ID_30D` - Stripe Price ID for 1 month boost
-- `FRONTEND_URL` - Your frontend URL (defaults to https://homes-beige.vercel.app)
+## Tech Stack
 
-### Stripe Keys: Test vs Live
+- Vue.js 3
+- Firebase (Authentication & Firestore)
+- Stripe
+- Bootstrap 5
+- Express.js
+- Vite
 
-- **Use TEST keys (`sk_test_...`)** when:
-  - Developing locally
-  - Testing payment flows
-  - Not ready to process real payments
-  
-- **Use LIVE keys (`sk_live_...`)** when:
-  - The application is in production
-  - You want to process real payments
-  - You've thoroughly tested everything with test keys first
+## Build for Production
 
-**⚠️ Warning:** Never commit live Stripe keys to version control. Always use environment variables.
-
-### Testing Payments
-
-With TEST Stripe keys, you can use Stripe's test card numbers. See `STRIPE_TEST_CARDS.md` for a complete list of test cards.
-
-**Quick test card:**
-- **Card:** `4242 4242 4242 4242`
-- **Expiry:** Any future date (e.g., `12/34`)
-- **CVC:** Any 3 digits (e.g., `123`)
-- **ZIP:** Any 5 digits (e.g., `12345`)
-
-### Troubleshooting
-
-**"Boost with Stripe" button loads forever:**
-- ✅ Make sure the backend server is running (`npm run server`)
-- ✅ Check that port 4242 is available
-- ✅ Verify `.env` file has all required Stripe keys
-
-**Payment fails:**
-- ✅ Ensure you're using TEST keys and test card numbers (see above)
-- ✅ Check browser console for errors
-- ✅ Check backend server console for errors
-
-### Compile and Minify for Production
-
-```sh
+```bash
 npm run build
 ```

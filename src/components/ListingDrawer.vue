@@ -1259,6 +1259,17 @@ watch(() => props.open, (isOpen) => {
 :root.dark-mode .close-btn {
   --btn-close-invert: 1;
 }
+
+/* Dark mode button text fix */
+:root.dark-mode .btn-outline-primary {
+  color: var(--color-text-white) !important;
+  border-color: var(--color-primary);
+}
+
+:root.dark-mode .btn-outline-primary:hover {
+  color: var(--color-text-white) !important;
+  background: var(--color-primary);
+}
 .header {
   padding-right: 20px; /* Extra space so badge doesn't touch close button */
   margin-bottom: 1.5rem;

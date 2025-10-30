@@ -38,23 +38,25 @@ onMounted(() => {
       return
     }
 
-    // First, set the avatar from Firebase Auth immediately to avoid "User avatar" text
-    avatarUrl.value = u.photoURL || userPng
+    // Start with default avatar
+    avatarUrl.value = userPng
 
-    // Then try to get the stored photoURL from Firestore
+    // Try to get the stored photoURL from Firestore (ignore Google profile pics)
     try {
       const snap = await getDoc(doc(db, 'users', u.uid))
       if (snap.exists()) {
         const data = snap.data()
-        // Prefer Firestore photoURL, fallback to Firebase Auth photoURL, then default
-        const url = data.photoURL || data.profilePicture || u.photoURL || userPng
+        // Only use Firestore photoURL/profilePicture if it exists
+        // Don't use Google profile picture (u.photoURL)
+        const url = data.photoURL || data.profilePicture || userPng
         avatarUrl.value = url
         // Check if user is admin
         isAdmin.value = data.isAdmin || false
       }
     } catch (err) {
       console.error('Error loading user avatar:', err)
-      // Keep the Firebase Auth photoURL on error
+      // Keep default avatar on error
+      avatarUrl.value = userPng
     }
   })
 })
@@ -256,7 +258,7 @@ function closeNavbar() {
 
 <style scoped>
 .bg-page {
-  background: var(--color-bg-white) !important;
+  background: var(--color-bg-main) !important;
   transition: background var(--transition-normal);
 }
 
@@ -364,6 +366,17 @@ function closeNavbar() {
   width: auto;  /* Allow width to adapt based on content */
 }
 
+/* Dark mode button text fix */
+:root.dark-mode .btn-outline-primary {
+  color: var(--color-text-white) !important;
+  border-color: var(--color-primary);
+}
+
+:root.dark-mode .btn-outline-primary:hover {
+  color: var(--color-text-white) !important;
+  background: var(--color-primary);
+}
+
 /* Mobile responsive buttons */
 @media (max-width: 575.98px) {
   .btn-brand,
@@ -458,6 +471,37 @@ function closeNavbar() {
   border-radius: 12px;
   border: 1px solid rgba(0,0,0,.06);
   box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
+}
+
+.dropdown-item {
+  color: var(--color-text-primary);
+}
+
+.dropdown-item:hover {
+  background: var(--color-bg-purple-tint);
+  color: var(--color-text-primary);
+}
+
+/* Dark mode dropdown styling */
+:root.dark-mode .dropdown-menu {
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+
+:root.dark-mode .dropdown-item {
+  color: var(--color-text-primary);
+}
+
+:root.dark-mode .dropdown-item:hover {
+  background: var(--color-bg-purple-tint);
+  color: var(--color-text-primary);
+}
+
+:root.dark-mode .dropdown-divider {
+  border-color: var(--color-border);
 }
 
 /* Navbar Toggler */

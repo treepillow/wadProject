@@ -114,14 +114,42 @@ const router = createRouter({
 })
 
 
-// --- Auth guard ---
+// --- Auth guard with caching ---
+let cachedUser = null;
+let cachedUserData = null;
+let lastFetchTime = 0;
+const CACHE_DURATION = 5000; // Cache for 5 seconds
+
 function getCurrentUser() {
   return new Promise((resolve) => {
     const unsub = onAuthStateChanged(auth, (user) => {
       unsub();
+      cachedUser = user;
       resolve(user);
     });
   });
+}
+
+async function getUserData(uid) {
+  const now = Date.now();
+
+  // Return cached data if still valid
+  if (cachedUserData && cachedUserData.uid === uid && (now - lastFetchTime) < CACHE_DURATION) {
+    return cachedUserData.data;
+  }
+
+  // Fetch fresh data
+  const userDocRef = doc(db, "users", uid);
+  const userDoc = await getDoc(userDocRef);
+
+  // Update cache
+  cachedUserData = {
+    uid: uid,
+    data: userDoc.exists() ? userDoc.data() : null
+  };
+  lastFetchTime = now;
+
+  return cachedUserData.data;
 }
 
 router.beforeEach(async (to, _from, next) => {
@@ -137,15 +165,14 @@ router.beforeEach(async (to, _from, next) => {
 
   // Check if authenticated user has completed profile
   if (user && to.meta.requiresAuth && to.name !== 'signup') {
-    const userDocRef = doc(db, "users", user.uid);
-    const userDoc = await getDoc(userDocRef);
+    const userData = await getUserData(user.uid);
 
-    if (!userDoc.exists() || !userDoc.data().profileComplete) {
+    if (!userData || !userData.profileComplete) {
       return next({ name: "signup" });
     }
 
     // Check if route requires admin privileges
-    if (to.meta.requiresAdmin && !userDoc.data().isAdmin) {
+    if (to.meta.requiresAdmin && !userData.isAdmin) {
       return next({ name: "home" });
     }
   }

@@ -48,9 +48,9 @@
   --color-bg-main: #1a1a1a;  /* Dark background */
   --color-bg-white: #2d2d2d;  /* Dark cards */
   --color-bg-purple-tint: #2a2436;  /* Dark purple tint */
-  --color-text-primary: #e5e5e5;  /* Light text */
-  --color-text-secondary: #b0b0b0;  /* Gray text */
-  --color-text-light: #888;  /* Lighter gray */
+  --color-text-primary: #ffffff;  /* White text for dark mode */
+  --color-text-secondary: #e5e5e5;  /* Light gray text */
+  --color-text-light: #b0b0b0;  /* Lighter gray */
   --color-border: #404040;  /* Dark borders */
   --color-border-dark: #555;
   --color-border-purple: #3d3348;
@@ -61,6 +61,23 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
   --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Ensure all text is white in dark mode */
+:root.dark-mode body,
+:root.dark-mode #app,
+:root.dark-mode p,
+:root.dark-mode h1,
+:root.dark-mode h2,
+:root.dark-mode h3,
+:root.dark-mode h4,
+:root.dark-mode h5,
+:root.dark-mode h6,
+:root.dark-mode span,
+:root.dark-mode div,
+:root.dark-mode label,
+:root.dark-mode a:not(.btn) {
+  color: var(--color-text-primary) !important;
 }
 
 /* Standardized Hover Effects */

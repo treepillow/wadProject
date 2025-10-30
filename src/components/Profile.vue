@@ -242,43 +242,6 @@ export default {
 
         startLikesListener(u.uid)
 
-<<<<<<< HEAD
-        const snap = await getDoc(doc(db, 'users', u.uid))
-        if (snap.exists()) {
-          const d = snap.data()
-          username.value = d.username || ''
-          firstName.value = d.firstName || ''
-          lastName.value  = d.lastName || ''
-          email.value     = d.email || u.email || ''
-          phone.value     = d.phone || ''
-          dateOfBirth.value = d.dateOfBirth || ''
-          if (d.address) {
-            const a = d.address
-            // Check if address is a string or object
-            if (typeof a === 'string') {
-              // Address is already a string
-              address.value = a
-              addressObj.value = null
-              console.log('[Profile] Loaded address as string:', address.value)
-            } else {
-              // Address is an object
-              addressObj.value = a
-              const parts = []
-              if (a.blk) parts.push(a.blk)
-              if (a.street) parts.push(a.street)
-              if (a.unit) parts.push(a.unit)
-              if (a.postal) parts.push(a.postal)
-              address.value = parts.join(' ').trim()
-              console.log('[Profile] Loaded address from object:', address.value, a)
-            }
-          } else {
-            address.value = ''
-            addressObj.value = null
-          }
-          avatarUrl.value = d.photoURL || d.profilePicture || u.photoURL || ''
-          averageRating.value = d.averageRating || 0
-          totalReviews.value = d.totalReviews || 0
-=======
         // Set up real-time listener for user data (including stats for badge)
         unsubUserData = onSnapshot(doc(db, 'users', u.uid), (snap) => {
           if (snap.exists()) {
@@ -291,19 +254,33 @@ export default {
             dateOfBirth.value = d.dateOfBirth || ''
             if (d.address) {
               const a = d.address
-              address.value = a.blk || a.street || a.postal || a.unit
-                ? `${a.blk || ''} ${a.street || ''} ${a.unit || ''} ${a.postal || ''}`.trim()
-                : ''
+              // Check if address is a string or object
+              if (typeof a === 'string') {
+                // Address is already a string
+                address.value = a
+                addressObj.value = null
+                console.log('[Profile] Loaded address as string:', address.value)
+              } else {
+                // Address is an object
+                addressObj.value = a
+                const parts = []
+                if (a.blk) parts.push(a.blk)
+                if (a.street) parts.push(a.street)
+                if (a.unit) parts.push(a.unit)
+                if (a.postal) parts.push(a.postal)
+                address.value = parts.join(' ').trim()
+                console.log('[Profile] Loaded address from object:', address.value, a)
+              }
             } else {
               address.value = ''
+              addressObj.value = null
             }
             avatarUrl.value = d.photoURL || d.profilePicture || u.photoURL || ''
             averageRating.value = d.averageRating || 0
             totalReviews.value = d.totalReviews || 0
-            
+
             // Update user data with stats for badge calculation
             user.value = { ...user.value, stats: d.stats || { reviews: 0, boosts: 0 } }
->>>>>>> f696acb (badge)
 
             console.log('[Profile] User rating data:', {
               averageRating: averageRating.value,

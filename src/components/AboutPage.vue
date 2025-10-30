@@ -846,9 +846,20 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-/* Ensure text is always white regardless of theme */
+/* Dark mode: use dark background instead of purple */
+:root.dark-mode .cta-card {
+  background: var(--color-bg-white);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--color-border);
+}
+
+/* Ensure text is always white in light mode, adapt in dark mode */
 .cta-card * {
   color: white !important;
+}
+
+:root.dark-mode .cta-card * {
+  color: var(--color-text-primary) !important;
 }
 
 .cta-card::before {
@@ -929,6 +940,19 @@ onBeforeUnmount(() => {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   background: rgba(255, 255, 255, 0.95) !important;
   color: #4b2aa6 !important;
+}
+
+/* Dark mode button styling */
+:root.dark-mode .cta-button {
+  background: var(--color-primary) !important;
+  color: white !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+:root.dark-mode .cta-button:hover {
+  background: var(--color-primary-hover) !important;
+  color: white !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 /* Animations */

@@ -10,12 +10,11 @@ import {
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { useDarkMode } from '@/composables/useDarkMode'
 import { useToast } from '@/composables/useToast'
-import { generateQRCode, downloadQRCode, generateReviewCode } from '@/utils/reviewCode'
+import { generateQRCode, downloadQRCode } from '@/utils/reviewCode'
 import { Icon } from '@iconify/vue'
 
 import ListingCard from '@/components/ListingCard.vue'
 import ListingDrawer from '@/components/ListingDrawer.vue'  // <-- NEW
-import SellerBadge from '@/components/SellerBadge.vue'
 
 const auth = getAuth()
 const db = getFirestore()
@@ -52,9 +51,10 @@ export default {
     const phone       = ref('')
     const dateOfBirth = ref('')   // ISO for <input type="date">
     const address     = ref('')
-    const addressObj  = ref(null)  // Store original address object
     const averageRating = ref(0)
     const totalReviews = ref(0)
+    const instagramId = ref('')
+    const telegramId = ref('')
 
     const displayName = computed(() => {
       const f = (firstName.value || '').trim()
@@ -232,7 +232,6 @@ export default {
     /* ---------------- Mount: load profile & my listings ---------------- */
     let unsubLikes = null
     let unsubMyListings = null
-    let unsubUserData = null
 
     onMounted(async () => {
       try {
@@ -242,64 +241,43 @@ export default {
 
         startLikesListener(u.uid)
 
-        // Set up real-time listener for user data (including stats for badge)
-        unsubUserData = onSnapshot(doc(db, 'users', u.uid), (snap) => {
-          if (snap.exists()) {
-            const d = snap.data()
-            username.value = d.username || ''
-            firstName.value = d.firstName || ''
-            lastName.value  = d.lastName || ''
-            email.value     = d.email || u.email || ''
-            phone.value     = d.phone || ''
-            dateOfBirth.value = d.dateOfBirth || ''
-            if (d.address) {
-              const a = d.address
-              // Check if address is a string or object
-              if (typeof a === 'string') {
-                // Address is already a string
-                address.value = a
-                addressObj.value = null
-                console.log('[Profile] Loaded address as string:', address.value)
-              } else {
-                // Address is an object
-                addressObj.value = a
-                const parts = []
-                if (a.blk) parts.push(a.blk)
-                if (a.street) parts.push(a.street)
-                if (a.unit) parts.push(a.unit)
-                if (a.postal) parts.push(a.postal)
-                address.value = parts.join(' ').trim()
-                console.log('[Profile] Loaded address from object:', address.value, a)
-              }
-            } else {
-              address.value = ''
-              addressObj.value = null
-            }
-            avatarUrl.value = d.photoURL || d.profilePicture || u.photoURL || ''
-            averageRating.value = d.averageRating || 0
-            totalReviews.value = d.totalReviews || 0
+        const snap = await getDoc(doc(db, 'users', u.uid))
+        if (snap.exists()) {
+          const d = snap.data()
+          username.value = d.username || ''
+          firstName.value = d.firstName || ''
+          lastName.value  = d.lastName || ''
+          email.value     = d.email || u.email || ''
+          phone.value     = d.phone || ''
+          dateOfBirth.value = d.dateOfBirth || ''
+          address.value = d.address || ''
+          instagramId.value = d.instagram || ''
+          telegramId.value = d.telegram || ''
+          // if (d.address) {
+          //   const a = d.address
+          //   address.value = a.blk || a.street || a.postal || a.unit
+          //     ? `${a.blk || ''} ${a.street || ''} ${a.unit || ''} ${a.postal || ''}`.trim()
+          //     : ''
+          // } else {
+          //   address.value = ''
+          // }
+          avatarUrl.value = d.photoURL || d.profilePicture || u.photoURL || ''
+          averageRating.value = d.averageRating || 0
+          totalReviews.value = d.totalReviews || 0
 
-            // Update user data with stats for badge calculation
-            user.value = { ...user.value, stats: d.stats || { reviews: 0, boosts: 0 } }
-
-            console.log('[Profile] User rating data:', {
-              averageRating: averageRating.value,
-              totalReviews: totalReviews.value,
-              stats: d.stats
-            })
-          } else {
-            email.value   = u.email || ''
-            avatarUrl.value = u.photoURL || ''
-          }
-          if (!loading.value) loading.value = false
-        }, (e) => {
-          console.error(e); err.value = 'Failed to load profile.'
-          loading.value = false
-        })
+          console.log('[Profile] User rating data:', {
+            averageRating: averageRating.value,
+            totalReviews: totalReviews.value
+          })
+        } else {
+          email.value   = u.email || ''
+          avatarUrl.value = u.photoURL || ''
+        }
 
         await loadMyListings()
       } catch (e) {
         console.error(e); err.value = 'Failed to load profile.'
+      } finally {
         loading.value = false
       }
     })
@@ -447,26 +425,22 @@ export default {
           await uploadBytes(sref, avatarFile.value, { contentType: avatarFile.value.type })
           photoURL = await getDownloadURL(sref)
         }
-        // Prepare update data
-        const updateData = {
+        console.log('Address:', address.value)
+console.log('Instagram:', instagramId.value)
+console.log('Telegram:', telegramId.value)
+        await updateDoc(doc(db, 'users', user.value.uid), {
           username: u,
           firstName: firstName.value.trim(),
           lastName:  lastName.value.trim(),
           phone: ph,
           dateOfBirth: (dateOfBirth.value || '').trim(),
+          address: address.value.trim(),
           email: email.value || user.value.email || '',
           photoURL,
+          instagram: instagramId.value.trim(),
+          telegram: telegramId.value.trim(),
           updatedAt: serverTimestamp()
-        }
-
-        // Update address - use object if available, otherwise use string
-        if (addressObj.value) {
-          updateData.address = addressObj.value
-        } else if (address.value) {
-          updateData.address = address.value.trim()
-        }
-
-        await updateDoc(doc(db, 'users', user.value.uid), updateData)
+        })
         ok.value = 'Profile saved!'
       } catch (e) {
         console.error(e); err.value = 'Failed to save. Please try again.'
@@ -545,26 +519,11 @@ export default {
 
     async function showQRCode(listing) {
       const listingId = listing.listingId || listing.id
-      let reviewCode = listing.reviewCode
+      const reviewCode = listing.reviewCode
 
-      // If no review code exists, generate and save one
       if (!reviewCode) {
-        try {
-          reviewCode = generateReviewCode()
-
-          // Update the listing in both allListings and myListings
-          await updateDoc(doc(db, 'allListings', listingId), { reviewCode })
-          await updateDoc(doc(db, 'users', user.value.uid, 'myListings', listingId), { reviewCode })
-
-          // Update local listing object
-          listing.reviewCode = reviewCode
-
-          toast.success('Review code generated for this listing!')
-        } catch (error) {
-          console.error('Error generating review code:', error)
-          toast.error('Failed to generate review code. Please try again.')
-          return
-        }
+        toast.error('This listing does not have a review code. Please edit and re-save the listing.')
+        return
       }
 
       qrListing.value = listing
@@ -687,7 +646,6 @@ export default {
     onUnmounted(() => {
       if (unsubLikes) unsubLikes()
       if (unsubMyListings) unsubMyListings()
-      if (unsubUserData) unsubUserData()
       profileUnsubs.forEach(unsub => unsub && unsub())
       profileUnsubs.clear()
       if (countdownInterval) clearInterval(countdownInterval)
@@ -778,9 +736,6 @@ export default {
       }
     }
 
-    const badgeModalOpen = ref(false)
-    function openBadgeInfoModal() { badgeModalOpen.value = true }
-    function closeBadgeInfoModal() { badgeModalOpen.value = false }
 
     return {
       /* tabs */
@@ -795,8 +750,6 @@ export default {
       myListings, myLoading, likedListings, likedLoading,
       likedSet, likeCounts, onToggleLike,
       profileMap,
-      /* seller badge helpers */
-      user,
       /* bookings */
       bookingRequests, bookingsLoading, acceptBooking, rejectBooking,
       /* batch reveal bindings */
@@ -811,7 +764,9 @@ export default {
       /* QR code modal */
       qrModalOpen, qrListing, qrCodeUrl, qrGenerating,
       showQRCode, closeQRModal, downloadQR, printQR,
-      badgeModalOpen, openBadgeInfoModal, closeBadgeInfoModal,
+      // Socials
+      instagramId,
+      telegramId,
     }
   }
 }
@@ -843,7 +798,7 @@ export default {
           <!-- PROFILE -->
           <div v-show="activeTab==='profile'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
             <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-4">
-              <div class="position-relative me-3">
+              <div class="position-relative">
                 <img
                   :src="avatarUrl || 'https://ui-avatars.com/api/?name=H&background=ECE8FF&color=5A43C5&size=128'"
                   class="rounded-circle border object-fit-cover" style="width:96px;height:96px" alt="Avatar" />
@@ -852,14 +807,10 @@ export default {
                 </label>
               </div>
               <div class="flex-grow-1">
-                <div class="d-flex flex-column flex-lg-row gap-0 align-items-lg-center mb-2">
-                  <h3 class="m-0">{{ displayName }}</h3>
-                  <span class="clickable-badge" @click="openBadgeInfoModal">
-                    <SellerBadge :points="((user && user.stats ? (user.stats.reviews || 0) + (user.stats.boosts || 0) * 5 : 0))" />
-                  </span>
-                </div>
+                <h3 class="m-0">{{ displayName }}</h3>
                 <div class="text-muted">{{ email || '—' }}</div>
-                <!-- Rating Display and rest unchanged -->
+
+                <!-- Rating Display -->
                 <div v-if="totalReviews > 0" class="d-flex align-items-center gap-2 mt-2">
                   <div class="stars-display">
                     <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(averageRating) }">★</span>
@@ -868,9 +819,29 @@ export default {
                   <span class="text-muted small">({{ totalReviews }} {{ totalReviews === 1 ? 'review' : 'reviews' }})</span>
                 </div>
                 <div v-else class="text-muted small mt-2">No rating yet</div>
+                <!-- Social Media Icons -->
+                <div v-if="instagramId || telegramId" class="d-flex align-items-center gap-3 mt-2">
+                  <a
+                    v-if="instagramId"
+                    :href="`https://instagram.com/${instagramId}`"
+                    target="_blank"
+                    rel="noopener"
+                    class="text-decoration-none text-muted"
+                  >
+                    <img src="/src/assets/instagram.png" alt="Instagram" style="width: 22px; height: 22px;" />
+                  </a>
+                  <a
+                    v-if="telegramId"
+                    :href="`https://t.me/${telegramId}`"
+                    target="_blank"
+                    rel="noopener"
+                    class="text-decoration-none text-muted"
+                  >
+                  <img src="/src/assets/telegram.png" alt="Telegram" style="width: 22px; height: 22px;" />
+                  </a>
+                </div>
               </div>
             </div>
-
             <div v-if="err" class="alert alert-danger py-2">{{ err }}</div>
             <div v-if="ok" class="alert alert-success py-2">{{ ok }}</div>
 
@@ -903,8 +874,34 @@ export default {
                 <label class="form-label fw-semibold">Address</label>
                 <input class="form-control" v-model="address" placeholder="BLK 555B Tampines Ave 11" />
               </div>
-            </div>
+              <!-- Social Media -->
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Instagram</label>
+                <div class="input-group">
+                  <span class="input-group-text">@</span>
+                  <input
+                    class="form-control"
+                    v-model="instagramId"
+                    placeholder="your_instagram_handle"
+                  />
+                </div>
+                <div class="form-text">Enter your Instagram username (no link, just the handle)</div>
+              </div>
 
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Telegram</label>
+                <div class="input-group">
+                  <span class="input-group-text">@</span>
+                  <input
+                    class="form-control"
+                    v-model="telegramId"
+                    placeholder="your_telegram_handle"
+                  />
+                </div>
+                <div class="form-text">Enter your Telegram username (no link, just the handle)</div>
+              </div>
+
+            </div>
             <div class="d-flex justify-content-end mt-4">
               <button class="btn btn-primary" :disabled="saving" @click="saveProfile">
                 <span v-if="!saving">Save changes</span>
@@ -913,6 +910,7 @@ export default {
             </div>
           </div>
 
+          
           <!-- MY LISTINGS -->
           <div v-show="activeTab==='my'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
             <h4 class="mb-4">My Listings</h4>
@@ -1122,40 +1120,6 @@ export default {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- Badge info modal shared style with NavBar -->
-    <Teleport to="body">
-      <div v-if="badgeModalOpen" class="badge-drawer-overlay" @click="closeBadgeInfoModal">
-        <div class="badge-drawer" @click.stop>
-          <div class="drawer-header">
-            <h5 class="drawer-title">Seller Level & Badges</h5>
-            <button type="button" class="btn-close-drawer" @click="closeBadgeInfoModal">×</button>
-          </div>
-          <div class="drawer-body">
-            <div class="mb-4"><SellerBadge :points="((user && user.stats ? (user.stats.reviews || 0) + (user.stats.boosts || 0) * 5 : 0))" :progress="true" /></div>
-            <div class="mb-3">
-              <strong>Earn points by:</strong>
-              <ul class="mt-2">
-                <li><b>1</b> point per review received</li>
-                <li><b>5</b> points per boost</li>
-              </ul>
-            </div>
-            <div class="mb-3"><strong>Benefits:</strong> Higher badge = more search visibility & credibility</div>
-            <div class="mb-3">
-              <strong>Levels:</strong>
-              <ul class="mt-2">
-                <li>0–49 pts</li>
-                <li>50–149 pts</li>
-                <li>150–299 pts</li>
-                <li>300–499 pts</li>
-                <li>500+ pts</li>
-              </ul>
-            </div>
-            <small class="text-muted">This badge is visible on your listings and profile to help build trust.</small>
           </div>
         </div>
       </div>
@@ -1374,49 +1338,6 @@ h3, h4 {
 }
 
 .btn-close-custom {
-  background:transparent; border:none; font-size:2rem; line-height:1; color:var(--color-text-primary); cursor:pointer; padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;}
-
-/* Badge Drawer Styles */
-.badge-drawer-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 1060;
-  display: flex;
-  justify-content: flex-end;
-  animation: fadeIn 0.2s ease-out;
-}
-
-.badge-drawer {
-  width: 50%;
-  max-width: 600px;
-  height: 100vh;
-  background: var(--color-bg-white);
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
-  display: flex;
-  flex-direction: column;
-  animation: slideIn 0.3s ease-out;
-}
-
-.drawer-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.drawer-title {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.btn-close-drawer {
   background: transparent;
   border: none;
   font-size: 2rem;
@@ -1429,79 +1350,144 @@ h3, h4 {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  transition: background 0.2s ease;
 }
 
-.btn-close-drawer:hover {
-  background: var(--color-bg-purple-tint);
+.btn-close-custom:hover {
+  opacity: 0.7;
 }
 
-.drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 2rem 1.5rem;
+.modal-body {
+  padding: 1.5rem 1.25rem;
+}
+
+.modal-body p {
+  color: var(--color-text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.modal-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 767.98px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .card {
+    padding: 1.25rem;
+  }
+
+  .nav-tabs .nav-link {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  h2, h3 {
+    font-size: 1.5rem;
+  }
+
+  .btn {
+    font-size: 0.875rem;
+  }
+
+  .boost-section .btn {
+    height: 44px;
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .card {
+    padding: 1rem;
+  }
+
+  h2, h3 {
+    font-size: 1.25rem;
+  }
+
+  .form-control,
+  .form-select {
+    font-size: 0.875rem;
+  }
+
+  .stars-display .star {
+    font-size: 16px;
+  }
+}
+
+/* QR Code Modal Styles */
+.qr-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.qr-modal {
+  background: var(--color-bg-white);
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.qr-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.qr-modal-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
   color: var(--color-text-primary);
 }
 
-.drawer-body ul {
-  padding-left: 1.5rem;
+.qr-modal-body {
+  padding: 24px;
 }
 
-.drawer-body li {
-  margin-bottom: 0.5rem;
+.qr-code-container {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  display: inline-block;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.qr-code-image {
+  max-width: 300px;
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-:root.dark-mode .badge-drawer {
-  background: #1a1a1a;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-:root.dark-mode .drawer-header {
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-:root.dark-mode .btn-close-drawer:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-/* Mobile responsive */
-@media (max-width: 991.98px) {
-  .badge-drawer {
-    width: 100%;
+@media (max-width: 575.98px) {
+  .qr-modal {
     max-width: 100%;
   }
+
+  .qr-code-image {
+    max-width: 250px;
+  }
 }
 
-/* Clickable badge hover effect */
-.clickable-badge {
-  cursor: pointer;
-  display: inline-block;
-  transition: transform 0.2s ease-in-out;
-  padding: 0.25rem;
-  border-radius: 0.5rem;
-}
-
-.clickable-badge:hover {
-  transform: scale(1.05);
-  background: var(--color-bg-purple-tint);
-}
 </style>

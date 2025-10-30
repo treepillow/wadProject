@@ -848,6 +848,8 @@ export default {
             profilePicture: this.signup.profilePreview || null,
             emailVerified: user.emailVerified,
             profileComplete: true,
+            instagram: '',
+            telegram: '',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           },

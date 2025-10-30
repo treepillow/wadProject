@@ -7,20 +7,74 @@
             <!-- Loading State -->
             <div v-if="loading" class="text-center py-5">
               <div class="spinner-border text-primary mb-3"></div>
-              <p class="text-muted">Verifying your review code...</p>
+              <p class="text-muted">Loading...</p>
+            </div>
+
+            <!-- Review Form -->
+            <div v-else-if="showReviewForm" class="py-4">
+              <div class="text-center mb-4">
+                <Icon icon="mdi:star" style="font-size: 48px; color: #ffc107;" />
+                <h3 class="mt-3">Leave a Review</h3>
+                <p class="text-muted">{{ listingName }}</p>
+              </div>
+
+              <!-- Star Rating -->
+              <div class="mb-4">
+                <label class="form-label">Rating</label>
+                <div class="stars-input">
+                  <span
+                    v-for="i in 5"
+                    :key="i"
+                    class="star"
+                    :class="{ filled: i <= rating }"
+                    @click="rating = i"
+                  >
+                    ★
+                  </span>
+                </div>
+              </div>
+
+              <!-- Review Comment -->
+              <div class="mb-4">
+                <label class="form-label">Your Review</label>
+                <textarea
+                  v-model="comment"
+                  class="form-control"
+                  rows="4"
+                  placeholder="Share your experience..."
+                  maxlength="500"
+                ></textarea>
+                <small class="text-muted">{{ comment.length }}/500 characters</small>
+              </div>
+
+              <!-- Submit Button -->
+              <div class="d-flex gap-2">
+                <button
+                  class="btn btn-primary flex-grow-1"
+                  @click="submitReview"
+                  :disabled="submitting || rating === 0"
+                >
+                  <span v-if="submitting">
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    Submitting...
+                  </span>
+                  <span v-else>Submit Review</span>
+                </button>
+                <button class="btn btn-secondary" @click="goToHome">
+                  Cancel
+                </button>
+              </div>
             </div>
 
             <!-- Success State -->
-            <div v-else-if="verified" class="text-center py-4">
+            <div v-else-if="submitted" class="text-center py-4">
               <div class="success-icon mb-4">
                 <Icon icon="mdi:check-circle" style="font-size: 64px; color: #28a745;" />
               </div>
-              <h3 class="mb-3">Review Unlocked!</h3>
-              <p class="text-muted mb-4">
-                You can now leave a review for <strong>{{ listingName }}</strong>
-              </p>
-              <button class="btn btn-primary btn-lg" @click="goToListing">
-                View Listing & Leave Review
+              <h3 class="mb-3">Thank You!</h3>
+              <p class="text-muted mb-4">Your review has been submitted successfully.</p>
+              <button class="btn btn-primary" @click="goToHome">
+                Return to Home
               </button>
             </div>
 
@@ -29,7 +83,7 @@
               <div class="error-icon mb-4">
                 <Icon icon="mdi:alert-circle" style="font-size: 64px; color: #dc3545;" />
               </div>
-              <h3 class="mb-3">Unable to Unlock</h3>
+              <h3 class="mb-3">Unable to Submit Review</h3>
               <p class="text-danger mb-4">{{ errorMessage }}</p>
               <button class="btn btn-secondary" @click="goToHome">
                 Return to Home
@@ -47,8 +101,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { auth, db } from '@/firebase'
-import { verifyReviewCode, markReviewCodeAsUsed } from '@/utils/reviewCode'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore'
 import { useToast } from '@/composables/useToast'
 
 export default {
@@ -61,11 +114,18 @@ export default {
     const toast = useToast()
 
     const loading = ref(true)
-    const verified = ref(false)
+    const showReviewForm = ref(false)
+    const submitted = ref(false)
     const error = ref(false)
     const errorMessage = ref('')
     const listingName = ref('')
     const listingId = ref('')
+    const listingOwnerId = ref('')
+
+    // Review form fields
+    const rating = ref(0)
+    const comment = ref('')
+    const submitting = ref(false)
 
     onMounted(async () => {
       const code = route.query.code
@@ -82,7 +142,7 @@ export default {
 
       if (!user) {
         // User not logged in - redirect to login with return URL
-        toast.info('Please log in to unlock this review')
+        toast.info('Please log in to leave a review')
         router.push({
           name: 'login',
           query: { redirect: `/review/${listingId.value}?code=${code}` }
@@ -93,38 +153,87 @@ export default {
       try {
         // Fetch listing details
         const listingDoc = await getDoc(doc(db, 'allListings', listingId.value))
-        if (listingDoc.exists()) {
-          listingName.value = listingDoc.data().businessName || 'this listing'
-        } else {
+        if (!listingDoc.exists()) {
           error.value = true
           errorMessage.value = 'Listing not found. This QR code may be invalid.'
           loading.value = false
           return
         }
 
-        // Verify the code
-        const result = await verifyReviewCode(code, listingId.value, user.uid, db)
+        const listingData = listingDoc.data()
+        listingName.value = listingData.businessName || 'this listing'
+        listingOwnerId.value = listingData.userId
 
-        if (result.valid) {
-          // Mark the code as used
-          await markReviewCodeAsUsed(listingId.value, user.uid, db)
-          verified.value = true
-        } else {
+        // Check if review code matches
+        if (listingData.reviewCode !== code) {
           error.value = true
-          errorMessage.value = result.message
+          errorMessage.value = 'Invalid review code.'
+          loading.value = false
+          return
         }
+
+        // Check if user already reviewed this listing
+        const reviewsRef = collection(db, 'allListings', listingId.value, 'reviews')
+        const userReviewQuery = query(reviewsRef, where('userId', '==', user.uid))
+        const existingReviews = await getDocs(userReviewQuery)
+
+        if (!existingReviews.empty) {
+          error.value = true
+          errorMessage.value = 'You have already reviewed this listing.'
+          loading.value = false
+          return
+        }
+
+        // Show review form
+        showReviewForm.value = true
+        loading.value = false
+
       } catch (err) {
-        console.error('Error verifying review code:', err)
+        console.error('Error loading review form:', err)
         error.value = true
         errorMessage.value = `An error occurred: ${err.message || 'Please try again.'}`
-      } finally {
         loading.value = false
       }
     })
 
-    function goToListing() {
-      // Navigate to home with listing drawer open
-      router.push({ path: '/home', query: { listing: listingId.value } })
+    async function submitReview() {
+      if (rating.value === 0) {
+        toast.error('Please select a rating')
+        return
+      }
+
+      const user = auth.currentUser
+      if (!user) {
+        toast.error('You must be logged in to submit a review')
+        return
+      }
+
+      submitting.value = true
+
+      try {
+        // Get user data for review
+        const userDoc = await getDoc(doc(db, 'users', user.uid))
+        const userData = userDoc.data() || {}
+
+        // Add review to listing's reviews subcollection
+        await addDoc(collection(db, 'allListings', listingId.value, 'reviews'), {
+          userId: user.uid,
+          username: userData.username || 'Anonymous',
+          rating: rating.value,
+          comment: comment.value.trim(),
+          createdAt: serverTimestamp()
+        })
+
+        submitted.value = true
+        showReviewForm.value = false
+        toast.success('Review submitted successfully!')
+
+      } catch (err) {
+        console.error('Error submitting review:', err)
+        toast.error('Failed to submit review. Please try again.')
+      } finally {
+        submitting.value = false
+      }
     }
 
     function goToHome() {
@@ -133,11 +242,15 @@ export default {
 
     return {
       loading,
-      verified,
+      showReviewForm,
+      submitted,
       error,
       errorMessage,
       listingName,
-      goToListing,
+      rating,
+      comment,
+      submitting,
+      submitReview,
       goToHome
     }
   }
@@ -174,6 +287,45 @@ export default {
 
 :root.dark-mode h3 {
   color: var(--color-text-primary) !important;
+}
+
+:root.dark-mode .form-control {
+  background: #2a2a3e;
+  border-color: #444;
+  color: var(--color-text-primary);
+}
+
+:root.dark-mode .form-label {
+  color: var(--color-text-primary) !important;
+}
+
+/* Star Rating Input */
+.stars-input {
+  display: flex;
+  gap: 8px;
+  font-size: 36px;
+  cursor: pointer;
+}
+
+.stars-input .star {
+  color: #ddd;
+  transition: color 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.stars-input .star:hover,
+.stars-input .star.filled {
+  color: #ffc107;
+}
+
+:root.dark-mode .stars-input .star {
+  color: #555;
+}
+
+:root.dark-mode .stars-input .star:hover,
+:root.dark-mode .stars-input .star.filled {
+  color: #ffc107;
 }
 
 .success-icon, .error-icon {

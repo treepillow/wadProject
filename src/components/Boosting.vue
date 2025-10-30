@@ -101,7 +101,7 @@
   import { ref, computed, onMounted } from "vue";
   import { useRoute, useRouter } from "vue-router";
   import ListingCard from "@/components/ListingCard.vue";
-  import { getFirestore, doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
+  import { getFirestore, doc, getDoc, updateDoc, Timestamp, increment } from "firebase/firestore";
   
   const db = getFirestore();
   const route = useRoute();
@@ -253,8 +253,10 @@
       const snap = await getDoc(ref);
   
       let baseTime = Date.now();
+      let sellerId = null;
       if (snap.exists()) {
         const data = snap.data();
+        sellerId = data.userId;
         const currentBoostedUntil = data.boostedUntil;
   
         // If there's already a boost in the future, stack onto it
@@ -271,6 +273,13 @@
   
       console.log(`✅ Boost applied to ${listingId} until ${newBoostedUntil.toDate()}`);
       
+      // Update seller badge progress: increment boosts
+      if (sellerId) {
+        await updateDoc(doc(db, "users", sellerId), {
+          "stats.boosts": increment(1)
+        });
+      }
+  
       // Success is already handled in onMounted when status === "success"
       // This function is called from there, so we don't show alert here
       // to avoid double alerts

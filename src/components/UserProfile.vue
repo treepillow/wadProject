@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { db } from '@/firebase'
 import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 import ListingCard from './ListingCard.vue'
+import SellerBadge from '@/components/SellerBadge.vue'
 
 const route = useRoute()
 const userId = ref(route.params.userId)
@@ -117,9 +118,11 @@ onMounted(() => {
             </div>
 
             <div class="flex-grow-1">
-              <h2 class="mb-2">{{ userProfile.username || userProfile.displayName || 'User' }}</h2>
+              <div class="d-flex align-items-center gap-1 mb-1">
+                <h2 class="mb-0">{{ userProfile.username || userProfile.displayName || 'User' }}</h2>
+                <SellerBadge v-if="userProfile.stats" :points="(userProfile.stats.reviews || 0) + (userProfile.stats.boosts || 0) * 5" :progress="false" />
+              </div>
               <p class="text-muted mb-3">{{ userProfile.email }}</p>
-
               <div class="stats-row d-flex gap-4">
                 <div class="stat-item">
                   <div class="stat-value">{{ userListings.length }}</div>

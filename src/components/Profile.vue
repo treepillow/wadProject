@@ -10,7 +10,7 @@ import {
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { useDarkMode } from '@/composables/useDarkMode'
 import { useToast } from '@/composables/useToast'
-import { generateQRCode, downloadQRCode } from '@/utils/reviewCode'
+import { generateQRCode, downloadQRCode, generateReviewCode } from '@/utils/reviewCode'
 import { Icon } from '@iconify/vue'
 
 import ListingCard from '@/components/ListingCard.vue'
@@ -509,11 +509,26 @@ export default {
 
     async function showQRCode(listing) {
       const listingId = listing.listingId || listing.id
-      const reviewCode = listing.reviewCode
+      let reviewCode = listing.reviewCode
 
+      // If no review code exists, generate and save one
       if (!reviewCode) {
-        toast.error('This listing does not have a review code. Please edit and re-save the listing.')
-        return
+        try {
+          reviewCode = generateReviewCode()
+
+          // Update the listing in both allListings and myListings
+          await updateDoc(doc(db, 'allListings', listingId), { reviewCode })
+          await updateDoc(doc(db, 'users', user.value.uid, 'myListings', listingId), { reviewCode })
+
+          // Update local listing object
+          listing.reviewCode = reviewCode
+
+          toast.success('Review code generated for this listing!')
+        } catch (error) {
+          console.error('Error generating review code:', error)
+          toast.error('Failed to generate review code. Please try again.')
+          return
+        }
       }
 
       qrListing.value = listing

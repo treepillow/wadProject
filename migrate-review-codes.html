@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Review Codes Migration</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    button:hover {
+      background: #5568d3;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #output {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f9f9f9;
+      border-left: 4px solid #667eea;
+      border-radius: 4px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .success {
+      color: #28a745;
+    }
+    .error {
+      color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Add Review Codes to Existing Listings</h1>
+    <p>This will add unique review codes to all your existing listings that don't have one yet.</p>
+    <button id="migrateBtn" onclick="runMigration()">Run Migration</button>
+    <div id="output"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js'
+    import { getFirestore, collection, getDocs, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js'
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBAgp4XFVFeB786tg4Y5y25oE72b5DA0fY",
+      authDomain: "wad2-homes.firebaseapp.com",
+      projectId: "wad2-homes",
+      storageBucket: "wad2-homes.firebasestorage.app",
+      messagingSenderId: "633103372917",
+      appId: "1:633103372917:web:8a2e9d6939e828a8d1de3c"
+    }
+
+    const app = initializeApp(firebaseConfig)
+    const db = getFirestore(app)
+
+    function generateReviewCode() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+      let code = 'REVIEW-'
+
+      for (let i = 0; i < 10; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
+
+      return code
+    }
+
+    function log(message, type = 'info') {
+      const output = document.getElementById('output')
+      output.style.display = 'block'
+      const span = document.createElement('div')
+      span.className = type
+      span.textContent = message
+      output.appendChild(span)
+      console.log(message)
+    }
+
+    window.runMigration = async function() {
+      const btn = document.getElementById('migrateBtn')
+      const output = document.getElementById('output')
+
+      output.innerHTML = ''
+      btn.disabled = true
+      btn.textContent = 'Running...'
+
+      try {
+        log('Starting migration: Adding review codes to listings...')
+
+        const listingsRef = collection(db, 'allListings')
+        const snapshot = await getDocs(listingsRef)
+
+        let updated = 0
+        let skipped = 0
+
+        for (const docSnap of snapshot.docs) {
+          const data = docSnap.data()
+
+          if (!data.reviewCode) {
+            const reviewCode = generateReviewCode()
+            await updateDoc(doc(db, 'allListings', docSnap.id), {
+              reviewCode
+            })
+            log(`✓ Added review code to: ${data.businessName} - Code: ${reviewCode}`, 'success')
+            updated++
+          } else {
+            log(`- Skipped: ${data.businessName} (already has code)`)
+            skipped++
+          }
+        }
+
+        log('\n=== Migration Complete ===', 'success')
+        log(`Updated: ${updated} listings`, 'success')
+        log(`Skipped: ${skipped} listings`, 'info')
+        log(`Total: ${snapshot.size} listings`, 'info')
+
+        btn.textContent = 'Migration Complete!'
+        btn.style.background = '#28a745'
+
+      } catch (error) {
+        log('Error during migration: ' + error.message, 'error')
+        btn.disabled = false
+        btn.textContent = 'Run Migration'
+      }
+    }
+  </script>
+</body>
+</html>

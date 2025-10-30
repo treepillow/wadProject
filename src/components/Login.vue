@@ -47,16 +47,12 @@
           </div>
 
           <button type="submit">Log in</button>
-          <p>
-            <span class="toggle-link" @click="$router.push('/forgotpassword')">
-              Forgot password?
-            </span>
-          </p>
-          <p>
-            <span class="toggle-link" @click="goToSignup">
-              Create an account
-            </span>
-          </p>
+          <span class="toggle-link" @click="$router.push('/forgotpassword')">
+            Forgot password?
+          </span>
+          <span class="toggle-link" @click="goToSignup">
+            Create an account
+          </span>
         </form>
       </div>
     </div>
@@ -288,6 +284,7 @@ button {
   transition: transform 0.2s;
   width: 100%;
   align-self: center;
+  margin-top: 5px;
 }
 
 button:hover {

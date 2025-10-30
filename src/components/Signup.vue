@@ -965,6 +965,8 @@ button.signup-btn {
   border: none; padding: 10px 20px; border-radius: 20px;
   color: var(--color-text-primary); font-weight: 600; cursor: pointer; transition: transform .2s;
   width: 100%;
+  margin-top: 18px;
+  margin-bottom: 18px;
 }
 button.signup-btn:hover { transform: scale(1.05); }
 

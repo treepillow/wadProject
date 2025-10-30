@@ -4,9 +4,10 @@ import { useRouter } from 'vue-router'
 import { db, auth } from '@/firebase'
 import {
   collection, query, where, limit as fsLimit, getDocs,
-  doc, updateDoc, addDoc, serverTimestamp, getDoc, orderBy
+  doc, updateDoc, addDoc, serverTimestamp, getDoc, orderBy, increment
 } from 'firebase/firestore'
 import { useToast } from '@/composables/useToast'
+import SellerBadge from './SellerBadge.vue'
 
 const router = useRouter()
 const toast = useToast()
@@ -741,6 +742,11 @@ async function submitReview() {
     // Update the seller's average rating
     await updateSellerRating(listingUserId, userRating.value)
 
+    // Increment review count for seller for badge system
+    await updateDoc(doc(db, 'users', listingUserId), {
+      'stats.reviews': increment(1)
+    })
+
     reviewSuccess.value = 'Review submitted successfully!'
     userRating.value = 0
     userReviewText.value = ''
@@ -848,14 +854,17 @@ watch(() => props.open, (isOpen) => {
       <!-- Header -->
       <div class="header d-flex align-items-center gap-3 mb-3">
         <div class="rounded-circle overflow-hidden avatar seller-avatar-clickable" @click="goToSellerProfile">
-          <img v-if="sellerAvatar" :src="sellerAvatar" class="w-100 h-100" style="object-fit:cover" alt="">
+          <img v-if="sellerAvatar" :src="sellerAvatar" class="w-100 h-100" style="object-fit:cover" alt="" />
           <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary fw-bold">
             {{ (sellerName||'S').toString().trim().charAt(0).toUpperCase() }}
           </div>
         </div>
         <div class="flex-grow-1">
           <div class="fw-semibold small text-muted">Seller</div>
-          <div class="fw-semibold seller-name-clickable" @click="goToSellerProfile">{{ sellerName || 'Seller' }}</div>
+          <div class="d-flex gap-2 align-items-center">
+            <span class="fw-semibold seller-name-clickable" @click="goToSellerProfile">{{ sellerName || 'Seller' }}</span>
+            <SellerBadge :points="listing?.sellerStats ? (listing.sellerStats.reviews||0)+(listing.sellerStats.boosts||0)*5 : 0" :progress="false" />
+          </div>
         </div>
         <span class="badge text-bg-primary">{{ active?.businessCategory || listing?.businessCategory }}</span>
       </div>

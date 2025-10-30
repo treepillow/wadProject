@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { db } from '@/firebase'
 import { collection, query, getDocs } from 'firebase/firestore'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
+import SellerBadge from './SellerBadge.vue'
 
 const router = useRouter()
 
@@ -128,12 +129,8 @@ function goToUserProfile(event) {
           {{ (sellerName || 'S').toString().trim().charAt(0).toUpperCase() }}
         </div>
       </div>
-      <span
-        class="fw-semibold small text-truncate seller-name-link"
-        style="max-width:140px"
-        :title="sellerName"
-        @click="goToUserProfile"
-      >{{ sellerName }}</span>
+      <span class="fw-semibold small text-truncate seller-name-link" style="max-width:100px" :title="sellerName" @click="goToUserProfile">{{ sellerName }}</span>
+      <SellerBadge :points="listing.sellerStats ? (listing.sellerStats.reviews||0)+(listing.sellerStats.boosts||0)*5 : 0" :progress="false" style="min-width:40px;" />
     </div>
 
     <!-- Image box -->

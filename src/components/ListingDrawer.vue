@@ -1459,7 +1459,7 @@ watch(() => props.open, (isOpen) => {
 .stars-display .star,
 .stars-display-small .star,
 .stars-input .star {
-  color: var(--color-border);
+  color: #ddd;
   font-size: 20px;
   transition: color 0.2s ease;
 }
@@ -1484,12 +1484,23 @@ watch(() => props.open, (isOpen) => {
 
 .stars-input .star:hover,
 .stars-input .star.hover {
-  color: #ffc107;
+  color: #ffc107 !important;
   transform: scale(1.1);
 }
 
 .stars-input .star.filled {
-  color: #ffc107;
+  color: #ffc107 !important;
+}
+
+/* Dark mode star visibility */
+:root.dark-mode .stars-input .star {
+  color: #666;
+}
+
+:root.dark-mode .stars-input .star:hover,
+:root.dark-mode .stars-input .star.hover,
+:root.dark-mode .stars-input .star.filled {
+  color: #ffc107 !important;
 }
 
 .review-form {

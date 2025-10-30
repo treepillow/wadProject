@@ -50,16 +50,6 @@ onMounted(() => {
     // Start with default avatar
     avatarUrl.value = userPng
 
-<<<<<<< HEAD
-    // Try to get the stored photoURL from Firestore (ignore Google profile pics)
-    try {
-      const snap = await getDoc(doc(db, 'users', u.uid))
-      if (snap.exists()) {
-        const data = snap.data()
-        // Only use Firestore photoURL/profilePicture if it exists
-        // Don't use Google profile picture (u.photoURL)
-        const url = data.photoURL || data.profilePicture || userPng
-=======
     // Set up real-time listener for user stats (including badge progress)
     if (unsubUserStats) { unsubUserStats(); unsubUserStats = null }
     unsubUserStats = onSnapshot(doc(db, 'users', u.uid), (snap) => {
@@ -67,25 +57,18 @@ onMounted(() => {
         const data = snap.data()
         // Update user data with stats
         user.value = { ...user.value, stats: data.stats || { reviews: 0, boosts: 0 } }
-        // Prefer Firestore photoURL, fallback to Firebase Auth photoURL, then default
-        const url = data.photoURL || data.profilePicture || u.photoURL || userPng
->>>>>>> f696acb (badge)
+        // Only use Firestore photoURL/profilePicture if it exists
+        // Don't use Google profile picture (u.photoURL)
+        const url = data.photoURL || data.profilePicture || userPng
         avatarUrl.value = url
         // Check if user is admin
         isAdmin.value = data.isAdmin || false
       }
-<<<<<<< HEAD
-    } catch (err) {
-      console.error('Error loading user avatar:', err)
-      // Keep default avatar on error
-      avatarUrl.value = userPng
-    }
-=======
     }, (err) => {
       console.error('Error loading user stats:', err)
-      // Keep the Firebase Auth photoURL on error
+      // Keep default avatar on error
+      avatarUrl.value = userPng
     })
->>>>>>> f696acb (badge)
   })
 })
 onBeforeUnmount(() => { 

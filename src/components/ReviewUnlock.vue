@@ -21,13 +21,14 @@
               <!-- Star Rating -->
               <div class="mb-4">
                 <label class="form-label">Rating</label>
-                <div class="stars-input">
+                <div class="stars-input" @mouseleave="hoverRating = 0">
                   <span
                     v-for="i in 5"
                     :key="i"
                     class="star"
-                    :class="{ filled: i <= rating }"
+                    :class="{ filled: i <= rating, hover: hoverRating > 0 && i <= hoverRating }"
                     @click="rating = i"
+                    @mouseenter="hoverRating = i"
                   >
                     ★
                   </span>
@@ -124,6 +125,7 @@ export default {
 
     // Review form fields
     const rating = ref(0)
+    const hoverRating = ref(0)
     const comment = ref('')
     const submitting = ref(false)
 
@@ -248,6 +250,7 @@ export default {
       errorMessage,
       listingName,
       rating,
+      hoverRating,
       comment,
       submitting,
       submitReview,
@@ -260,14 +263,11 @@ export default {
 <style scoped>
 .review-unlock-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-bg-main);
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-:root.dark-mode .review-unlock-page {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  padding: 20px;
 }
 
 .unlock-card {
@@ -315,8 +315,9 @@ export default {
 }
 
 .stars-input .star:hover,
+.stars-input .star.hover,
 .stars-input .star.filled {
-  color: #ffc107;
+  color: #ffc107 !important;
 }
 
 :root.dark-mode .stars-input .star {
@@ -324,8 +325,37 @@ export default {
 }
 
 :root.dark-mode .stars-input .star:hover,
+:root.dark-mode .stars-input .star.hover,
 :root.dark-mode .stars-input .star.filled {
-  color: #ffc107;
+  color: #ffc107 !important;
+}
+
+/* Button styling to match project */
+.btn-primary {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: white !important;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-dark) !important;
+  border-color: var(--color-primary-dark) !important;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: #6c757d !important;
+  border-color: #6c757d !important;
+  color: white !important;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268 !important;
+  border-color: #545b62 !important;
 }
 
 .success-icon, .error-icon {

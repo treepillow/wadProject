@@ -70,7 +70,7 @@ export async function verifyReviewCode(code, listingId, userId, db) {
     const { doc, getDoc, collection, query, where, getDocs } = await import('firebase/firestore')
 
     // Check if listing exists and code matches
-    const listingRef = doc(db, 'listings', listingId)
+    const listingRef = doc(db, 'allListings', listingId)
     const listingDoc = await getDoc(listingRef)
 
     if (!listingDoc.exists()) {

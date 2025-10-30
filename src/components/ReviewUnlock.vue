@@ -95,6 +95,11 @@ export default {
         const listingDoc = await getDoc(doc(db, 'allListings', listingId.value))
         if (listingDoc.exists()) {
           listingName.value = listingDoc.data().businessName || 'this listing'
+        } else {
+          error.value = true
+          errorMessage.value = 'Listing not found. This QR code may be invalid.'
+          loading.value = false
+          return
         }
 
         // Verify the code
@@ -111,7 +116,7 @@ export default {
       } catch (err) {
         console.error('Error verifying review code:', err)
         error.value = true
-        errorMessage.value = 'An error occurred while verifying your code. Please try again.'
+        errorMessage.value = `An error occurred: ${err.message || 'Please try again.'}`
       } finally {
         loading.value = false
       }
@@ -148,10 +153,27 @@ export default {
   justify-content: center;
 }
 
+:root.dark-mode .review-unlock-page {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
 .unlock-card {
   background: white;
   border-radius: 16px;
   padding: 40px;
+}
+
+:root.dark-mode .unlock-card {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+:root.dark-mode .text-muted {
+  color: #aaa !important;
+}
+
+:root.dark-mode h3 {
+  color: var(--color-text-primary) !important;
 }
 
 .success-icon, .error-icon {

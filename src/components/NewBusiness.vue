@@ -655,6 +655,17 @@ export default {
           payload.createdAt = serverTimestamp()
         } else {
           payload.updatedAt = serverTimestamp()
+
+          // In edit mode, preserve existing reviewCode or generate one if missing
+          const existingDoc = await getDoc(allListingsDocRef)
+          if (existingDoc.exists()) {
+            const existingData = existingDoc.data()
+            // Keep existing reviewCode, or generate new one if missing
+            payload.reviewCode = existingData.reviewCode || generateReviewCode()
+          } else {
+            // If document doesn't exist (shouldn't happen), generate new code
+            payload.reviewCode = generateReviewCode()
+          }
         }
 
         // Remove undefined values

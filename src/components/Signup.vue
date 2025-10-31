@@ -22,117 +22,59 @@
 
         <div class="divider"><span>or</span></div>
 
-        <!-- Flow 1: Normal Signup -->
-        <form @submit.prevent="handleBasicSignup">
-          <input type="text" placeholder="Username" v-model="signup.username" required />
+        <!-- Consolidated Sign-Up Form -->
+        <form @submit.prevent="handleConsolidatedSignup">
+          <!-- Basic Info -->
           <input type="email" placeholder="Email" v-model="signup.email" required />
-          <input type="password" placeholder="Password" v-model="signup.password" required />
-          <button type="submit" class="signup-btn">Sign Up</button>
-        </form>
 
-        <div class="login-link">
-          <span class="toggle-link" @click="goToLogin">Already have an account? Login</span>
-        </div>
-      </div>
+          <!-- Password -->
+          <div class="password-container">
+            <input :type="showPassword ? 'text' : 'password'" v-model="signup.password" placeholder="Password" required />
+            <span class="toggle-password" @click="showPassword = !showPassword">
+              <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
+            </span>
+          </div>
 
-      <!-- Popup for additional info (same for both flows) -->
-      <div v-if="showDetailsPopup" class="popup-overlay">
-        <div class="popup-card">
-          <h3>Complete Your Profile</h3>
-          <form @submit.prevent="submitDetails">
-            <!-- Show password only for normal signup -->
-            <div v-if="!signup.isGoogle" class="password-container">
-              <input :type="showPassword ? 'text' : 'password'" v-model="signup.password" placeholder="Password" required />
-              <span class="toggle-password" @click="showPassword = !showPassword">
-                <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
-              </span>
-            </div>
-            <!-- ask them to enter a password if they signup using google -->
-            <div v-else-if="signup.isGoogle" class="password-container">
-              <input :type="showPassword ? 'text' : 'password'" v-model="signup.password" placeholder="Password" required />
-              <span class="toggle-password" @click="showPassword = !showPassword">
-                <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
-              </span>
-            </div>
-
-            <!-- all additional info -->
-            <!-- Names -->
+          <!-- Names -->
           <input type="text" placeholder="First Name" v-model="signup.firstName" required />
-            <input type="text" placeholder="Last Name" v-model="signup.lastName" required />
+          <input type="text" placeholder="Last Name" v-model="signup.lastName" required />
 
-            <!-- Username -->
-            <div class="username-container">
-              <input
-                type="text"
-                placeholder="Username (no spaces allowed)"
-                v-model="signup.username"
-                @input="validateUsername"
-                required
-              />
-              <small v-if="usernameError" class="error-text">{{ usernameError }}</small>
-            </div>
-
-            <!-- DOB -->
-            <div class="dob-container">
-              <label class="dob-label">Date of Birth:</label>
-              <input type="date" v-model="signup.dateOfBirth" required />
-            </div>
-
-            <!-- Phone -->
+          <!-- Username -->
+          <div class="username-container">
             <input
               type="text"
-              placeholder="Phone Number (include +65, e.g. +65XXXXXXXX)"
-              v-model="signup.phone"
+              placeholder="Username (no spaces allowed)"
+              v-model="signup.username"
+              @input="validateUsername"
               required
             />
+            <small v-if="usernameError" class="error-text">{{ usernameError }}</small>
+          </div>
 
-            <!-- Email Verification Section -->
-            <div class="verification-container">
-              <div class="verification-info">
-                <p class="info-text">
-                  <strong>Email Verification Required</strong><br>
-                  We'll send a verification link to <strong>{{ signup.email }}</strong>
-                </p>
-              </div>
+          <!-- DOB -->
+          <div class="dob-container">
+            <label class="dob-label">Date of Birth:</label>
+            <input type="date" v-model="signup.dateOfBirth" required />
+          </div>
 
-              <!-- Send Verification Button -->
-              <button
-                v-if="!emailVerificationSent"
-                type="button"
-                class="btn-verify-email"
-                @click="sendEmailVerification"
-              >
-                Send Verification Email
-              </button>
+          <!-- Phone -->
+          <div class="phone-input-wrapper">
+            <span class="phone-prefix">+65</span>
+            <input
+              type="text"
+              placeholder="Phone Number (8 digits)"
+              v-model="phoneNumber"
+              @input="handlePhoneInput"
+              maxlength="8"
+              pattern="[0-9]{8}"
+              required
+              class="phone-input-field"
+            />
+          </div>
 
-              <!-- Waiting for Verification -->
-              <div v-if="emailVerificationSent && !emailVerified" class="verification-pending">
-                <div class="pending-message">
-                  <span class="spinner">⏳</span>
-                  <div>
-                    <p><strong>Verification email sent!</strong></p>
-                    <p class="small-text">Please check your inbox and click the verification link.</p>
-                    <p class="small-text">This page will automatically update once verified.</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  class="btn-resend"
-                  @click="resendEmailVerification"
-                >
-                  Resend Email
-                </button>
-              </div>
-
-              <!-- Verification Status -->
-              <div v-if="emailVerified" class="email-verified">
-                <span class="checkmark">✓</span> Email verified successfully!
-              </div>
-            </div>
-
-            <!-- Address -->
-            <div class="address-container">
-              <label class="address-label">Address:</label>
+          <!-- Address -->
+          <div class="address-container">
+            <label class="address-label">Address:</label>
 
             <!-- Property Type Toggle -->
             <div class="property-type-toggle">
@@ -154,7 +96,7 @@
               </button>
             </div>
 
-            <!-- BLK/House No. - Required for non-landed -->
+            <!-- BLK/House No. -->
             <input
               type="text"
               v-model="signup.blk"
@@ -174,7 +116,6 @@
               maxlength="6"
               required
             />
-            <!-- Unit optional for landed -->
             <input
               type="text"
               v-model="signup.unit"
@@ -218,15 +159,213 @@
             <img :src="signup.profilePreview" alt="Full Image Preview" referrerpolicy="no-referrer" />
           </div>
 
+          <!-- Email Verification Section -->
+          <div class="verification-container">
+            <div class="verification-info">
+              <p class="info-text">
+                <strong>Email Verification Required</strong><br>
+                We'll send a verification link to <strong>{{ signup.email || 'your email' }}</strong>
+              </p>
+            </div>
+
+            <!-- Send Verification Button -->
+            <button
+              v-if="!emailVerificationSent && currentUserUid"
+              type="button"
+              class="btn-verify-email"
+              @click="sendEmailVerification"
+            >
+              Send Verification Email
+            </button>
+
+            <!-- Waiting for Verification -->
+            <div v-if="emailVerificationSent && !emailVerified" class="verification-pending">
+              <div class="pending-message">
+                <span class="spinner">⏳</span>
+                <div>
+                  <p><strong>Verification email sent!</strong></p>
+                  <p class="small-text">Please check your inbox and click the verification link.</p>
+                  <p class="small-text">This page will automatically update once verified.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="btn-resend"
+                @click="resendEmailVerification"
+              >
+                Resend Email
+              </button>
+            </div>
+
+            <!-- Verification Status -->
+            <div v-if="emailVerified" class="email-verified">
+              <span class="checkmark">✓</span> Email verified successfully!
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="signup-btn"
+            :disabled="!emailVerified && !signup.isGoogle"
+            :title="!emailVerified && !signup.isGoogle ? 'Please verify your email first' : ''"
+          >
+            {{ emailVerified || signup.isGoogle ? 'Sign Up' : 'Create Account & Verify Email' }}
+          </button>
+        </form>
+
+        <div class="login-link">
+          <span class="toggle-link" @click="goToLogin">Already have an account? Login</span>
+        </div>
+      </div>
+
+      <!-- Popup for Google Sign-Up Additional Details -->
+      <div v-if="showDetailsPopup" class="popup-overlay">
+        <div class="popup-card">
+          <h3>Complete Your Google Sign-Up</h3>
+          <form @submit.prevent="submitGoogleDetails">
+            <!-- Password for Google users -->
+            <div class="password-container">
+              <input :type="showPassword ? 'text' : 'password'" v-model="signup.password" placeholder="Create a Password" required minlength="6" />
+              <span class="toggle-password" @click="showPassword = !showPassword">
+                <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
+              </span>
+            </div>
+
+            <!-- Confirm Password -->
+            <div class="password-container">
+              <input :type="showPassword ? 'text' : 'password'" v-model="confirmPassword" placeholder="Confirm Password" required />
+              <span class="toggle-password" @click="showPassword = !showPassword">
+                <i :class="showPassword ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
+              </span>
+            </div>
+            <small v-if="passwordMismatch" class="error-text">Passwords do not match</small>
+
+            <!-- Names -->
+            <input type="text" placeholder="First Name" v-model="signup.firstName" required />
+            <input type="text" placeholder="Last Name" v-model="signup.lastName" required />
+
+            <!-- Username -->
+            <div class="username-container">
+              <input
+                type="text"
+                placeholder="Username (no spaces allowed)"
+                v-model="signup.username"
+                @input="validateUsername"
+                required
+              />
+              <small v-if="usernameError" class="error-text">{{ usernameError }}</small>
+            </div>
+
+            <!-- DOB -->
+            <div class="dob-container">
+              <label class="dob-label">Date of Birth:</label>
+              <input type="date" v-model="signup.dateOfBirth" required />
+            </div>
+
+            <!-- Phone -->
+            <div class="phone-input-wrapper">
+              <span class="phone-prefix">+65</span>
+              <input
+                type="text"
+                placeholder="Phone Number (8 digits)"
+                v-model="phoneNumber"
+                @input="handlePhoneInput"
+                maxlength="8"
+                pattern="[0-9]{8}"
+                required
+                class="phone-input-field"
+              />
+            </div>
+
+            <!-- Address -->
+            <div class="address-container">
+              <label class="address-label">Address:</label>
+
+              <!-- Property Type Toggle -->
+              <div class="property-type-toggle">
+                <button
+                  type="button"
+                  class="toggle-btn"
+                  :class="{ active: !signup.isLanded }"
+                  @click="signup.isLanded = false"
+                >
+                  HDB / Condominium
+                </button>
+                <button
+                  type="button"
+                  class="toggle-btn"
+                  :class="{ active: signup.isLanded }"
+                  @click="togglePropertyType"
+                >
+                  Landed Property
+                </button>
+              </div>
+
+              <!-- BLK/House No. -->
+              <input
+                type="text"
+                v-model="signup.blk"
+                :placeholder="signup.isLanded ? 'House No. (optional)' : 'Block Number (555A)'"
+                :required="!signup.isLanded"
+              />
+              <input
+                type="text"
+                v-model="signup.street"
+                placeholder="Street (e.g. Tampines Ave 111)"
+                required
+              />
+              <input
+                type="text"
+                v-model="signup.postal"
+                placeholder="Postal Code (e.g. 123456)"
+                maxlength="6"
+                required
+              />
+              <input
+                type="text"
+                v-model="signup.unit"
+                :placeholder="signup.isLanded ? 'Unit Number (optional)' : 'Unit Number (e.g. #09-142, optional)'"
+              />
+
+              <div v-if="validatingAddress" class="validation-loading">
+                <span class="spinner-small">⏳</span> Validating address...
+              </div>
+              <div v-if="addrError" class="validation-error">
+                <span>⚠️</span> {{ addrError }}
+              </div>
+              <div v-if="addrWarning && !addrError" class="validation-success">
+                {{ addrWarning }}
+              </div>
+            </div>
+
+            <!-- Profile Picture -->
+            <div class="profile-picture-container">
+              <span class="profile-label">Set a profile picture:</span>
+              <input type="file" id="profilePictureGoogle" accept="image/*" @change="handleProfilePicture" />
+
+              <div v-if="signup.profilePreview" class="preview-container">
+                <img
+                  :src="signup.profilePreview"
+                  alt="Profile Preview"
+                  class="profile-preview"
+                  referrerpolicy="no-referrer"
+                  @click="showImageModal = true"
+                  @error="handleImageError"
+                  @load="handleImageLoad"
+                />
+              </div>
+              <div v-else class="text-muted" style="margin: 10px 0;">
+                Google profile picture will be used
+              </div>
+            </div>
+
             <button
               type="submit"
               class="popup-submit"
-              :disabled="!emailVerified"
-              :title="!emailVerified ? 'Please verify your email first' : ''"
             >
-              {{ emailVerified ? 'Save & Continue' : 'Verify Email to Continue' }}
+              Complete Sign Up
             </button>
-            <button type="button" class="popup-cancel" @click="showDetailsPopup = false">Cancel</button>
+            <button type="button" class="popup-cancel" @click="cancelGoogleSignup">Cancel</button>
           </form>
         </div>
       </div>
@@ -237,7 +376,7 @@
 <script>
 import AuthLayout from "./AuthLayout.vue";
 import { auth, db } from "../firebase";
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from "firebase/auth";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendEmailVerification, updatePassword } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { useDarkMode } from "@/composables/useDarkMode";
 
@@ -329,6 +468,7 @@ export default {
   },
   data() {
     return {
+      phoneNumber: "", // Just the 8 digits
       signup: {
         username: "",
         email: "",
@@ -348,6 +488,8 @@ export default {
       },
       showDetailsPopup: false,
       showPassword: false,
+      confirmPassword: '',
+      passwordMismatch: false,
       currentUserUid: null,
       googleLoading: false,
 
@@ -378,6 +520,14 @@ export default {
     };
   },
   methods: {
+    handlePhoneInput(e) {
+      // Only allow digits
+      const value = e.target.value.replace(/\D/g, '').slice(0, 8);
+      this.phoneNumber = value;
+      // Update the full phone number with +65 prefix
+      this.signup.phone = value ? `+65${value}` : '';
+    },
+
     showNotification(message, type = "danger") {
       this.notification = {
         show: true,
@@ -415,12 +565,22 @@ export default {
 
     // Signup Methods
     async handleGoogleSignup() {
-      // Prevent multiple popup attempts
-      if (this.googleLoading) return;
+      // Note: We allow clicking multiple times - Firebase handles duplicate popup prevention
+      // The googleLoading flag only prevents simultaneous clicks during active authentication
+      if (this.googleLoading) {
+        console.log('Google sign-in already in progress, please wait...');
+        return;
+      }
+
       this.googleLoading = true;
 
       try {
         const provider = new GoogleAuthProvider();
+        // Force account selection every time
+        provider.setCustomParameters({
+          prompt: 'select_account'
+        });
+
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
 
@@ -435,6 +595,7 @@ export default {
             this.showNotification("This account already exists. Redirecting to login...", "danger");
             // Sign out and redirect to login
             await auth.signOut();
+            this.googleLoading = false;
             setTimeout(() => {
               this.$router.push("/login");
             }, 2000);
@@ -460,54 +621,116 @@ export default {
         this.emailVerificationSent = user.emailVerified; // If already verified, mark as sent
 
         this.showDetailsPopup = true;
+        this.googleLoading = false;
       } catch (err) {
+        console.log('Google sign-in error:', err.code, err.message);
+
         // Ignore if user simply closed the popup or cancelled
         if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+          // User closed popup - this is normal, just reset the loading state
           this.googleLoading = false;
           return;
         }
+
         this.showNotification(`Google sign-in failed: ${err.message}`, "danger");
-      } finally {
         this.googleLoading = false;
       }
     },
 
-    async handleBasicSignup() {
+    async handleConsolidatedSignup() {
       try {
-        if (!this.signup.username || !this.signup.email || !this.signup.password) {
-          return this.showNotification("Please fill in all fields.", "danger");
+        // If user hasn't created account yet (no currentUserUid), create it first
+        if (!this.currentUserUid) {
+          // Validate basic fields
+          if (!this.signup.email || !this.signup.password) {
+            return this.showNotification("Please enter email and password first.", "danger");
+          }
+
+          // Create user account
+          const userCredential = await createUserWithEmailAndPassword(
+            auth,
+            this.signup.email,
+            this.signup.password
+          );
+
+          this.currentUserUid = userCredential.user.uid;
+          this.signup.isGoogle = false;
+
+          // Check verification status
+          await userCredential.user.reload();
+          this.emailVerified = userCredential.user.emailVerified;
+          this.emailVerificationSent = false;
+
+          // Show notification to verify email
+          this.showNotification("Account created! Please verify your email before completing signup.", "success");
+          return;
         }
 
-        const userCredential = await createUserWithEmailAndPassword(
-          auth,
-          this.signup.email,
-          this.signup.password
-        );
+        // If we reach here, user has created account and now needs to complete profile
+        // Validate all required fields
+        if (!this.signup.firstName || !this.signup.lastName || !this.signup.username ||
+            !this.signup.dateOfBirth || !this.signup.phone || !this.signup.street || !this.signup.postal) {
+          return this.showNotification("Please fill in all required fields.", "danger");
+        }
 
-        this.currentUserUid = userCredential.user.uid;
-        this.signup.isGoogle = false;
+        // Validate username
+        const username = this.signup.username.trim();
+        if (/\s/.test(username)) {
+          return this.showNotification("Username cannot contain spaces.", "danger");
+        }
+        if (username.length < 3) {
+          return this.showNotification("Username must be at least 3 characters.", "danger");
+        }
 
-        // Check actual verification status from Firebase
-        await userCredential.user.reload();
-        this.emailVerified = userCredential.user.emailVerified;
-        this.emailVerificationSent = false;
+        // Validate address if not already validated
+        if (!this.signup.isLanded && !this.signup.blk) {
+          return this.showNotification("Block number is required for HDB/Condominium.", "danger");
+        }
 
-        // Create initial user document
-        await setDoc(doc(db, "users", userCredential.user.uid), {
-          username: this.signup.username,
+        // Validate address with OneMap API
+        await this.validateAddress();
+        if (this.addrError) {
+          return this.showNotification("Please provide a valid Singapore address.", "danger");
+        }
+
+        // Check if email is verified
+        if (!this.emailVerified) {
+          return this.showNotification("Please verify your email before completing signup.", "danger");
+        }
+
+        const uid = this.currentUserUid;
+
+        // Create complete user document
+        await setDoc(doc(db, "users", uid), {
           email: this.signup.email,
+          username: username,
+          firstName: this.signup.firstName,
+          lastName: this.signup.lastName,
+          dateOfBirth: this.signup.dateOfBirth,
+          phone: this.signup.phone,
+          address: {
+            isLanded: this.signup.isLanded,
+            blk: this.signup.blk,
+            street: this.signup.street,
+            postal: this.signup.postal,
+            unit: this.signup.unit,
+          },
+          photoURL: this.signup.profilePreview || null,
+          profilePicture: this.signup.profilePreview || null,
+          emailVerified: true,
+          profileComplete: true,
           createdAt: serverTimestamp(),
-        });
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
 
-        this.showDetailsPopup = true;
+        this.showNotification("Account created successfully!", "success");
+        setTimeout(() => this.$router.push("/home"), 1500);
+
       } catch (err) {
         // Handle specific error codes
         if (err.code === 'auth/email-already-in-use') {
           this.showNotification("This email is already registered. Please login instead.", "danger");
-          // Redirect to login after a delay
-          setTimeout(() => {
-            this.$router.push("/login");
-          }, 2500);
+          setTimeout(() => this.$router.push("/login"), 2500);
         } else if (err.code === 'auth/weak-password') {
           this.showNotification("Password is too weak. Please use at least 6 characters.", "danger");
         } else if (err.code === 'auth/invalid-email') {
@@ -515,16 +738,25 @@ export default {
         } else {
           this.showNotification(`Signup failed: ${err.message}`, "danger");
         }
-
-        // Make sure popup doesn't show on error
-        this.showDetailsPopup = false;
       }
     },
 
-    async submitDetails() {
+    async submitGoogleDetails() {
       try {
         const uid = this.currentUserUid || auth.currentUser?.uid;
         if (!uid) return this.showNotification("User not found.", "danger");
+
+        // Validate password
+        if (!this.signup.password || this.signup.password.length < 6) {
+          this.showNotification("Password must be at least 6 characters.", "danger");
+          return;
+        }
+        if (this.signup.password !== this.confirmPassword) {
+          this.passwordMismatch = true;
+          this.showNotification("Passwords do not match.", "danger");
+          return;
+        }
+        this.passwordMismatch = false;
 
         // Validate username
         const username = this.signup.username.trim();
@@ -568,10 +800,16 @@ export default {
           return;
         }
 
-        // Check if email is verified (skip for Google users as they're auto-verified)
+        // For Google users, email is already verified
         const user = auth.currentUser;
-        if (user && !user.emailVerified && !this.signup.isGoogle) {
-          this.showNotification("Please verify your email before completing your profile.", "danger");
+
+        // Set password for Google user so they can login with email/password
+        try {
+          await updatePassword(user, this.signup.password);
+          console.log('Password set successfully for Google user');
+        } catch (passwordError) {
+          console.error('Error setting password:', passwordError);
+          this.showNotification(`Failed to set password: ${passwordError.message}`, "danger");
           return;
         }
 
@@ -594,7 +832,7 @@ export default {
           userDocRef,
           {
             email: this.signup.email,
-            username: username, // Use validated and trimmed username
+            username: username,
             firstName: this.signup.firstName,
             lastName: this.signup.lastName,
             dateOfBirth: this.signup.dateOfBirth,
@@ -606,10 +844,12 @@ export default {
               postal: this.signup.postal,
               unit: this.signup.unit,
             },
-            photoURL: this.signup.profilePreview || null, // Use photoURL for consistency
-            profilePicture: this.signup.profilePreview || null, // Keep for backward compatibility
+            photoURL: this.signup.profilePreview || null,
+            profilePicture: this.signup.profilePreview || null,
             emailVerified: user.emailVerified,
             profileComplete: true,
+            instagram: '',
+            telegram: '',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           },
@@ -622,6 +862,32 @@ export default {
       } catch (err) {
         this.showNotification(`Failed to save profile: ${err.message}`, "danger");
       }
+    },
+
+    async cancelGoogleSignup() {
+      // Sign out the Google user and close popup
+      await auth.signOut();
+      this.showDetailsPopup = false;
+      this.googleLoading = false;
+      // Reset form
+      this.signup = {
+        username: "",
+        email: "",
+        password: "",
+        firstName: "",
+        lastName: "",
+        dateOfBirth: "",
+        phone: "",
+        isGoogle: false,
+        isLanded: false,
+        blk: "",
+        street: "",
+        postal: "",
+        unit: "",
+        profilePreview: null,
+        profileFile: null,
+      };
+      this.currentUserUid = null;
     },
 
     goToLogin() {
@@ -949,6 +1215,8 @@ button.signup-btn {
   border: none; padding: 10px 20px; border-radius: 20px;
   color: var(--color-text-primary); font-weight: 600; cursor: pointer; transition: transform .2s;
   width: 100%;
+  margin-top: 18px;
+  margin-bottom: 18px;
 }
 button.signup-btn:hover { transform: scale(1.05); }
 
@@ -977,6 +1245,32 @@ button.signup-btn:hover { transform: scale(1.05); }
 }
 :root.dark-mode .dob-container input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
+}
+
+/* Phone Input with +65 prefix */
+.phone-input-wrapper {
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid var(--color-border-dark);
+  gap: 8px;
+}
+.phone-prefix {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  padding: 10px 0;
+  padding-left: 10px;
+  white-space: nowrap;
+}
+.phone-input-field {
+  flex: 1;
+  border: none !important;
+  border-bottom: none !important;
+  padding: 10px !important;
+  background: transparent;
+  color: var(--color-text-primary);
+}
+.phone-input-field:focus {
+  outline: none;
 }
 
 .profile-picture-container { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

@@ -4,10 +4,13 @@ import { useRouter } from 'vue-router'
 import { db, auth } from '@/firebase'
 import {
   collection, query, where, limit as fsLimit, getDocs,
-  doc, updateDoc, addDoc, serverTimestamp, getDoc, orderBy
+  doc, updateDoc, addDoc, serverTimestamp, getDoc, orderBy, increment
 } from 'firebase/firestore'
+import { useToast } from '@/composables/useToast'
+import SellerBadge from './SellerBadge.vue'
 
 const router = useRouter()
+const toast = useToast()
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -21,9 +24,222 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
+/* Report Modal State */
+const showReportModal = ref(false)
+const reportReason = ref('')
+const reportExplanation = ref('')
+const submittingReport = ref(false)
+
+/* Booking Modal State */
+const showBookingModal = ref(false)
+const bookingDate = ref('')
+const bookingTime = ref('')
+const bookingMessage = ref('')
+const submittingBooking = ref(false)
+
+// Socials
+const instagramHandle = ref('')
+const telegramHandle = ref('')
+const loadingHandles = ref(false)
+const handleError = ref('')
+
+const reportReasons = [
+  'Scam/Fraud',
+  'Inappropriate Content',
+  'False Information',
+  'Spam',
+  'Duplicate Listing',
+  'Other'
+]
+
+async function submitReport() {
+  const user = auth.currentUser
+  if (!user) {
+    toast.error('Please log in to report this listing')
+    return
+  }
+
+  if (!reportReason.value) {
+    toast.warning('Please select a reason for reporting')
+    return
+  }
+
+  if (!reportExplanation.value.trim()) {
+    toast.warning('Please provide an explanation for your report')
+    return
+  }
+
+  try {
+    submittingReport.value = true
+
+    const listingId = active.value?.listingId || active.value?.id
+    await addDoc(collection(db, 'reports'), {
+      listingId,
+      listingName: active.value?.businessName,
+      reportedBy: user.uid,
+      reporterEmail: user.email,
+      reason: reportReason.value,
+      explanation: reportExplanation.value.trim(),
+      timestamp: serverTimestamp(),
+      status: 'pending'
+    })
+
+    // Update listing report count
+    const listingRef = doc(db, 'allListings', listingId)
+    await updateDoc(listingRef, {
+      reportCount: (active.value?.reportCount || 0) + 1
+    })
+
+    toast.success('Report submitted successfully. Our team will review it shortly.')
+    showReportModal.value = false
+    reportReason.value = ''
+    reportExplanation.value = ''
+  } catch (error) {
+    console.error('Error submitting report:', error)
+    toast.error('Failed to submit report. Please try again.')
+  } finally {
+    submittingReport.value = false
+  }
+}
+
+function openReportModal() {
+  reportReason.value = ''
+  reportExplanation.value = ''
+  showReportModal.value = true
+}
+
+function closeReportModal() {
+  showReportModal.value = false
+  reportReason.value = ''
+  reportExplanation.value = ''
+}
+
+/* Booking Modal Functions */
+function openBookingModal() {
+  bookingDate.value = ''
+  bookingTime.value = ''
+  bookingMessage.value = ''
+  showBookingModal.value = true
+}
+
+function closeBookingModal() {
+  showBookingModal.value = false
+  bookingDate.value = ''
+  bookingTime.value = ''
+  bookingMessage.value = ''
+}
+
+async function submitBooking() {
+  const user = auth.currentUser
+  if (!user) {
+    toast.error('Please log in to book an appointment')
+    return
+  }
+
+  if (!bookingDate.value) {
+    toast.warning('Please select a date')
+    return
+  }
+
+  if (!bookingTime.value) {
+    toast.warning('Please select a time')
+    return
+  }
+
+  try {
+    submittingBooking.value = true
+
+    const listingId = active.value?.listingId || active.value?.id
+
+    // Get user details
+    const userDoc = await getDoc(doc(db, 'users', user.uid))
+    const userData = userDoc.data()
+
+    // Create booking request
+    await addDoc(collection(db, 'bookingRequests'), {
+      listingId,
+      listingName: active.value?.businessName,
+      sellerId: active.value?.userId,
+      buyerId: user.uid,
+      buyerName: `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() || user.email,
+      buyerEmail: user.email,
+      buyerPhone: userData?.address?.phone || '',
+      date: bookingDate.value,
+      time: bookingTime.value,
+      message: bookingMessage.value.trim(),
+      status: 'pending',
+      createdAt: serverTimestamp()
+    })
+
+    toast.success('Booking request submitted successfully! The seller will review your request.')
+    showBookingModal.value = false
+    bookingDate.value = ''
+    bookingTime.value = ''
+    bookingMessage.value = ''
+  } catch (error) {
+    console.error('Error submitting booking:', error)
+    toast.error('Failed to submit booking request. Please try again.')
+  } finally {
+    submittingBooking.value = false
+  }
+}
+
 /* Esc to close */
-function onEsc(e){ if (e.key === 'Escape') emit('close') }
-onMounted(() => document.addEventListener('keydown', onEsc))
+function onEsc(e){
+  if (e.key === 'Escape') {
+    if (showReportModal.value) {
+      closeReportModal()
+    } else if (showBookingModal.value) {
+      closeBookingModal()
+    } else {
+      emit('close')
+    }
+  }
+}
+
+async function fetchUserHandles(userId) {
+  if (!userId) return
+
+  try {
+    const userDocRef = doc(db, 'users', userId)
+    const userSnap = await getDoc(userDocRef)
+
+    if (!userSnap.exists()) {
+      console.warn('User not found:', userId)
+      return
+    }
+
+    const userData = userSnap.data() || {}
+
+    instagramHandle.value = userData.instagram || ''
+    telegramHandle.value = userData.telegram || ''
+
+    console.log('Fetched handles:', instagramHandle.value, telegramHandle.value)
+
+  } catch (e) {
+    console.error('Error fetching user handles:', e)
+  }
+}
+
+watch(
+  () => props.listing?.userId,
+  (newUserId) => {
+    if (newUserId) {
+      fetchUserHandles(newUserId)
+    } else {
+      instagramHandle.value = ''
+      telegramHandle.value = ''
+    }
+  },
+  { immediate: true } // fetch immediately on component mount
+)
+
+onMounted(() => {
+  document.addEventListener('keydown', onEsc)
+  if (props.listing?.userId) {
+      fetchUserHandles(props.listing.userId)
+    }
+})
 onBeforeUnmount(() => document.removeEventListener('keydown', onEsc))
 
 /* Hours helpers */
@@ -238,14 +454,16 @@ async function fetchNearby(centerLL, category) {
     const snap = await getDocs(qy)
     const raw = snap.docs.map(d => ({ listingId: d.id, ...d.data() }))
 
-    // Geocode each result (or reuse cached geo)
-    const withGeo = []
-    for (const L of raw) {
+    // Geocode all results in parallel (much faster than sequential)
+    const geoPromises = raw.map(async (L) => {
       try {
         const ll = await getLatLngForListing(L)
-        if (ll) withGeo.push({ ...L, geo: ll })
-      } catch (_) {}
-    }
+        return ll ? { ...L, geo: ll } : null
+      } catch (_) {
+        return null
+      }
+    })
+    const withGeo = (await Promise.all(geoPromises)).filter(Boolean)
 
     // Exclude the active listing and compute distances
     const currentId = props.listing?.listingId || props.listing?.id
@@ -380,23 +598,6 @@ async function refreshAll() {
   }, 150)
 }
 
-
-watch([() => props.open, () => props.listing?.listingId], async ([isOpen]) => {
-  if (isOpen) {
-    active.value = props.listing || null
-    await nextTick()
-    setTimeout(refreshAll, 10)
-  } else {
-    if (infoWindow) { try { infoWindow.close() } catch(_){} }
-    infoWindow = null
-    markers.forEach(m => m.setMap(null))
-    markers = []
-    map = null
-    // ✅ new:
-    if (resizeObs) { try { resizeObs.disconnect() } catch(_){} resizeObs = null }
-  }
-})
-
 /* Watchers */
 watch([() => props.open, () => props.listing?.listingId], async ([isOpen]) => {
   if (isOpen) {
@@ -437,10 +638,32 @@ const totalReviews = ref(0)
 
 // Review form state
 const userRating = ref(0)
+const hoverRating = ref(0)
 const userReviewText = ref('')
 const submittingReview = ref(false)
 const reviewError = ref('')
 const reviewSuccess = ref('')
+
+// Check if user has unlocked the review by scanning QR code
+async function checkReviewUnlocked(userId, listingId) {
+  try {
+    // Check if user has used a review code for this listing
+    const usedCodesQuery = query(
+      collection(db, 'usedReviewCodes'),
+      where('userId', '==', userId),
+      where('listingId', '==', listingId)
+    )
+
+    const usedCodesSnapshot = await getDocs(usedCodesQuery)
+
+    // If user has scanned the QR code, they can review
+    return !usedCodesSnapshot.empty
+  } catch (error) {
+    console.error('Error checking review unlock status:', error)
+    // In case of error, block review (fail closed for security)
+    return false
+  }
+}
 
 // Fetch reviews for current listing
 async function fetchReviews() {
@@ -539,6 +762,16 @@ async function submitReview() {
     return
   }
 
+  // Check if user has unlocked review via QR code
+  const listingId = props.listing.listingId || props.listing.id
+  const hasUnlockedReview = await checkReviewUnlocked(user.uid, listingId)
+
+  if (!hasUnlockedReview) {
+    toast.warning('Please scan the QR code at this business to unlock the review feature.')
+    reviewError.value = 'You must scan this business\'s QR code to leave a review.'
+    return
+  }
+
   submittingReview.value = true
 
   try {
@@ -557,6 +790,11 @@ async function submitReview() {
 
     // Update the seller's average rating
     await updateSellerRating(listingUserId, userRating.value)
+
+    // Increment review count for seller for badge system
+    await updateDoc(doc(db, 'users', listingUserId), {
+      'stats.reviews': increment(1)
+    })
 
     reviewSuccess.value = 'Review submitted successfully!'
     userRating.value = 0
@@ -613,6 +851,7 @@ async function updateSellerRating(sellerId, newRating) {
 watch(() => props.listing?.listingId || props.listing?.id, (newId) => {
   if (newId && props.open) {
     fetchReviews()
+    fetchUserHandles(props.listing.userId)
   }
 }, { immediate: true })
 
@@ -665,24 +904,38 @@ watch(() => props.open, (isOpen) => {
       <!-- Header -->
       <div class="header d-flex align-items-center gap-3 mb-3">
         <div class="rounded-circle overflow-hidden avatar seller-avatar-clickable" @click="goToSellerProfile">
-          <img v-if="sellerAvatar" :src="sellerAvatar" class="w-100 h-100" style="object-fit:cover" alt="">
+          <img v-if="sellerAvatar" :src="sellerAvatar" class="w-100 h-100" style="object-fit:cover" alt="" />
           <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary fw-bold">
             {{ (sellerName||'S').toString().trim().charAt(0).toUpperCase() }}
           </div>
         </div>
         <div class="flex-grow-1">
           <div class="fw-semibold small text-muted">Seller</div>
-          <div class="fw-semibold seller-name-clickable" @click="goToSellerProfile">{{ sellerName || 'Seller' }}</div>
+          <div class="d-flex gap-2 align-items-center">
+            <span class="fw-semibold seller-name-clickable" @click="goToSellerProfile">{{ sellerName || 'Seller' }}</span>
+            <SellerBadge :points="listing?.sellerStats ? (listing.sellerStats.reviews||0)+(listing.sellerStats.boosts||0)*5 : 0" :progress="false" />
+          </div>
         </div>
+            <a v-if="instagramHandle" :href="`https://instagram.com/${instagramHandle}`" target="_blank" rel="noopener">
+          <img src="/src/assets/instagram.png" alt="Instagram" style="width:22px;height:22px;" />
+        </a>
+        <a v-if="telegramHandle" :href="`https://t.me/${telegramHandle}`" target="_blank" rel="noopener">
+          <img src="/src/assets/telegram.png" alt="Telegram" style="width:22px;height:22px;" />
+        </a>
         <span class="badge text-bg-primary">{{ active?.businessCategory || listing?.businessCategory }}</span>
       </div>
 
       <!-- Title row -->
       <div class="title-row">
         <h3 class="mb-0 truncate listing-title">{{ active?.businessName || listing?.businessName }}</h3>
-        <a class="btn btn-outline-primary" :href="gmapsLink" target="_blank" rel="noopener">
-          <i class="fas fa-map-marker-alt me-2"></i>View in Maps
-        </a>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-primary" :href="gmapsLink" target="_blank" rel="noopener">
+            <i class="fas fa-map-marker-alt me-2"></i>View in Maps
+          </a>
+          <button class="btn btn-outline-danger" @click="openReportModal">
+            <i class="fas fa-flag me-2"></i>Report
+          </button>
+        </div>
       </div>
 
       <!-- Two-column layout -->
@@ -782,6 +1035,21 @@ watch(() => props.open, (isOpen) => {
             </div>
           </div>
 
+          <!-- Booking Section -->
+          <div v-if="active?.acceptsBookings" class="mb-3">
+            <h6 class="section-title">Book an Appointment</h6>
+            <div class="booking-info-box card p-3">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="fas fa-calendar-check" style="color: var(--color-primary);"></i>
+                <span class="fw-semibold">Online Booking Available</span>
+              </div>
+              <p class="small text-muted mb-2">Session Duration: {{ active.bookingDuration || 60 }} minutes</p>
+              <button class="btn btn-primary w-100" @click="openBookingModal">
+                <i class="fas fa-calendar-plus me-2"></i>Request Appointment
+              </button>
+            </div>
+          </div>
+
           <!-- REVIEWS & RATING SECTION -->
           <div class="reviews-section mt-4">
             <div class="d-flex align-items-center justify-content-between mb-3">
@@ -803,12 +1071,12 @@ watch(() => props.open, (isOpen) => {
                 <!-- Star Rating Input -->
                 <div class="mb-2">
                   <label class="form-label small mb-1">Your Rating:</label>
-                  <div class="stars-input">
+                  <div class="stars-input" @mouseleave="hoverRating = 0">
                     <span v-for="i in 5" :key="i"
                           class="star"
-                          :class="{ filled: i <= userRating, hover: i <= userRating }"
+                          :class="{ filled: i <= userRating, hover: hoverRating > 0 && i <= hoverRating }"
                           @click="userRating = i"
-                          @mouseenter="userRating = i">★</span>
+                          @mouseenter="hoverRating = i">★</span>
                   </div>
                 </div>
 
@@ -878,7 +1146,7 @@ watch(() => props.open, (isOpen) => {
                             <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= review.rating }">★</span>
                           </div>
                         </div>
-                        <p class="mb-1 small">{{ review.reviewText }}</p>
+                        <p class="mb-1 small">{{ review.reviewText || review.comment }}</p>
                         <span class="text-muted xsmall">{{ formatDate(review.createdAt) }}</span>
                       </div>
                     </div>
@@ -890,8 +1158,113 @@ watch(() => props.open, (isOpen) => {
 
         </section>
       </div>
+
     </aside>
   </transition>
+
+  <!-- Report Modal - Teleported to body -->
+  <Teleport to="body">
+    <div v-if="showReportModal" class="report-modal-backdrop" @click="closeReportModal">
+      <div class="report-modal" @click.stop>
+        <div class="report-modal-header">
+          <h4 class="mb-0">Report Listing</h4>
+          <button class="btn-close-custom" @click="closeReportModal">×</button>
+        </div>
+
+        <div class="report-modal-body">
+          <p class="text-muted mb-3">Help us keep the platform safe by reporting inappropriate or fraudulent listings.</p>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Reason for Report *</label>
+            <select v-model="reportReason" class="form-select">
+              <option value="">-- Select a reason --</option>
+              <option v-for="reason in reportReasons" :key="reason" :value="reason">{{ reason }}</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Explanation *</label>
+            <textarea
+              v-model="reportExplanation"
+              class="form-control"
+              rows="4"
+              placeholder="Please provide details about why you're reporting this listing..."
+              maxlength="500"
+            ></textarea>
+            <div class="text-end text-muted small mt-1">{{ reportExplanation.length }}/500</div>
+          </div>
+        </div>
+
+        <div class="report-modal-footer">
+          <button class="btn btn-secondary" @click="closeReportModal" :disabled="submittingReport">Cancel</button>
+          <button class="btn btn-danger" @click="submitReport" :disabled="submittingReport">
+            <span v-if="submittingReport" class="spinner-border spinner-border-sm me-2"></span>
+            {{ submittingReport ? 'Submitting...' : 'Submit Report' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Booking Modal - Teleported to body -->
+  <Teleport to="body">
+    <div v-if="showBookingModal" class="booking-modal-backdrop" @click="closeBookingModal">
+      <div class="booking-modal" @click.stop>
+        <div class="booking-modal-header">
+          <h4 class="mb-0">Request Appointment</h4>
+          <button class="btn-close-custom" @click="closeBookingModal">×</button>
+        </div>
+
+        <div class="booking-modal-body">
+          <p class="text-muted mb-3">Fill in the details below to request an appointment with {{ active?.businessName }}.</p>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Preferred Date *</label>
+            <input
+              type="date"
+              v-model="bookingDate"
+              class="form-control"
+              :min="new Date().toISOString().split('T')[0]"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Preferred Time *</label>
+            <input
+              type="time"
+              v-model="bookingTime"
+              class="form-control"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Message (Optional)</label>
+            <textarea
+              v-model="bookingMessage"
+              class="form-control"
+              rows="3"
+              placeholder="Any special requests or additional information..."
+              maxlength="300"
+            ></textarea>
+            <div class="text-end text-muted small mt-1">{{ bookingMessage.length }}/300</div>
+          </div>
+
+          <div class="alert alert-info small mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            The seller will review your request and contact you to confirm the appointment.
+          </div>
+        </div>
+
+        <div class="booking-modal-footer">
+          <button class="btn btn-secondary" @click="closeBookingModal" :disabled="submittingBooking">Cancel</button>
+          <button class="btn btn-primary" @click="submitBooking" :disabled="submittingBooking">
+            <span v-if="submittingBooking" class="spinner-border spinner-border-sm me-2"></span>
+            {{ submittingBooking ? 'Submitting...' : 'Submit Request' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -951,6 +1324,17 @@ watch(() => props.open, (isOpen) => {
 
 :root.dark-mode .close-btn {
   --btn-close-invert: 1;
+}
+
+/* Dark mode button text fix */
+:root.dark-mode .btn-outline-primary {
+  color: var(--color-text-white) !important;
+  border-color: var(--color-primary);
+}
+
+:root.dark-mode .btn-outline-primary:hover {
+  color: var(--color-text-white) !important;
+  background: var(--color-primary);
 }
 .header {
   padding-right: 20px; /* Extra space so badge doesn't touch close button */
@@ -1096,6 +1480,17 @@ watch(() => props.open, (isOpen) => {
 .oh-row { display:flex; justify-content:space-between; border-bottom:1px dashed var(--color-border); padding-bottom:4px; }
 .oh-day { width:64px; color: var(--color-text-secondary); }
 .oh-time { font-weight:600; color: var(--color-text-primary); }
+
+/* Booking Info Box */
+.booking-info-box {
+  background: var(--color-bg-purple-tint);
+  border: 2px solid var(--color-primary-pale);
+  transition: all 0.2s ease;
+}
+.booking-info-box:hover {
+  border-color: var(--color-primary-lighter);
+  box-shadow: var(--shadow-sm);
+}
 .fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
@@ -1130,7 +1525,7 @@ watch(() => props.open, (isOpen) => {
 .stars-display .star,
 .stars-display-small .star,
 .stars-input .star {
-  color: var(--color-border);
+  color: #ddd;
   font-size: 20px;
   transition: color 0.2s ease;
 }
@@ -1139,7 +1534,18 @@ watch(() => props.open, (isOpen) => {
 
 .stars-display .star.filled,
 .stars-display-small .star.filled {
-  color: #ffc107;
+  color: #ffc107 !important;
+}
+
+/* Dark mode for display stars */
+:root.dark-mode .stars-display .star,
+:root.dark-mode .stars-display-small .star {
+  color: #666;
+}
+
+:root.dark-mode .stars-display .star.filled,
+:root.dark-mode .stars-display-small .star.filled {
+  color: #ffc107 !important;
 }
 
 .stars-input {
@@ -1151,16 +1557,29 @@ watch(() => props.open, (isOpen) => {
 .stars-input .star {
   font-size: 28px;
   transition: all 0.2s ease;
+  color: #ddd;
+  cursor: pointer;
 }
 
 .stars-input .star:hover,
 .stars-input .star.hover {
-  color: #ffc107;
+  color: #ffc107 !important;
   transform: scale(1.1);
 }
 
 .stars-input .star.filled {
-  color: #ffc107;
+  color: #ffc107 !important;
+}
+
+/* Dark mode star visibility */
+:root.dark-mode .stars-input .star {
+  color: #666;
+}
+
+:root.dark-mode .stars-input .star:hover,
+:root.dark-mode .stars-input .star.hover,
+:root.dark-mode .stars-input .star.filled {
+  color: #ffc107 !important;
 }
 
 .review-form {
@@ -1302,6 +1721,257 @@ h4, h5, h6 {
   color: var(--color-text-secondary);
 }
 
+/* Report Modal Styles */
+.report-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.report-modal {
+  background: var(--color-bg-white);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 540px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.report-modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.report-modal-header h4 {
+  color: var(--color-text-primary);
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.btn-close-custom {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.btn-close-custom:hover {
+  background: var(--color-bg-purple-tint);
+  color: var(--color-text-primary);
+}
+
+.report-modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.report-modal-body .form-label {
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.report-modal-body .form-select,
+.report-modal-body .form-control {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.95rem;
+}
+
+.report-modal-body .form-select:focus,
+.report-modal-body .form-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(138, 116, 249, 0.1);
+}
+
+.report-modal-body textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.report-modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.report-modal-footer .btn {
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.report-modal-footer .btn-secondary {
+  background: var(--color-bg-purple-tint);
+  color: var(--color-text-primary);
+}
+
+.report-modal-footer .btn-secondary:hover:not(:disabled) {
+  background: var(--color-border);
+}
+
+.report-modal-footer .btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.report-modal-footer .btn-danger:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.report-modal-footer .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Booking Modal Styles */
+.booking-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.booking-modal {
+  background: var(--color-bg-white);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 540px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.booking-modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.booking-modal-header h4 {
+  color: var(--color-text-primary);
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.booking-modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.booking-modal-body .form-label {
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.booking-modal-body .form-control {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.95rem;
+}
+
+.booking-modal-body .form-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(138, 116, 249, 0.1);
+}
+
+.booking-modal-body textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.booking-modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.booking-modal-footer .btn {
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.booking-modal-footer .btn-secondary {
+  background: var(--color-bg-purple-tint);
+  color: var(--color-text-primary);
+}
+
+.booking-modal-footer .btn-secondary:hover:not(:disabled) {
+  background: var(--color-border);
+}
+
+.booking-modal-footer .btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.booking-modal-footer .btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-lighter);
+}
+
+.booking-modal-footer .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 /* Mobile Responsive Styles */
 @media (max-width: 767.98px) {
   .drawer-panel {
@@ -1360,6 +2030,162 @@ h4, h5, h6 {
   .reviews-section .text-muted.small {
     font-size: 0.75rem;
     white-space: nowrap;
+  }
+
+  /* Report Modal Styles */
+  .report-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 1070;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .report-modal {
+    background: var(--color-bg-white);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+  }
+
+  .report-modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .report-modal-header h4 {
+    color: var(--color-text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .btn-close-custom {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+  }
+
+  .btn-close-custom:hover {
+    background: var(--color-bg-purple-tint);
+    color: var(--color-primary);
+  }
+
+  .report-modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+  }
+
+  .report-modal-body .form-label {
+    color: var(--color-text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .report-modal-body .form-select,
+  .report-modal-body .form-control {
+    background: var(--color-bg-white);
+    border: 2px solid var(--color-border);
+    color: var(--color-text-primary);
+    border-radius: 8px;
+    padding: 0.75rem;
+    transition: border-color 0.2s ease;
+  }
+
+  .report-modal-body .form-select:focus,
+  .report-modal-body .form-control:focus {
+    border-color: var(--color-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(75, 42, 166, 0.1);
+  }
+
+  .report-modal-body textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+
+  .report-modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+
+  .report-modal-footer .btn {
+    padding: 0.625rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+
+  .report-modal-footer .btn-secondary {
+    background: var(--color-bg-purple-tint);
+    color: var(--color-text-primary);
+    border: 2px solid var(--color-border);
+  }
+
+  .report-modal-footer .btn-secondary:hover:not(:disabled) {
+    background: var(--color-bg-white);
+    border-color: var(--color-primary);
+  }
+
+  .report-modal-footer .btn-danger {
+    background: #dc3545;
+    color: white;
+    border: none;
+  }
+
+  .report-modal-footer .btn-danger:hover:not(:disabled) {
+    background: #c82333;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+  }
+
+  .report-modal-footer .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 767.98px) {
+    .report-modal {
+      max-width: calc(100vw - 2rem);
+      max-height: calc(100vh - 2rem);
+    }
+
+    .report-modal-header,
+    .report-modal-body,
+    .report-modal-footer {
+      padding: 1rem;
+    }
+
+    .report-modal-footer {
+      flex-direction: column;
+    }
+
+    .report-modal-footer .btn {
+      width: 100%;
+    }
   }
 
   /* Better spacing */

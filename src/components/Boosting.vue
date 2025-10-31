@@ -1,6 +1,5 @@
 <template>
     <div class="bg-page min-vh-100">
-      <NavBar />
       <div class="container py-4">
         <div v-if="loading" class="text-center py-5">
           <div class="spinner-border"></div>
@@ -101,9 +100,8 @@
   <script setup>
   import { ref, computed, onMounted } from "vue";
   import { useRoute, useRouter } from "vue-router";
-  import NavBar from "@/components/NavBar.vue";
   import ListingCard from "@/components/ListingCard.vue";
-  import { getFirestore, doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
+  import { getFirestore, doc, getDoc, updateDoc, Timestamp, increment } from "firebase/firestore";
   
   const db = getFirestore();
   const route = useRoute();
@@ -137,6 +135,12 @@
     // ✅ Handle success redirect from Stripe
     if (status === "success" && listingId && plan) {
       await applyBoost(listingId, plan);
+      
+      // Show success alert
+      const planNames = { "1day": "1 Day", "7days": "7 Days", "1month": "1 Month" };
+      const planName = planNames[plan] || plan;
+      alert(`🎉 Success! Your listing has been boosted for ${planName}. It will receive increased visibility on Explore & Trending pages!`);
+      
       router.replace("/profile#my");
       return;
     }
@@ -180,7 +184,19 @@
     if (!listing.value) return;
     checkingOut.value = true;
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4242';
+      // Use VITE_API_URL if set, otherwise use localhost for dev
+      // For production/Vercel, set VITE_API_URL in Vercel environment variables
+      const apiUrl = import.meta.env.VITE_API_URL || 
+        (import.meta.env.DEV ? 'http://localhost:4242' : '');
+      
+      if (!apiUrl) {
+        throw new Error('VITE_API_URL is not configured. Please set it in your environment variables.');
+      }
+      
+      // Create an AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const res = await fetch(`${apiUrl}/create-checkout-session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -188,18 +204,41 @@
           listingId: listing.value.id,
           planId: selectedPlanId.value,
         }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}: ${res.statusText}` }));
+        throw new Error(errorData.error || "Failed to create checkout session");
+      }
   
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create checkout session");
+      
+      if (!data.url) {
+        throw new Error("No checkout URL received from server");
+      }
   
       window.location.href = data.url; // Redirect to Stripe
     } catch (err) {
       console.error("Stripe checkout error:", err);
-      alert("Failed to start checkout. Please try again.");
-    } finally {
-      checkingOut.value = false;
+      
+      let errorMessage = "Failed to start checkout. Please try again.";
+      
+      if (err.name === 'AbortError') {
+        errorMessage = `The server at ${import.meta.env.VITE_API_URL || 'http://localhost:4242'} is not responding. Please make sure the backend server is running.`;
+      } else if (err.message.includes('Failed to fetch') || err.message.includes('network')) {
+        errorMessage = `Cannot connect to the payment server. Please make sure the backend server is running at ${import.meta.env.VITE_API_URL || 'http://localhost:4242'}.`;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      alert(errorMessage);
+      checkingOut.value = false; // Reset button state on error
     }
+    // Note: We don't reset checkingOut.value in finally anymore since we do it on error
+    // and on success we redirect, so it doesn't matter
   }
   
   /* ---------------- Apply Boost (STACK TIME) ---------------- */
@@ -214,8 +253,10 @@
       const snap = await getDoc(ref);
   
       let baseTime = Date.now();
+      let sellerId = null;
       if (snap.exists()) {
         const data = snap.data();
+        sellerId = data.userId;
         const currentBoostedUntil = data.boostedUntil;
   
         // If there's already a boost in the future, stack onto it
@@ -231,9 +272,20 @@
       });
   
       console.log(`✅ Boost applied to ${listingId} until ${newBoostedUntil.toDate()}`);
+      
+      // Update seller badge progress: increment boosts
+      if (sellerId) {
+        await updateDoc(doc(db, "users", sellerId), {
+          "stats.boosts": increment(1)
+        });
+      }
+  
+      // Success is already handled in onMounted when status === "success"
+      // This function is called from there, so we don't show alert here
+      // to avoid double alerts
     } catch (e) {
       console.error("❌ Failed to update boostedUntil:", e);
-      alert("Boost applied, but failed to update listing. Please refresh.");
+      alert("❌ Boost payment succeeded, but failed to update listing. Please contact support or refresh the page.");
     }
   }
   </script>

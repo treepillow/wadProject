@@ -2,21 +2,23 @@
 import { addDoc, collection, doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore'
 import { auth, db, storage } from '@/firebase'
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
-import NavBar from './NavBar.vue'
 import { Icon } from '@iconify/vue';
 import { useDarkMode } from '@/composables/useDarkMode'
 import { useRoute, useRouter } from 'vue-router'
+import { useToast } from '@/composables/useToast'
+import { generateReviewCode } from '@/utils/reviewCode'
 
 export default {
   name: 'CreateListing',
-  components: { NavBar },
+  components: { },
 
   setup() {
     // Initialize dark mode
     useDarkMode()
     const route = useRoute()
     const router = useRouter()
-    return { route, router }
+    const toast = useToast()
+    return { route, router, toast }
   },
 
   data() {
@@ -36,7 +38,7 @@ export default {
       existingPhotoUrls: [], // For edit mode - existing photos
       isDragging: false,
       photoError: '',
-      menuItems: [{ name: '', price: '' }],
+      menuItems: [{ name: '', price: '', image: null, imagePreview: '' }],
 
       // Weekly operating hours
       operatingHours: {
@@ -56,6 +58,10 @@ export default {
 
       // Loading state for creating listing
       isCreatingListing: false,
+
+      // Success modal
+      showSuccessModal: false,
+      createdListingId: null,
 
       // Booking system
       acceptsBookings: false,
@@ -110,7 +116,7 @@ export default {
       try {
         const listingDoc = await getDoc(doc(db, 'allListings', listingId))
         if (!listingDoc.exists()) {
-          alert('Listing not found')
+          this.toast.error('Listing not found')
           this.router.push('/profile?tab=my')
           return
         }
@@ -119,7 +125,7 @@ export default {
 
         // Check if current user owns this listing
         if (data.userId !== auth.currentUser?.uid) {
-          alert('You can only edit your own listings')
+          this.toast.error('You can only edit your own listings')
           this.router.push('/profile?tab=my')
           return
         }
@@ -143,7 +149,12 @@ export default {
 
         // Menu items
         if (data.menu && data.menu.length > 0) {
-          this.menuItems = data.menu.map(item => ({ name: item.name || '', price: item.price || '' }))
+          this.menuItems = data.menu.map(item => ({
+            name: item.name || '',
+            price: item.price || '',
+            image: null,
+            imagePreview: item.imageUrl || ''
+          }))
         }
 
         // Operating hours - convert from stored format to form format
@@ -178,7 +189,7 @@ export default {
 
       } catch (error) {
         console.error('Error loading listing:', error)
-        alert('Failed to load listing for editing')
+        this.toast.error('Failed to load listing for editing')
         this.router.push('/profile?tab=my')
       }
     },
@@ -210,8 +221,42 @@ export default {
     },
 
     /* ---------- Menu/Services ---------- */
-    addMenuItem() { this.menuItems.push({ name: '', price: '' }) },
-    removeMenuItem(i) { if (this.menuItems.length > 1) this.menuItems.splice(i, 1) },
+    addMenuItem() { this.menuItems.push({ name: '', price: '', image: null, imagePreview: '' }) },
+    removeMenuItem(i) {
+      if (this.menuItems.length > 1) {
+        const item = this.menuItems[i]
+        if (item?.imagePreview && !item.imagePreview.startsWith('http')) {
+          URL.revokeObjectURL(item.imagePreview)
+        }
+        this.menuItems.splice(i, 1)
+      }
+    },
+    onMenuImagePicked(e, index) {
+      const file = e.target.files?.[0]
+      if (!file) return
+
+      const ok = ['image/jpeg', 'image/png', 'image/webp']
+      if (!ok.includes(file.type)) {
+        this.toast.warning('Please upload a valid image (JPG, PNG, or WEBP)')
+        return
+      }
+
+      // Revoke previous preview if exists
+      if (this.menuItems[index].imagePreview && !this.menuItems[index].imagePreview.startsWith('http')) {
+        URL.revokeObjectURL(this.menuItems[index].imagePreview)
+      }
+
+      this.menuItems[index].image = file
+      this.menuItems[index].imagePreview = URL.createObjectURL(file)
+      e.target.value = ''
+    },
+    removeMenuImage(index) {
+      if (this.menuItems[index].imagePreview && !this.menuItems[index].imagePreview.startsWith('http')) {
+        URL.revokeObjectURL(this.menuItems[index].imagePreview)
+      }
+      this.menuItems[index].image = null
+      this.menuItems[index].imagePreview = ''
+    },
 
     /* ---------- Address utils & OneMap (strict) ---------- */
     normalizeStr(s){ return (s||'').toString().trim().toUpperCase().replace(/\s+/g,' ').replace(/[.,']/g,'') },
@@ -384,35 +429,62 @@ export default {
       return Promise.all(uploads)
     },
 
+    async uploadMenuImages(uid, listingId) {
+      const uploads = []
+      for (let i = 0; i < this.menuItems.length; i++) {
+        const item = this.menuItems[i]
+        if (item.image) {
+          const file = item.image
+          const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
+          const path = `listings/${uid}/${listingId}/menu/${Date.now()}-${i}.${ext}`
+          const sref = storageRef(storage, path)
+
+          const uploadPromise = new Promise((resolve, reject) => {
+            const task = uploadBytesResumable(sref, file, { contentType: file.type })
+            task.on('state_changed', null, reject, async () => {
+              try {
+                const url = await getDownloadURL(task.snapshot.ref)
+                resolve({ index: i, url, path })
+              } catch (e) {
+                reject(e)
+              }
+            })
+          })
+          uploads.push(uploadPromise)
+        }
+      }
+      return Promise.all(uploads)
+    },
+
     /* ---------- Submit (STRICT) ---------- */
     async handleSubmit(){
       const user = auth.currentUser
-      if(!user){ alert('You must be logged in to publish a listing.'); return }
+      if(!user){ this.toast.error('You must be logged in to publish a listing.'); return }
 
       // Set loading state
       this.isCreatingListing = true
 
       if(!this.businessName.trim() || !this.businessDesc.trim() || !this.businessCategory.trim()){
         this.isCreatingListing = false
-        alert('Please fill in Service Name, Description, and Category.')
+        this.toast.warning('Please fill in Service Name, Description, and Category.')
         return
       }
 
       // Validate address fields
       if (!this.isLanded && !this.locationBlk.trim()) {
         this.isCreatingListing = false
-        alert('Block number is required for HDB/Condominium. Toggle "Landed Property" if applicable.')
+        this.toast.warning('Block number is required for HDB/Condominium. Toggle "Landed Property" if applicable.')
         return
       }
 
       if(!this.locationStreet.trim() || !this.locationPostal.trim() || !this.locationUnit.trim()){
         this.isCreatingListing = false
-        alert('Please fill in Street Address, Postal Code, and Unit No.')
+        this.toast.warning('Please fill in Street Address, Postal Code, and Unit No.')
         return
       }
       if(!/^[0-9]{6}$/.test(this.locationPostal.trim())){
         this.isCreatingListing = false
-        alert('Postal Code must be a 6-digit number (Singapore).')
+        this.toast.warning('Postal Code must be a 6-digit number (Singapore).')
         return
       }
 
@@ -420,13 +492,13 @@ export default {
       if (this.isLanded) {
         if(!/^#?[0-9]{2}$/.test(this.locationUnit.trim())){
           this.isCreatingListing = false
-          alert('Unit No must look like #09 for landed properties.')
+          this.toast.warning('Unit No must look like #09 for landed properties.')
           return
         }
       } else {
         if(!/^#?[0-9]{2}-[0-9]{3}$/.test(this.locationUnit.trim())){
           this.isCreatingListing = false
-          alert('Unit No must look like #09-142 for non-landed properties.')
+          this.toast.warning('Unit No must look like #09-142 for non-landed properties.')
           return
         }
       }
@@ -457,7 +529,7 @@ export default {
       if (!check.ok) {
         this.isCreatingListing = false
         this.addrError = check.reason || 'Invalid address.'
-        alert('Please provide a valid Singapore address.')
+        this.toast.error('Please provide a valid Singapore address.')
         return
       }
 
@@ -465,7 +537,13 @@ export default {
       for(const m of this.menuItems){
         if(!m.name.trim() || !m.price.trim()){
           this.isCreatingListing = false
-          alert(this.emptyLineAlertText)
+          this.toast.warning(this.emptyLineAlertText)
+          return
+        }
+        // Validate image for Food & Drinks category
+        if (this.isFoodCategory && !m.image && !m.imagePreview) {
+          this.isCreatingListing = false
+          this.toast.warning('Please upload an image for all food/drink items.')
           return
         }
       }
@@ -475,11 +553,13 @@ export default {
       const locationFormatted = `BLK ${blk} ${street} Singapore ${postal} ${unitFormatted}`
 
       try{
+        // First prepare menu without image URLs (we'll add them after upload)
         const menu = this.menuItems
           .filter(m=>(m.name||'').trim())
           .map(m=>({
             name:m.name.trim(),
-            price:(m.price||'').trim()
+            price:(m.price||'').trim(),
+            imageUrl: m.imagePreview && m.imagePreview.startsWith('http') ? m.imagePreview : '' // Keep existing URLs
           }))
 
         // Convert operating hours to the format expected by ListingDrawer
@@ -502,7 +582,8 @@ export default {
           listingId = this.editingListingId
           allListingsDocRef = doc(db, 'allListings', listingId)
         } else {
-          // Create mode: create new document
+          // Create mode: create new document with review code
+          const reviewCode = generateReviewCode()
           allListingsDocRef = await addDoc(collection(db, 'allListings'), {
             businessName: this.businessName.trim(),
             businessDesc: this.businessDesc.trim(),
@@ -518,6 +599,7 @@ export default {
             locationFormatted,
             menu,
             operatingHours: operatingHoursFormatted,
+            reviewCode, // Add the unique review code
             createdAt: serverTimestamp(),
             viewCount: 0
           })
@@ -532,6 +614,14 @@ export default {
           photoObjs = await this.uploadAllPhotos(user.uid, listingId)
           const newPhotoUrls = photoObjs.map(p => p.url)
           photoUrls = [...photoUrls, ...newPhotoUrls]
+        }
+
+        // Upload menu images for Food & Drinks category
+        if (this.isFoodCategory) {
+          const menuImageUploads = await this.uploadMenuImages(user.uid, listingId)
+          menuImageUploads.forEach(({ index, url }) => {
+            menu[index].imageUrl = url
+          })
         }
 
         // Prepare the final payload with photos and booking settings
@@ -565,6 +655,17 @@ export default {
           payload.createdAt = serverTimestamp()
         } else {
           payload.updatedAt = serverTimestamp()
+
+          // In edit mode, preserve existing reviewCode or generate one if missing
+          const existingDoc = await getDoc(allListingsDocRef)
+          if (existingDoc.exists()) {
+            const existingData = existingDoc.data()
+            // Keep existing reviewCode, or generate new one if missing
+            payload.reviewCode = existingData.reviewCode || generateReviewCode()
+          } else {
+            // If document doesn't exist (shouldn't happen), generate new code
+            payload.reviewCode = generateReviewCode()
+          }
         }
 
         // Remove undefined values
@@ -577,14 +678,29 @@ export default {
         if (this.editMode) {
           this.router.push('/profile?tab=my')
         } else {
-          this.clearForm()
+          // Show success modal after creating new listing
+          this.createdListingId = listingId
+          this.showSuccessModal = true
         }
       }catch(e){
         console.error(e)
-        alert('Failed to add listing, please try again')
+        this.toast.error('Failed to add listing, please try again')
       } finally {
         this.isCreatingListing = false
       }
+    },
+
+    viewListing() {
+      this.showSuccessModal = false
+      this.clearForm()
+      // Navigate to home and open the listing drawer
+      this.router.push({ path: '/', query: { listing: this.createdListingId } })
+    },
+
+    returnToHome() {
+      this.showSuccessModal = false
+      this.clearForm()
+      this.router.push('/')
     },
 
     clearForm(){
@@ -595,7 +711,13 @@ export default {
       this.locationStreet=''
       this.locationPostal=''
       this.locationUnit=''
-      this.menuItems=[{name:'',price:''}]
+      // Clean up menu item image previews
+      this.menuItems.forEach(item => {
+        if (item.imagePreview && !item.imagePreview.startsWith('http')) {
+          URL.revokeObjectURL(item.imagePreview)
+        }
+      })
+      this.menuItems=[{name:'',price:'', image: null, imagePreview: ''}]
       this.operatingHours = {
         monday: { enabled: true, start: '09:00', end: '17:00' },
         tuesday: { enabled: true, start: '09:00', end: '17:00' },
@@ -630,8 +752,6 @@ export default {
 
 <template>
   <div class="bg-page">
-    <NavBar />
-
     <!-- Loading Popup -->
     <div v-if="isCreatingListing" class="loading-overlay">
       <div class="loading-popup">
@@ -640,6 +760,25 @@ export default {
         </div>
         <h5>{{ editMode ? 'Updating Listing...' : 'Creating Listing...' }}</h5>
         <p class="text-muted">Please wait while we process your listing</p>
+      </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div v-if="showSuccessModal" class="loading-overlay" @click="returnToHome">
+      <div class="success-popup" @click.stop>
+        <div class="success-icon mb-3">
+          <Icon icon="mdi:check-circle" style="font-size: 4rem; color: #28a745;" />
+        </div>
+        <h4 class="mb-3">Listing Created Successfully!</h4>
+        <p class="text-muted mb-4">Your listing has been published and is now live.</p>
+        <div class="d-flex gap-3 justify-content-center">
+          <button class="btn btn-primary px-4 py-2" @click="viewListing">
+            <Icon icon="mdi:eye" class="me-2" />View Listing
+          </button>
+          <button class="btn btn-outline-secondary px-4 py-2" @click="returnToHome">
+            <Icon icon="mdi:home" class="me-2" />Return to Homepage
+          </button>
+        </div>
       </div>
     </div>
 
@@ -900,13 +1039,30 @@ export default {
                     <div class="mb-2">
                       <input class="form-control" :placeholder="itemNamePlaceholder" v-model.trim="m.name" />
                     </div>
-                    <div class="mb-2">
+                    <div class="mb-3">
                       <div class="input-group">
                         <span class="input-group-text">$</span>
                         <input class="form-control" :placeholder="pricePlaceholder" v-model.trim="m.price" />
                       </div>
                     </div>
-                    <div class="d-flex justify-content-end mb-2">
+
+                    <!-- Image Upload for Food & Drinks - Below name and price -->
+                    <div v-if="isFoodCategory" class="mb-3">
+                      <label class="form-label small mb-2 fw-semibold">Food/Drink Image *</label>
+                      <div v-if="m.imagePreview" class="menu-image-preview-wrapper mb-2">
+                        <img :src="m.imagePreview" alt="Menu item" class="menu-preview-img" />
+                        <button type="button" class="btn btn-sm btn-danger menu-img-remove" @click="removeMenuImage(i)">×</button>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        class="form-control form-control-sm"
+                        @change="onMenuImagePicked($event, i)"
+                        :ref="el => { if (el) $refs[`menuImageInput${i}`] = el }"
+                      />
+                    </div>
+
+                    <div class="d-flex justify-content-end">
                       <button class="btn btn-outline-danger btn-sm" type="button" @click="removeMenuItem(i)" :disabled="menuItems.length === 1">×</button>
                     </div>
                   </div>
@@ -1257,6 +1413,34 @@ export default {
   box-shadow: var(--shadow-sm);
 }
 
+.menu-image-preview-wrapper {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.menu-preview-img {
+  width: 100%;
+  max-width: 300px;
+  height: 200px;
+  border-radius: 8px;
+  border: 2px solid var(--color-border);
+  object-fit: cover;
+  display: block;
+}
+
+.menu-img-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  line-height: 1;
+  border-radius: 50%;
+  font-size: 16px;
+}
+
 /* Mobile responsive styles */
 @media (max-width: 767.98px) {
   .container {
@@ -1535,6 +1719,38 @@ export default {
 .loading-popup .text-muted {
   color: var(--color-text-secondary);
   font-size: 0.9rem;
+}
+
+.success-popup {
+  background: var(--color-bg-white);
+  padding: 3rem 4rem;
+  border-radius: 1rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  max-width: 500px;
+}
+
+.success-popup h4 {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.success-popup .text-muted {
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+}
+
+.success-icon {
+  animation: scaleIn 0.3s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 /* Fix helper text visibility in dark mode - use :deep() to override Bootstrap's global .text-muted */

@@ -19,10 +19,15 @@ import {
   limit as fsLimit
 } from 'firebase/firestore'
 import { useDarkMode } from '@/composables/useDarkMode'
+import { useMessageNotifications } from '@/composables/useMessageNotifications'
 import ListingDrawer from '../components/ListingDrawer.vue' // <-- keep same path as Home if needed
+import SellerBadge from './SellerBadge.vue'
 
 // Initialize dark mode
 useDarkMode()
+
+// Message notifications
+const { markChatAsRead } = useMessageNotifications()
 
 const route = useRoute()
 const router = useRouter()
@@ -139,6 +144,10 @@ function getOtherAvatar(chat) {
 }
 const otherUidActive = computed(() => activeChat.value ? getOtherUid(activeChat.value) : '')
 
+const badgeModalOpen = ref(false)
+function openBadgeInfoModal() { badgeModalOpen.value = true }
+function closeBadgeInfoModal() { badgeModalOpen.value = false }
+
 /* ───────── Select chat ───────── */
 function selectChat(chat) {
   activeChat.value = chat
@@ -150,11 +159,19 @@ function selectChat(chat) {
 
   router.replace({ query: { chatId: chat.id } })
 
+  // Mark chat as read when selected
+  markChatAsRead(chat.id)
+
   if (unsubscribeMsgs) { unsubscribeMsgs(); unsubscribeMsgs = null }
 
   const q = query(collection(db, `chats/${chat.id}/messages`), orderBy('timestamp', 'asc'))
   unsubscribeMsgs = onSnapshot(q, (snap) => {
     messages.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    
+    // Mark as read when messages are loaded/updated (in case new messages arrive)
+    if (chat.id) {
+      markChatAsRead(chat.id)
+    }
   })
 
   const sellerId = getOtherUid(chat)
@@ -402,8 +419,11 @@ const groupedMessages = computed(() => {
                 class="chat-user-avatar"
                 @error="$event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(getOtherName(activeChat))}&background=ECE8FF&color=4b2aa6&size=128`"
               />
-              <div class="chat-user-details">
-                <h5 class="chat-user-name">{{ getOtherName(activeChat) }}</h5>
+              <div class="chat-user-details d-flex align-items-center gap-2">
+                <h5 class="chat-user-name mb-0">{{ getOtherName(activeChat) }}</h5>
+                <span style="cursor:pointer;" @click.stop="openBadgeInfoModal">
+                  <SellerBadge :points="activeChat?.meta?.[otherUidActive]?.stats ? (activeChat.meta[otherUidActive].stats.reviews||0)+(activeChat.meta[otherUidActive].stats.boosts||0)*5 : 0" :progress="false" />
+                </span>
               </div>
             </router-link>
 
@@ -492,6 +512,41 @@ const groupedMessages = computed(() => {
         :cacheGeocode="true"
         @close="closeDrawer"
       />
+
+      <!-- Modal for badge info -->
+      <Teleport to="body">
+        <div v-if="badgeModalOpen" class="modal-backdrop" @click="closeBadgeInfoModal">
+          <div class="modal-dialog modal-dialog-centered modal-badgeinfo" @click.stop>
+            <div class="modal-content p-4">
+              <div class="modal-header border-0 mb-2">
+                <h5 class="modal-title">Seller Level & Badges</h5>
+                <button type="button" class="btn-close-custom" @click="closeBadgeInfoModal">×</button>
+              </div>
+              <div class="modal-body">
+                <div class="mb-3"><SellerBadge :points="activeChat?.meta?.[otherUidActive]?.stats ? (activeChat.meta[otherUidActive].stats.reviews||0)+(activeChat.meta[otherUidActive].stats.boosts||0)*5 : 0" :progress="true" /></div>
+                <div>Earn points by:
+                  <ul>
+                    <li><b>1</b> point per review received</li>
+                    <li><b>5</b> points per boost</li>
+                  </ul>
+                </div>
+                <div class="mb-2"><b>Benefits:</b> Higher badge = more search visibility & credibility</div>
+                <div>
+                  <b>Levels:</b>
+                  <ul>
+                    <li>Bronze: 0–49 pts</li>
+                    <li>Silver: 50–149 pts</li>
+                    <li>Gold: 150–299 pts</li>
+                    <li>Platinum: 300–499 pts</li>
+                    <li>Diamond: 500+ pts</li>
+                  </ul>
+                </div>
+                <small class="text-muted">This badge is visible on your listings and profile to help build trust.</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </div>
   </div>
 </template>
@@ -600,4 +655,8 @@ const groupedMessages = computed(() => {
   .message-time { font-size: .688rem; }
   .send-btn { width: 36px; height: 36px; }
 }
+.btn-close-custom {
+  background:transparent; border:none; font-size:2rem; line-height:1; color:var(--color-text-primary); cursor:pointer; padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;}
+.modal-badgeinfo { max-width: 380px; width: 94%;}
+.modal-badgeinfo .modal-content { box-shadow: 0 4px 24px rgba(0,0,0,0.13); border-radius:10px;}
 </style>

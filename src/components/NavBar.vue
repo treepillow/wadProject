@@ -2,10 +2,13 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
-import { getFirestore, doc, getDoc } from 'firebase/firestore'
+import { getFirestore, doc, getDoc, onSnapshot } from 'firebase/firestore'
 import userPng from '../assets/user.png'
 import DarkModeToggle from './DarkModeToggle.vue'
-import { Icon } from '@iconify/vue'; 
+import { Icon } from '@iconify/vue'
+import { useMessageNotifications } from '@/composables/useMessageNotifications' 
+import SellerBadge from './SellerBadge.vue'
+import { LEVELS } from '@/composables/useSellerLevel'
 
 const props = defineProps({
   // for about page - show login/signup instead of profile stuff
@@ -20,35 +23,59 @@ const db = getFirestore()
 const user = ref(null)
 const avatarUrl = ref(userPng)
 const loggingOut = ref(false)
+const isAdmin = ref(false)
 let unsubAuth = null
+let unsubUserStats = null
+
+// Message notifications
+const { unreadCount, startListening, stopListening } = useMessageNotifications()
+
+const badgeModalOpen = ref(false)
+function openBadgeInfoModal() { badgeModalOpen.value = true }
+function closeBadgeInfoModal() { badgeModalOpen.value = false }
 
 onMounted(() => {
+  // Start listening to message notifications
+  startListening()
+  
   unsubAuth = onAuthStateChanged(auth, async (u) => {
     user.value = u
     if (!u) {
       avatarUrl.value = userPng
+      // Clean up user stats listener
+      if (unsubUserStats) { unsubUserStats(); unsubUserStats = null }
       return
     }
 
-    // First, set the avatar from Firebase Auth immediately to avoid "User avatar" text
-    avatarUrl.value = u.photoURL || userPng
+    // Start with default avatar
+    avatarUrl.value = userPng
 
-    // Then try to get the stored photoURL from Firestore
-    try {
-      const snap = await getDoc(doc(db, 'users', u.uid))
+    // Set up real-time listener for user stats (including badge progress)
+    if (unsubUserStats) { unsubUserStats(); unsubUserStats = null }
+    unsubUserStats = onSnapshot(doc(db, 'users', u.uid), (snap) => {
       if (snap.exists()) {
         const data = snap.data()
-        // Prefer Firestore photoURL, fallback to Firebase Auth photoURL, then default
-        const url = data.photoURL || data.profilePicture || u.photoURL || userPng
+        // Update user data with stats
+        user.value = { ...user.value, stats: data.stats || { reviews: 0, boosts: 0 } }
+        // Only use Firestore photoURL/profilePicture if it exists
+        // Don't use Google profile picture (u.photoURL)
+        const url = data.photoURL || data.profilePicture || userPng
         avatarUrl.value = url
+        // Check if user is admin
+        isAdmin.value = data.isAdmin || false
       }
-    } catch (err) {
-      console.error('Error loading user avatar:', err)
-      // Keep the Firebase Auth photoURL on error
-    }
+    }, (err) => {
+      console.error('Error loading user stats:', err)
+      // Keep default avatar on error
+      avatarUrl.value = userPng
+    })
   })
 })
-onBeforeUnmount(() => { unsubAuth && unsubAuth() })
+onBeforeUnmount(() => { 
+  unsubAuth && unsubAuth()
+  if (unsubUserStats) { unsubUserStats(); unsubUserStats = null }
+  stopListening()
+})
 
 const isLoggedIn = computed(() => !!user.value)
 const showAuthCtas = computed(() => props.authCtasOnly)
@@ -60,6 +87,33 @@ async function logout() {
     router.push('/')
   } finally {
     loggingOut.value = false
+  }
+}
+
+// Close mobile menu when navigation link is clicked
+function closeNavbar() {
+  const navbarCollapse = document.getElementById('mainNav')
+  if (!navbarCollapse) return
+
+  // Only close if it's currently open
+  if (navbarCollapse.classList.contains('show')) {
+    // Remove both show and collapsing classes for instant close
+    navbarCollapse.classList.remove('show', 'collapsing')
+
+    // Force immediate transition by setting a temporary no-transition class
+    navbarCollapse.style.transition = 'none'
+
+    // Reset transition after a frame
+    requestAnimationFrame(() => {
+      navbarCollapse.style.transition = ''
+    })
+
+    // Update the toggler button's state
+    const navbarToggler = document.querySelector('.navbar-toggler')
+    if (navbarToggler) {
+      navbarToggler.classList.add('collapsed')
+      navbarToggler.setAttribute('aria-expanded', 'false')
+    }
   }
 }
 </script>
@@ -112,7 +166,7 @@ async function logout() {
               <!-- Profile button -->
               <li class="nav-item order-mobile-1 order-lg-last">
                 <!-- Mobile: Profile button -->
-                <RouterLink to="/profile" class="btn btn-brand d-lg-none mobile-nav-btn">
+                <RouterLink to="/profile" class="btn btn-brand d-lg-none mobile-nav-btn" @click="closeNavbar">
                   <Icon icon="mdi:account" class="icon-24" />
                   <span class="btn-text">Profile</span>
                 </RouterLink>
@@ -123,6 +177,11 @@ async function logout() {
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end">
                     <li><RouterLink to="/profile" class="dropdown-item">Profile</RouterLink></li>
+                    <li v-if="isAdmin"><RouterLink to="/admin" class="dropdown-item">Admin Dashboard</RouterLink></li>
+                    <li><RouterLink to="/feedback" class="dropdown-item d-flex align-items-center gap-2">
+                      <Icon icon="mdi:comment" />
+                      <span>Feedback / Report Issue</span>
+                    </RouterLink></li>
                     <li><hr class="dropdown-divider" /></li>
                     <li>
                       <button class="dropdown-item text-danger" @click="logout" :disabled="loggingOut">
@@ -133,9 +192,16 @@ async function logout() {
                 </div>
               </li>
 
+              <!-- Badge and Progress (Desktop only) -->
+              <li class="nav-item order-mobile-8 d-none d-lg-block">
+                <span class="clickable-badge-desktop" @click="openBadgeInfoModal">
+                  <SellerBadge :points="user?.stats ? (user.stats.reviews||0)+(user.stats.boosts||0)*5 : 0" :progress="true" />
+                </span>
+              </li>
+
               <!-- My Listings button -->
               <li class="nav-item order-mobile-2">
-                <RouterLink to="/profile?tab=my" class="btn btn-brand mobile-nav-btn">
+                <RouterLink to="/profile?tab=my" class="btn btn-brand mobile-nav-btn" @click="closeNavbar">
                   <Icon icon="mdi:store" class="icon-24" />
                   <span class="btn-text d-lg-none">My Listings</span>
                   <span class="d-none d-lg-inline ms-1">My Listings</span>
@@ -144,7 +210,7 @@ async function logout() {
 
               <!-- Liked button -->
               <li class="nav-item order-mobile-3">
-                <RouterLink to="/profile?tab=liked" class="btn btn-brand mobile-nav-btn">
+                <RouterLink to="/profile?tab=liked" class="btn btn-brand mobile-nav-btn" @click="closeNavbar">
                   <Icon icon="mdi:heart" class="icon-24" />
                   <span class="btn-text d-lg-none">Liked</span>
                   <span class="d-none d-lg-inline ms-1">Liked</span>
@@ -153,23 +219,38 @@ async function logout() {
 
               <!-- Messages button -->
               <li class="nav-item order-mobile-4">
-                <RouterLink to="/chat" class="btn btn-brand mobile-nav-btn">
+                <RouterLink to="/chat" class="btn btn-brand mobile-nav-btn position-relative" @click="closeNavbar">
                   <Icon icon="mdi:email" class="icon-24" />
                   <span class="btn-text d-lg-none">Messages</span>
                   <span class="d-none d-lg-inline ms-1">Messages</span>
+                  <span
+                    v-if="unreadCount > 0"
+                    class="badge bg-danger position-absolute top-0 start-100 translate-middle notification-badge"
+                    style="font-size: 0.7rem; min-width: 18px; height: 18px; padding: 0 5px; display: flex; align-items: center; justify-content: center;"
+                  >
+                    {{ unreadCount > 99 ? '99+' : unreadCount }}
+                  </span>
                 </RouterLink>
               </li>
 
               <!-- Create button -->
               <li class="nav-item order-mobile-5">
-                <RouterLink to="/createService" class="btn btn-brand mobile-nav-btn">
+                <RouterLink to="/createService" class="btn btn-brand mobile-nav-btn" @click="closeNavbar">
                   <Icon icon="mdi:plus-circle" class="icon-24" />
-                  <span class="btn-text">Create</span>
+                  <span class="btn-text">Create Listing</span>
+                </RouterLink>
+              </li>
+
+              <!-- Admin button (mobile only) -->
+              <li v-if="isAdmin" class="nav-item order-mobile-6 d-lg-none">
+                <RouterLink to="/admin" class="btn btn-warning mobile-nav-btn">
+                  <Icon icon="mdi:shield-account" class="icon-24" />
+                  <span class="btn-text">Admin</span>
                 </RouterLink>
               </li>
 
               <!-- Sign out button (mobile only) -->
-              <li class="nav-item order-mobile-6 d-lg-none">
+              <li class="nav-item order-mobile-7 d-lg-none">
                 <button class="btn btn-danger mobile-nav-btn mobile-signout-btn" @click="logout" :disabled="loggingOut">
                   <Icon icon="mdi:logout" class="icon-24" />
                   <span class="btn-text">{{ loggingOut ? 'Signing out…' : 'Sign out' }}</span>
@@ -183,6 +264,41 @@ async function logout() {
             </template>
           </ul>
         </div>
+        <!-- Drawer for badge info -->
+        <Teleport to="body">
+          <div v-if="badgeModalOpen" class="badge-drawer-overlay" @click="closeBadgeInfoModal">
+            <div class="badge-drawer" @click.stop>
+              <div class="drawer-header">
+                <h5 class="drawer-title">Seller Level & Badges</h5>
+                <button type="button" class="btn-close-drawer" @click="closeBadgeInfoModal">×</button>
+              </div>
+              <div class="drawer-body">
+                <div class="mb-4"><SellerBadge :points="user?.stats ? (user.stats.reviews||0)+(user.stats.boosts||0)*5 : 0" :progress="true" /></div>
+                <div class="mb-3">
+                  <strong>Earn points by:</strong>
+                  <ul class="mt-2">
+                    <li><b>1</b> point per review received</li>
+                    <li><b>5</b> points per boost</li>
+                  </ul>
+                </div>
+                <div class="mb-3"><strong>Benefits:</strong> Higher badge = more search visibility & credibility</div>
+                <div class="mb-3">
+                  <strong>Badge Tiers:</strong>
+                  <div class="badge-tiers mt-3">
+                    <div v-for="(level, idx) in LEVELS" :key="level.key" class="badge-tier-item d-flex align-items-center gap-3 mb-3">
+                      <img :src="level.badge" :alt="level.display + ' badge'" class="tier-badge-icon" />
+                      <div class="flex-grow-1">
+                        <div class="fw-semibold">{{ level.display }}</div>
+                        <div class="text-muted small">{{ level.min }}–{{ level.max === Infinity ? '∞' : level.max }} pts</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <small class="text-muted">This badge is visible on your listings and profile to help build trust.</small>
+              </div>
+            </div>
+          </div>
+        </Teleport>
       </div>
     </nav>
   </header>
@@ -190,7 +306,7 @@ async function logout() {
 
 <style scoped>
 .bg-page {
-  background: var(--color-bg-white) !important;
+  background: var(--color-bg-main) !important;
   transition: background var(--transition-normal);
 }
 
@@ -298,6 +414,17 @@ async function logout() {
   width: auto;  /* Allow width to adapt based on content */
 }
 
+/* Dark mode button text fix */
+:root.dark-mode .btn-outline-primary {
+  color: var(--color-text-white) !important;
+  border-color: var(--color-primary);
+}
+
+:root.dark-mode .btn-outline-primary:hover {
+  color: var(--color-text-white) !important;
+  background: var(--color-primary);
+}
+
 /* Mobile responsive buttons */
 @media (max-width: 575.98px) {
   .btn-brand,
@@ -392,6 +519,37 @@ async function logout() {
   border-radius: 12px;
   border: 1px solid rgba(0,0,0,.06);
   box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
+}
+
+.dropdown-item {
+  color: var(--color-text-primary);
+}
+
+.dropdown-item:hover {
+  background: var(--color-bg-purple-tint);
+  color: var(--color-text-primary);
+}
+
+/* Dark mode dropdown styling */
+:root.dark-mode .dropdown-menu {
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+
+:root.dark-mode .dropdown-item {
+  color: var(--color-text-primary);
+}
+
+:root.dark-mode .dropdown-item:hover {
+  background: var(--color-bg-purple-tint);
+  color: var(--color-text-primary);
+}
+
+:root.dark-mode .dropdown-divider {
+  border-color: var(--color-border);
 }
 
 /* Navbar Toggler */
@@ -500,7 +658,7 @@ async function logout() {
   /* Mobile profile header with avatar */
   .mobile-profile-header {
     display: flex;
-    justify-content: center;
+    flex-direction: column; /* Changed to column for mobile */
     align-items: center;
     padding: 1rem 0;
     margin-bottom: 0.5rem;
@@ -621,4 +779,184 @@ async function logout() {
   }
 }
 
+/* Notification badge styling */
+.notification-badge {
+  border-radius: 10px;
+  font-weight: 600;
+  border: 2px solid var(--color-bg-white);
+  z-index: 10;
+}
+
+:root.dark-mode .notification-badge {
+  border-color: var(--color-bg-main);
+}
+
+/* Badge Drawer Styles */
+.badge-drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1060;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.badge-drawer {
+  width: 50%;
+  max-width: 600px;
+  height: 100vh;
+  background: var(--color-bg-white);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.3s ease-out;
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.drawer-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.btn-close-drawer {
+  background: transparent;
+  border: none;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s ease;
+}
+
+.btn-close-drawer:hover {
+  background: var(--color-bg-purple-tint);
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem 1.5rem;
+  color: var(--color-text-primary);
+}
+
+.drawer-body ul {
+  padding-left: 1.5rem;
+}
+
+.drawer-body li {
+  margin-bottom: 0.5rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+:root.dark-mode .badge-drawer {
+  background: #1a1a1a;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+:root.dark-mode .drawer-header {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root.dark-mode .btn-close-drawer:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile responsive */
+@media (max-width: 991.98px) {
+  .badge-drawer {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* Clickable badge hover effect */
+.clickable-badge {
+  cursor: pointer;
+  display: inline-block;
+  transition: transform 0.2s ease-in-out;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+}
+
+.clickable-badge:hover {
+  transform: scale(1.05);
+  background: var(--color-bg-purple-tint);
+}
+
+/* Clickable badge desktop in navbar */
+.clickable-badge-desktop {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: transform 0.2s ease-in-out;
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  min-width: auto;
+  width: auto;
+}
+
+.clickable-badge-desktop:hover {
+  transform: scale(1.05);
+  background: var(--color-bg-purple-tint);
+}
+
+/* Badge tier icons in drawer */
+.tier-badge-icon {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.badge-tier-item {
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--color-bg-purple-tint);
+  transition: background 0.2s ease;
+}
+
+.badge-tier-item:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+.badge-tier-item:hover .text-muted {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
 </style>

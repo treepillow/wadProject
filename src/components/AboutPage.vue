@@ -12,6 +12,12 @@ const testimonials = ref([])
 const loadingReviews = ref(true)
 const trendingListings = ref([])
 const loadingTrending = ref(true)
+const statistics = ref({
+  businesses: 0,
+  users: 0,
+  categories: 0
+})
+const loadingStats = ref(true)
 
 // fetch real reviews from database
 async function fetchRealReviews() {
@@ -34,10 +40,11 @@ async function fetchRealReviews() {
       for (const reviewDoc of reviewsSnap.docs) {
         const reviewData = reviewDoc.data()
 
-        // only include 5-star reviews with actual text
-        if (reviewData.rating === 5 && reviewData.comment && reviewData.comment.trim().length > 0) {
+        // only include reviews with actual text and rating >= 4
+        const reviewComment = reviewData.reviewText || reviewData.comment || ''
+        if (reviewData.rating >= 4 && reviewComment && reviewComment.trim().length > 20) {
           // fetch user data
-          let userName = reviewData.userName || 'Anonymous'
+          let userName = reviewData.userName || reviewData.username || 'Anonymous'
           let userLocation = 'Singapore'
 
           if (reviewData.userId) {
@@ -46,6 +53,13 @@ async function fetchRealReviews() {
               if (userDoc.exists()) {
                 const userData = userDoc.data()
                 userName = userData.displayName || userData.username || userName
+                // Try to get location from address
+                if (userData.address?.street) {
+                  const street = userData.address.street
+                  // Extract area name (usually after last space)
+                  const parts = street.split(' ')
+                  userLocation = parts[parts.length - 1] || 'Singapore'
+                }
               }
             } catch (e) {
               // fallback to review data
@@ -53,7 +67,7 @@ async function fetchRealReviews() {
           }
 
           allReviews.push({
-            text: reviewData.comment,
+            text: reviewComment,
             rating: reviewData.rating,
             userName: userName,
             userLocation: userLocation,
@@ -62,8 +76,8 @@ async function fetchRealReviews() {
         }
       }
 
-      // stop once we have at least 3 reviews
-      if (allReviews.length >= 3) break
+      // stop once we have at least 6 reviews to have variety
+      if (allReviews.length >= 6) break
     }
 
     // shuffle and pick 3
@@ -149,13 +163,24 @@ async function fetchTrendingListings() {
         console.warn('Failed to fetch ratings for', listingId)
       }
 
+      // Try multiple possible image field names
+      const imageUrl = data.imageUrl ||
+                      data.businessImage ||
+                      data.image ||
+                      (Array.isArray(data.photoUrls) && data.photoUrls.length > 0 ? data.photoUrls[0] : null) ||
+                      (Array.isArray(data.photos) && data.photos.length > 0 ? data.photos[0].url : null) ||
+                      (Array.isArray(data.images) && data.images.length > 0 ? data.images[0] : null) ||
+                      data.photoURL ||
+                      null
+
       listings.push({
         id: listingId,
         businessName: data.businessName,
         businessCategory: data.businessCategory,
         price: data.menu?.[0]?.price || null,
         avgRating: avgRating.toFixed(1),
-        totalReviews: totalReviews
+        totalReviews: totalReviews,
+        imageUrl: imageUrl
       })
     }
 
@@ -188,9 +213,44 @@ function getStars(rating) {
   return '★'.repeat(roundedRating) + '☆'.repeat(5 - roundedRating)
 }
 
+// fetch real statistics from database
+async function fetchStatistics() {
+  try {
+    // Count total businesses
+    const listingsRef = collection(db, 'allListings')
+    const listingsSnap = await getDocs(listingsRef)
+    statistics.value.businesses = listingsSnap.size
+
+    // Count total users
+    const usersRef = collection(db, 'users')
+    const usersSnap = await getDocs(usersRef)
+    statistics.value.users = usersSnap.size
+
+    // Count unique categories
+    const categories = new Set()
+    listingsSnap.docs.forEach(doc => {
+      const category = doc.data().businessCategory
+      if (category) categories.add(category)
+    })
+    statistics.value.categories = categories.size
+
+  } catch (error) {
+    console.error('Failed to fetch statistics:', error)
+    // Fallback to minimal values if fetch fails
+    statistics.value = {
+      businesses: 0,
+      users: 0,
+      categories: 0
+    }
+  } finally {
+    loadingStats.value = false
+  }
+}
+
 onMounted(() => {
   fetchRealReviews()
   fetchTrendingListings()
+  fetchStatistics()
 
   const section = document.querySelector('.about-section')
   if (!section) return
@@ -375,8 +435,11 @@ onBeforeUnmount(() => {
         <div v-else class="row g-4 mb-4">
           <div v-for="listing in trendingListings" :key="listing.id" class="col-12 col-sm-6 col-lg-3">
             <div class="preview-card">
-              <div class="preview-image" :class="getCategoryClass(listing.businessCategory)">
-                <span class="preview-badge">{{ listing.businessCategory }}</span>
+              <div
+                class="preview-image"
+                :class="{ 'has-image': listing.imageUrl, [getCategoryClass(listing.businessCategory)]: !listing.imageUrl }"
+                :style="listing.imageUrl ? `background-image: url('${listing.imageUrl}')` : ''"
+              >
               </div>
               <div class="preview-content">
                 <h6 class="preview-title">{{ listing.businessName }}</h6>
@@ -398,19 +461,24 @@ onBeforeUnmount(() => {
           <div class="cta-content">
             <h3 class="cta-title">Ready to get started?</h3>
             <p class="cta-subtitle">Join our community and discover amazing local businesses today</p>
-            <div class="cta-stats">
+            <div v-if="loadingStats" class="cta-stats">
+              <div class="spinner-border text-light" role="status">
+                <span class="visually-hidden">Loading statistics...</span>
+              </div>
+            </div>
+            <div v-else class="cta-stats">
               <div class="stat-item">
-                <div class="stat-number">500+</div>
+                <div class="stat-number">{{ statistics.businesses }}+</div>
                 <div class="stat-label">Businesses</div>
               </div>
               <div class="stat-divider"></div>
               <div class="stat-item">
-                <div class="stat-number">10k+</div>
-                <div class="stat-label">Happy Customers</div>
+                <div class="stat-number">{{ statistics.users }}+</div>
+                <div class="stat-label">Users</div>
               </div>
               <div class="stat-divider"></div>
               <div class="stat-item">
-                <div class="stat-number">50+</div>
+                <div class="stat-number">{{ statistics.categories }}+</div>
                 <div class="stat-label">Categories</div>
               </div>
             </div>
@@ -484,7 +552,7 @@ onBeforeUnmount(() => {
   opacity: 0;            /* start hidden */
   transform: translateY(10px);
   transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
-  cursor: pointer;
+  cursor: default;
 }
 
 /* Invert logos in dark mode so they're visible */
@@ -676,7 +744,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(75, 42, 166, 0.08);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
+  cursor: default;
   border: 1px solid var(--color-border);
   height: 100%;
 }
@@ -692,6 +760,12 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.preview-image.has-image {
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
 }
 
 .fitness-bg {
@@ -773,9 +847,20 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-/* Ensure text is always white regardless of theme */
+/* Dark mode: use dark background instead of purple */
+:root.dark-mode .cta-card {
+  background: var(--color-bg-white);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--color-border);
+}
+
+/* Ensure text is always white in light mode, adapt in dark mode */
 .cta-card * {
   color: white !important;
+}
+
+:root.dark-mode .cta-card * {
+  color: var(--color-text-primary) !important;
 }
 
 .cta-card::before {
@@ -856,6 +941,19 @@ onBeforeUnmount(() => {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   background: rgba(255, 255, 255, 0.95) !important;
   color: #4b2aa6 !important;
+}
+
+/* Dark mode button styling */
+:root.dark-mode .cta-button {
+  background: var(--color-primary) !important;
+  color: white !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+:root.dark-mode .cta-button:hover {
+  background: var(--color-primary-hover) !important;
+  color: white !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 /* Animations */

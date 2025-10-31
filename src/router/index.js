@@ -12,6 +12,10 @@ import NewBusiness from '../components/NewBusiness.vue';
 import Boosting from '../components/Boosting.vue'
 import UserProfile from '../components/UserProfile.vue'
 import EmailVerified from '../components/EmailVerified.vue'
+import AdminDashboard from '../components/AdminDashboard.vue'
+import Feedback from '@/components/Feedback.vue';
+import ManageReport from '@/components/ManageReports.vue';
+import ReviewUnlock from '@/components/ReviewUnlock.vue';
 
 import { auth, db } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -85,18 +89,67 @@ const router = createRouter({
       name: 'emailVerified',
       component: EmailVerified
     },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminDashboard,
+      meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/feedback',
+      name: 'feedback',
+      component: Feedback
+    },
+    {
+      path: '/manageReport',
+      name: 'ManageReport',
+      component: ManageReport
+    },
+    {
+      path: '/review/:listingId',
+      name: 'reviewUnlock',
+      component: ReviewUnlock
+    }
   ],
 })
 
 
-// --- Auth guard ---
+// --- Auth guard with caching ---
+let cachedUser = null;
+let cachedUserData = null;
+let lastFetchTime = 0;
+const CACHE_DURATION = 5000; // Cache for 5 seconds
+
 function getCurrentUser() {
   return new Promise((resolve) => {
     const unsub = onAuthStateChanged(auth, (user) => {
       unsub();
+      cachedUser = user;
       resolve(user);
     });
   });
+}
+
+async function getUserData(uid) {
+  const now = Date.now();
+
+  // Return cached data if still valid
+  if (cachedUserData && cachedUserData.uid === uid && (now - lastFetchTime) < CACHE_DURATION) {
+    return cachedUserData.data;
+  }
+
+  // Fetch fresh data
+  const userDocRef = doc(db, "users", uid);
+  const userDoc = await getDoc(userDocRef);
+
+  // Update cache
+  cachedUserData = {
+    uid: uid,
+    data: userDoc.exists() ? userDoc.data() : null
+  };
+  lastFetchTime = now;
+
+  return cachedUserData.data;
 }
 
 router.beforeEach(async (to, _from, next) => {
@@ -112,11 +165,15 @@ router.beforeEach(async (to, _from, next) => {
 
   // Check if authenticated user has completed profile
   if (user && to.meta.requiresAuth && to.name !== 'signup') {
-    const userDocRef = doc(db, "users", user.uid);
-    const userDoc = await getDoc(userDocRef);
+    const userData = await getUserData(user.uid);
 
-    if (!userDoc.exists() || !userDoc.data().profileComplete) {
+    if (!userData || !userData.profileComplete) {
       return next({ name: "signup" });
+    }
+
+    // Check if route requires admin privileges
+    if (to.meta.requiresAdmin && !userData.isAdmin) {
+      return next({ name: "home" });
     }
   }
 

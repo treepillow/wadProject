@@ -10,7 +10,9 @@
         "dev": "vite",
         "build": "vite build",
         "preview": "vite preview",
-        "start": "node server.js"
+        "start": "node server.js",
+        "server": "node server.js",
+        "dev:server": "node server.js"
     },
     "dependencies": {
         "@iconify/iconify": "^3.1.1",
@@ -22,6 +24,7 @@
         "express": "^5.1.0",
         "firebase": "^12.3.0",
         "node-fetch": "^3.3.2",
+        "qrcode": "^1.5.4",
         "stripe": "^19.1.0",
         "uuid": "^13.0.0",
         "vue": "^3.5.22",

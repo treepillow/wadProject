@@ -8,7 +8,6 @@ import {
 import { onAuthStateChanged } from 'firebase/auth'
 import { db, auth } from '@/firebase'
 
-import NavBar from './NavBar.vue'
 import SearchBar from './SearchBar.vue'
 import Categories from './Categories.vue'
 import ListingCard from './ListingCard.vue'
@@ -212,29 +211,12 @@ async function fetchPage () {
     attachProfileListeners(rows)
     rows.forEach(r => fetchLikesCount(r.listingId || r.id))
 
-    // added this to Fetch average rating for each listing (from 'reviews' subcollection)
-await Promise.all(rows.map(async (r) => {
-  try {
-    const listingId = r.listingId || r.id
-    const reviewsCol = collection(db, 'allListings', listingId, 'reviews')
-    const snap = await getDocs(reviewsCol)
-
-    if (!snap.empty) {
-      const ratings = snap.docs.map(d => d.data().rating || 0)
-      const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length
-      r.rating = Number(avg.toFixed(1))
-    } else {
-      r.rating = 0
-    }
-  } catch (err) {
-    console.warn('rating fetch failed for', r.id, err)
-    r.rating = 0
-  }
-}))
-
-
-//added this to debug ratings fetch step
-// console.log('Loaded listing ratings:', rows.map(r => ({ name: r.businessName, rating: r.rating })));
+    // Use cached rating from listing document instead of fetching all reviews
+    // This dramatically improves performance by avoiding getDocs calls for every listing
+    rows.forEach(r => {
+      // Use the rating stored in the listing document, or default to 0
+      r.rating = r.averageRating || r.rating || 0
+    })
 
 
 
@@ -391,8 +373,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="page-wrapper">
-    <NavBar />
-
     <div class="content-container py-3">
       <SearchBar @search="handleSearch" />
       <div class="categories-row mt-3">
@@ -425,7 +405,7 @@ onBeforeUnmount(() => {
       <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
       <!-- listings grid -->
-      <div v-else>
+      <div v-else class="listings-container">
         <div class="row g-3 row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xxl-5">
           <div class="col" v-for="l in listings" :key="l.id">
             <div class="card-sm">
@@ -542,6 +522,11 @@ onBeforeUnmount(() => {
 }
 .categories-row :deep(.category-text) {
   font-size: 0.95rem !important;
+}
+
+.listings-container {
+  min-height: 600px;
+  transition: opacity 0.2s ease;
 }
 
 .chip-bar { text-align: center; }

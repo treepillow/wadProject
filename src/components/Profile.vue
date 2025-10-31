@@ -9,8 +9,10 @@ import {
 } from 'firebase/firestore'
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { useDarkMode } from '@/composables/useDarkMode'
+import { useToast } from '@/composables/useToast'
+import { generateQRCode, downloadQRCode } from '@/utils/reviewCode'
+import { Icon } from '@iconify/vue'
 
-import NavBar from './NavBar.vue'
 import ListingCard from '@/components/ListingCard.vue'
 import ListingDrawer from '@/components/ListingDrawer.vue'  // <-- NEW
 
@@ -20,7 +22,7 @@ const storage = getStorage()
 
 export default {
   name: 'Profile',
-  components: { NavBar, RouterLink, ListingCard, ListingDrawer }, // <-- add ListingDrawer
+  components: { RouterLink, ListingCard, ListingDrawer, Icon }, // <-- add Icon
 
   setup() {
     // Initialize dark mode
@@ -29,6 +31,7 @@ export default {
     // Get route and router
     const route = useRoute()
     const router = useRouter()
+    const toast = useToast()
 
     /* ---------------- Status ---------------- */
     const loading = ref(true)
@@ -50,6 +53,8 @@ export default {
     const address     = ref('')
     const averageRating = ref(0)
     const totalReviews = ref(0)
+    const instagramId = ref('')
+    const telegramId = ref('')
 
     const displayName = computed(() => {
       const f = (firstName.value || '').trim()
@@ -67,16 +72,22 @@ export default {
     const likedSet   = ref(new Set())
     const likeCounts = ref({})
 
+    /* ---------------- Booking Requests ---------------- */
+    const bookingRequests = ref([])
+    const bookingsLoading = ref(false)
+    const bookingsLoaded = ref(false)
+
     /* ---------------- Tabs (after state declarations) ---------------- */
-    const activeTab = ref('profile') // 'profile' | 'my' | 'liked'
+    const activeTab = ref('profile') // 'profile' | 'my' | 'liked' | 'bookings'
     const openTab = (t) => {
       activeTab.value = t
       if (t === 'liked' && !likedLoaded.value) loadLikedListings()
+      if (t === 'bookings' && !bookingsLoaded.value) loadBookingRequests()
     }
 
     // Watch for route query changes and set active tab
     watch(() => route.query.tab, (newTab) => {
-      if (newTab === 'my' || newTab === 'liked' || newTab === 'profile') {
+      if (newTab === 'my' || newTab === 'liked' || newTab === 'profile' || newTab === 'bookings') {
         openTab(newTab)
       }
     }, { immediate: true })
@@ -239,14 +250,17 @@ export default {
           email.value     = d.email || u.email || ''
           phone.value     = d.phone || ''
           dateOfBirth.value = d.dateOfBirth || ''
-          if (d.address) {
-            const a = d.address
-            address.value = a.blk || a.street || a.postal || a.unit
-              ? `${a.blk || ''} ${a.street || ''} ${a.unit || ''} ${a.postal || ''}`.trim()
-              : ''
-          } else {
-            address.value = ''
-          }
+          address.value = d.address || ''
+          instagramId.value = d.instagram || ''
+          telegramId.value = d.telegram || ''
+          // if (d.address) {
+          //   const a = d.address
+          //   address.value = a.blk || a.street || a.postal || a.unit
+          //     ? `${a.blk || ''} ${a.street || ''} ${a.unit || ''} ${a.postal || ''}`.trim()
+          //     : ''
+          // } else {
+          //   address.value = ''
+          // }
           avatarUrl.value = d.photoURL || d.profilePicture || u.photoURL || ''
           averageRating.value = d.averageRating || 0
           totalReviews.value = d.totalReviews || 0
@@ -315,22 +329,76 @@ export default {
         }
 
         const batches = chunk(ids, 10)
-        const resolved = []
-        for (const group of batches) {
+        // Parallelize batch queries for faster loading
+        const batchPromises = batches.map(async (group) => {
           const qRef = query(collection(db, 'allListings'), where('listingId', 'in', group))
           const snap = await getDocs(qRef)
-          snap.forEach(docSnap => {
-            const data = normalizePhotos({ id: docSnap.id, ...docSnap.data() })
-            resolved.push(data)
-            if (data.listingId) fetchLikesCount(data.listingId)
-          })
-        }
+          return snap.docs.map(docSnap => normalizePhotos({ id: docSnap.id, ...docSnap.data() }))
+        })
+        const batchResults = await Promise.all(batchPromises)
+        const resolved = batchResults.flat()
+        // Fetch likes count for all listings
+        resolved.forEach(data => {
+          if (data.listingId) fetchLikesCount(data.listingId)
+        })
         resolved.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
         likedListings.value = resolved
         attachProfileListeners(resolved)
         prepLikedBatch(resolved)
         likedLoaded.value = true
       } finally { likedLoading.value = false }
+    }
+
+    /* ---------------- Booking Requests ---------------- */
+    async function loadBookingRequests() {
+      if (!user.value || bookingsLoading.value) return
+      try {
+        bookingsLoading.value = true
+        const q = query(
+          collection(db, 'bookingRequests'),
+          where('sellerId', '==', user.value.uid),
+          orderBy('createdAt', 'desc')
+        )
+        const snap = await getDocs(q)
+        bookingRequests.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        bookingsLoaded.value = true
+      } catch (error) {
+        console.error('Error loading booking requests:', error)
+      } finally {
+        bookingsLoading.value = false
+      }
+    }
+
+    async function acceptBooking(bookingId) {
+      try {
+        await updateDoc(doc(db, 'bookingRequests', bookingId), {
+          status: 'accepted',
+          updatedAt: serverTimestamp()
+        })
+        // Update local state
+        const booking = bookingRequests.value.find(b => b.id === bookingId)
+        if (booking) booking.status = 'accepted'
+        toast.success('Booking accepted! Please contact the buyer to confirm details.')
+      } catch (error) {
+        console.error('Error accepting booking:', error)
+        toast.error('Failed to accept booking. Please try again.')
+      }
+    }
+
+    async function rejectBooking(bookingId) {
+      try {
+        await updateDoc(doc(db, 'bookingRequests', bookingId), {
+          status: 'rejected',
+          updatedAt: serverTimestamp()
+        })
+        // Update local state
+        const booking = bookingRequests.value.find(b => b.id === bookingId)
+        if (booking) booking.status = 'rejected'
+        toast.success('Booking rejected.')
+      } catch (error) {
+        console.error('Error rejecting booking:', error)
+        toast.error('Failed to reject booking. Please try again.')
+      }
     }
 
     /* ---------------- Profile actions ---------------- */
@@ -357,6 +425,9 @@ export default {
           await uploadBytes(sref, avatarFile.value, { contentType: avatarFile.value.type })
           photoURL = await getDownloadURL(sref)
         }
+        console.log('Address:', address.value)
+console.log('Instagram:', instagramId.value)
+console.log('Telegram:', telegramId.value)
         await updateDoc(doc(db, 'users', user.value.uid), {
           username: u,
           firstName: firstName.value.trim(),
@@ -366,6 +437,8 @@ export default {
           address: address.value.trim(),
           email: email.value || user.value.email || '',
           photoURL,
+          instagram: instagramId.value.trim(),
+          telegram: telegramId.value.trim(),
           updatedAt: serverTimestamp()
         })
         ok.value = 'Profile saved!'
@@ -376,7 +449,7 @@ export default {
 
     async function onToggleLike(listing) {
       const uid = auth.currentUser?.uid
-      if (!uid) return alert('Please log in to like.')
+      if (!uid) return toast.error('Please log in to like.')
 
       const id = listing.listingId || listing.id
       const userLikeRef   = doc(db, 'users', uid, 'likedListings', id)
@@ -411,7 +484,7 @@ export default {
         likedSet.value = r
         likeCounts.value = { ...likeCounts.value, [id]: prev }
         console.error('like toggle error:', e)
-        alert('Could not update like. Please try again.')
+        toast.error('Could not update like. Please try again.')
       }
     }
 
@@ -436,6 +509,88 @@ export default {
     function closeDrawer() {
       drawerOpen.value = false
       drawerListing.value = null
+    }
+
+    /* ---------------- QR Code Modal ---------------- */
+    const qrModalOpen = ref(false)
+    const qrListing = ref(null)
+    const qrCodeUrl = ref('')
+    const qrGenerating = ref(false)
+
+    async function showQRCode(listing) {
+      const listingId = listing.listingId || listing.id
+      const reviewCode = listing.reviewCode
+
+      if (!reviewCode) {
+        toast.error('This listing does not have a review code. Please edit and re-save the listing.')
+        return
+      }
+
+      qrListing.value = listing
+      qrModalOpen.value = true
+      qrGenerating.value = true
+
+      try {
+        const dataUrl = await generateQRCode(listingId, reviewCode)
+        qrCodeUrl.value = dataUrl
+      } catch (error) {
+        console.error('Error generating QR code:', error)
+        toast.error('Failed to generate QR code')
+        qrModalOpen.value = false
+      } finally {
+        qrGenerating.value = false
+      }
+    }
+
+    function closeQRModal() {
+      qrModalOpen.value = false
+      qrListing.value = null
+      qrCodeUrl.value = ''
+    }
+
+    function downloadQR() {
+      if (!qrCodeUrl.value || !qrListing.value) return
+      const listingName = qrListing.value.businessName || 'listing'
+      const filename = `${listingName.replace(/\s+/g, '-').toLowerCase()}-review-qr.png`
+      downloadQRCode(qrCodeUrl.value, filename)
+      toast.success('QR code downloaded!')
+    }
+
+    function printQR() {
+      if (!qrCodeUrl.value) return
+
+      const printWindow = window.open('', '_blank')
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Review QR Code - ${qrListing.value?.businessName || 'Listing'}</title>
+            <style>
+              body {
+                margin: 0;
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                font-family: Arial, sans-serif;
+              }
+              h1 { font-size: 24px; margin-bottom: 10px; }
+              p { font-size: 14px; color: #666; margin-bottom: 20px; }
+              img { max-width: 400px; }
+            </style>
+          </head>
+          <body>
+            <h1>${qrListing.value?.businessName || 'Business Name'}</h1>
+            <p>Scan this QR code to leave a review</p>
+            <img src="${qrCodeUrl.value}" alt="Review QR Code" />
+          </body>
+        </html>
+      `)
+      printWindow.document.close()
+      printWindow.focus()
+      setTimeout(() => {
+        printWindow.print()
+      }, 250)
     }
 
     /* ---------------- Boost Countdown (INSIDE setup) ---------------- */
@@ -479,7 +634,7 @@ export default {
       // Show success notification if redirected from Stripe
       const params = new URLSearchParams(window.location.search);
       if (params.get('boosted') === 'true') {
-        alert('🎉 Your listing has been boosted! It will receive increased visibility.');
+        toast.success('Your listing has been boosted! It will receive increased visibility.', 'Success!');
         if (window.location.hash === '#my') {
           activeTab.value = 'my';
         }
@@ -595,6 +750,8 @@ export default {
       myListings, myLoading, likedListings, likedLoading,
       likedSet, likeCounts, onToggleLike,
       profileMap,
+      /* bookings */
+      bookingRequests, bookingsLoading, acceptBooking, rejectBooking,
       /* batch reveal bindings */
       revealedMy, revealedLiked,
       handleMyImageLoaded, handleLikedImageLoaded,
@@ -604,6 +761,12 @@ export default {
       /* edit & delete */
       startEditListing, confirmDeleteListing, deleting,
       showDeleteModal, listingToDelete, cancelDelete, proceedDelete,
+      /* QR code modal */
+      qrModalOpen, qrListing, qrCodeUrl, qrGenerating,
+      showQRCode, closeQRModal, downloadQR, printQR,
+      // Socials
+      instagramId,
+      telegramId,
     }
   }
 }
@@ -611,8 +774,6 @@ export default {
 
 <template>
   <div class="bg-page">
-    <NavBar />
-
     <div class="container py-3" aria-hidden="true"></div>
 
     <div class="container pb-5">
@@ -625,6 +786,9 @@ export default {
             </li>
             <li class="nav-item">
               <button class="nav-link" :class="{active: activeTab==='my'}" @click="openTab('my')">My Listings</button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" :class="{active: activeTab==='bookings'}" @click="openTab('bookings')">Booking Requests</button>
             </li>
             <li class="nav-item">
               <button class="nav-link" :class="{active: activeTab==='liked'}" @click="openTab('liked')">Liked</button>
@@ -655,9 +819,29 @@ export default {
                   <span class="text-muted small">({{ totalReviews }} {{ totalReviews === 1 ? 'review' : 'reviews' }})</span>
                 </div>
                 <div v-else class="text-muted small mt-2">No rating yet</div>
+                <!-- Social Media Icons -->
+                <div v-if="instagramId || telegramId" class="d-flex align-items-center gap-3 mt-2">
+                  <a
+                    v-if="instagramId"
+                    :href="`https://instagram.com/${instagramId}`"
+                    target="_blank"
+                    rel="noopener"
+                    class="text-decoration-none text-muted"
+                  >
+                    <img src="/src/assets/instagram.png" alt="Instagram" style="width: 22px; height: 22px;" />
+                  </a>
+                  <a
+                    v-if="telegramId"
+                    :href="`https://t.me/${telegramId}`"
+                    target="_blank"
+                    rel="noopener"
+                    class="text-decoration-none text-muted"
+                  >
+                  <img src="/src/assets/telegram.png" alt="Telegram" style="width: 22px; height: 22px;" />
+                  </a>
+                </div>
               </div>
             </div>
-
             <div v-if="err" class="alert alert-danger py-2">{{ err }}</div>
             <div v-if="ok" class="alert alert-success py-2">{{ ok }}</div>
 
@@ -690,8 +874,34 @@ export default {
                 <label class="form-label fw-semibold">Address</label>
                 <input class="form-control" v-model="address" placeholder="BLK 555B Tampines Ave 11" />
               </div>
-            </div>
+              <!-- Social Media -->
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Instagram</label>
+                <div class="input-group">
+                  <span class="input-group-text">@</span>
+                  <input
+                    class="form-control"
+                    v-model="instagramId"
+                    placeholder="your_instagram_handle"
+                  />
+                </div>
+                <div class="form-text">Enter your Instagram username (no link, just the handle)</div>
+              </div>
 
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Telegram</label>
+                <div class="input-group">
+                  <span class="input-group-text">@</span>
+                  <input
+                    class="form-control"
+                    v-model="telegramId"
+                    placeholder="your_telegram_handle"
+                  />
+                </div>
+                <div class="form-text">Enter your Telegram username (no link, just the handle)</div>
+              </div>
+
+            </div>
             <div class="d-flex justify-content-end mt-4">
               <button class="btn btn-primary" :disabled="saving" @click="saveProfile">
                 <span v-if="!saving">Save changes</span>
@@ -759,10 +969,62 @@ export default {
                       Edit
                     </button>
                     <button
+                      class="btn btn-sm btn-success"
+                      @click="showQRCode(l)"
+                      style="flex: 1;"
+                    >
+                      QR Code
+                    </button>
+                    <button
                       class="btn btn-sm btn-outline-danger"
                       @click="confirmDeleteListing(l)"
                     >
                       Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BOOKING REQUESTS -->
+          <div v-show="activeTab==='bookings'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
+            <h4 class="mb-4">Booking Requests</h4>
+            <div v-if="bookingsLoading" class="text-center py-4"><div class="spinner-border"></div></div>
+            <div v-else-if="!bookingRequests.length" class="text-muted">No booking requests yet.</div>
+            <div v-else>
+              <div v-for="booking in bookingRequests" :key="booking.id" class="booking-request-card card mb-3">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                      <h6 class="mb-1">{{ booking.listingName }}</h6>
+                      <p class="text-muted small mb-0">Request from: {{ booking.buyerName }}</p>
+                    </div>
+                    <span class="badge" :class="{
+                      'bg-warning': booking.status === 'pending',
+                      'bg-success': booking.status === 'accepted',
+                      'bg-danger': booking.status === 'rejected'
+                    }">{{ booking.status.toUpperCase() }}</span>
+                  </div>
+
+                  <div class="mb-2">
+                    <strong>Date:</strong> {{ booking.date }}<br>
+                    <strong>Time:</strong> {{ booking.time }}<br>
+                    <strong>Email:</strong> {{ booking.buyerEmail }}<br>
+                    <strong v-if="booking.buyerPhone">Phone:</strong> {{ booking.buyerPhone }}
+                  </div>
+
+                  <div v-if="booking.message" class="mb-3">
+                    <strong>Message:</strong>
+                    <p class="mb-0 mt-1">{{ booking.message }}</p>
+                  </div>
+
+                  <div v-if="booking.status === 'pending'" class="d-flex gap-2">
+                    <button class="btn btn-success btn-sm" @click="acceptBooking(booking.id)">
+                      <i class="fas fa-check me-1"></i>Accept
+                    </button>
+                    <button class="btn btn-danger btn-sm" @click="rejectBooking(booking.id)">
+                      <i class="fas fa-times me-1"></i>Reject
                     </button>
                   </div>
                 </div>
@@ -825,6 +1087,43 @@ export default {
         </div>
       </div>
     </div>
+
+    <!-- QR Code Modal -->
+    <Teleport to="body">
+      <div v-if="qrModalOpen" class="qr-modal-backdrop" @click="closeQRModal">
+        <div class="qr-modal" @click.stop>
+          <div class="qr-modal-header">
+            <h5 class="qr-modal-title">Review QR Code</h5>
+            <button type="button" class="btn-close-custom" @click="closeQRModal">×</button>
+          </div>
+          <div class="qr-modal-body">
+            <div v-if="qrGenerating" class="text-center py-4">
+              <div class="spinner-border text-primary"></div>
+              <p class="mt-2">Generating QR code...</p>
+            </div>
+            <div v-else class="text-center">
+              <h6 class="mb-3">{{ qrListing?.businessName }}</h6>
+              <p class="text-muted small mb-3">
+                Customers can scan this QR code to unlock the ability to leave a review for your listing.
+              </p>
+              <div class="qr-code-container mb-3">
+                <img :src="qrCodeUrl" alt="Review QR Code" class="qr-code-image" />
+              </div>
+              <div class="d-flex gap-2 justify-content-center">
+                <button type="button" class="btn btn-primary" @click="downloadQR">
+                  <Icon icon="mdi:download" class="me-1" />
+                  Download
+                </button>
+                <button type="button" class="btn btn-secondary" @click="printQR">
+                  <Icon icon="mdi:printer" class="me-1" />
+                  Print
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -1120,6 +1419,74 @@ h3, h4 {
 
   .stars-display .star {
     font-size: 16px;
+  }
+}
+
+/* QR Code Modal Styles */
+.qr-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.qr-modal {
+  background: var(--color-bg-white);
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.qr-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.qr-modal-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.qr-modal-body {
+  padding: 24px;
+}
+
+.qr-code-container {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  display: inline-block;
+}
+
+.qr-code-image {
+  max-width: 300px;
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+@media (max-width: 575.98px) {
+  .qr-modal {
+    max-width: 100%;
+  }
+
+  .qr-code-image {
+    max-width: 250px;
   }
 }
 

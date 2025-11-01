@@ -35,22 +35,22 @@ export default {
 
     /* ---------------- Status ---------------- */
     const loading = ref(true)
-    const saving  = ref(false)
-    const err     = ref('')
-    const ok      = ref('')
+    const saving = ref(false)
+    const err = ref('')
+    const ok = ref('')
 
     /* ---------------- User + Profile ---------------- */
     const user = ref(null)
 
-    const avatarUrl   = ref('')
-    const avatarFile  = ref(null)
-    const firstName   = ref('')
-    const lastName    = ref('')
-    const username    = ref('')
-    const email       = ref('')
-    const phone       = ref('')
+    const avatarUrl = ref('')
+    const avatarFile = ref(null)
+    const firstName = ref('')
+    const lastName = ref('')
+    const username = ref('')
+    const email = ref('')
+    const phone = ref('')
     const dateOfBirth = ref('')   // ISO for <input type="date">
-    const address     = ref('')
+    const address = ref('')
     const averageRating = ref(0)
     const totalReviews = ref(0)
     const instagramId = ref('')
@@ -63,13 +63,13 @@ export default {
     })
 
     /* ---------------- Listings + Likes ---------------- */
-    const myListings     = ref([])
-    const myLoading      = ref(false)
-    const likedListings  = ref([])
-    const likedLoading   = ref(false)
-    const likedLoaded    = ref(false) // Track if we've attempted to load liked listings
+    const myListings = ref([])
+    const myLoading = ref(false)
+    const likedListings = ref([])
+    const likedLoading = ref(false)
+    const likedLoaded = ref(false) // Track if we've attempted to load liked listings
 
-    const likedSet   = ref(new Set())
+    const likedSet = ref(new Set())
     const likeCounts = ref({})
 
     /* ---------------- Booking Requests ---------------- */
@@ -100,7 +100,7 @@ export default {
       const unsub = onSnapshot(doc(db, 'users', uid), snap => {
         const data = snap.data() || {}
         const displayName = data.username || data.displayName || ''
-        const photoURL    = data.photoURL || data.avatarUrl || data.profilePhoto || ''
+        const photoURL = data.photoURL || data.avatarUrl || data.profilePhoto || ''
         profileMap.value = { ...profileMap.value, [uid]: { displayName, photoURL } }
       })
       profileUnsubs.set(uid, unsub)
@@ -186,26 +186,26 @@ export default {
     }
 
     /* ---------------- Helpers ---------------- */
-    const chunk = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i*size, (i+1)*size))
+    const chunk = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, (i + 1) * size))
     const normPhone = (v) => {
       const s = (v || '').trim().replace(/\s+/g, '')
       if (/^\+65\d{8}$/.test(s)) return s
       if (/^\d{8}$/.test(s)) return `+65${s}`
       return s
     }
-      const normalizePhotos = (obj) => {
-        if (!obj) return obj
-        let urls = []
-        if (Array.isArray(obj.photoUrls) && obj.photoUrls.length) {
-          urls = [...obj.photoUrls]
-        } else if (Array.isArray(obj.photos) && obj.photos.length) {
-          urls = obj.photos.map(p => p?.url).filter(Boolean)
-        }
-        // de-dupe by URL
-        const seen = new Set()
-        obj.photoUrls = urls.filter(u => u && !seen.has(u) && (seen.add(u), true))
-        return obj
+    const normalizePhotos = (obj) => {
+      if (!obj) return obj
+      let urls = []
+      if (Array.isArray(obj.photoUrls) && obj.photoUrls.length) {
+        urls = [...obj.photoUrls]
+      } else if (Array.isArray(obj.photos) && obj.photos.length) {
+        urls = obj.photos.map(p => p?.url).filter(Boolean)
       }
+      // de-dupe by URL
+      const seen = new Set()
+      obj.photoUrls = urls.filter(u => u && !seen.has(u) && (seen.add(u), true))
+      return obj
+    }
 
     async function fetchLikesCount(listingId) {
       try {
@@ -246,9 +246,9 @@ export default {
           const d = snap.data()
           username.value = d.username || ''
           firstName.value = d.firstName || ''
-          lastName.value  = d.lastName || ''
-          email.value     = d.email || u.email || ''
-          phone.value     = d.phone || ''
+          lastName.value = d.lastName || ''
+          email.value = d.email || u.email || ''
+          phone.value = d.phone || ''
           dateOfBirth.value = d.dateOfBirth || ''
           address.value = d.address || ''
           instagramId.value = d.instagram || ''
@@ -270,7 +270,7 @@ export default {
             totalReviews: totalReviews.value
           })
         } else {
-          email.value   = u.email || ''
+          email.value = u.email || ''
           avatarUrl.value = u.photoURL || ''
         }
 
@@ -425,13 +425,10 @@ export default {
           await uploadBytes(sref, avatarFile.value, { contentType: avatarFile.value.type })
           photoURL = await getDownloadURL(sref)
         }
-        console.log('Address:', address.value)
-console.log('Instagram:', instagramId.value)
-console.log('Telegram:', telegramId.value)
         await updateDoc(doc(db, 'users', user.value.uid), {
           username: u,
           firstName: firstName.value.trim(),
-          lastName:  lastName.value.trim(),
+          lastName: lastName.value.trim(),
           phone: ph,
           dateOfBirth: (dateOfBirth.value || '').trim(),
           address: address.value.trim(),
@@ -452,7 +449,7 @@ console.log('Telegram:', telegramId.value)
       if (!uid) return toast.error('Please log in to like.')
 
       const id = listing.listingId || listing.id
-      const userLikeRef   = doc(db, 'users', uid, 'likedListings', id)
+      const userLikeRef = doc(db, 'users', uid, 'likedListings', id)
       const publicLikeRef = doc(db, 'listingLikes', id, 'users', uid)
 
       const isLiked = likedSet.value.has(id)
@@ -465,7 +462,7 @@ console.log('Telegram:', telegramId.value)
 
       try {
         if (isLiked) {
-          await Promise.all([ deleteDoc(userLikeRef), deleteDoc(publicLikeRef) ])
+          await Promise.all([deleteDoc(userLikeRef), deleteDoc(publicLikeRef)])
           // If we're on the liked tab and just unliked, refresh the list
           if (activeTab.value === 'liked') {
             likedLoaded.value = false
@@ -489,7 +486,7 @@ console.log('Telegram:', telegramId.value)
     }
 
     /* ---------------- Drawer wiring (NEW) ---------------- */
-    const drawerOpen    = ref(false)
+    const drawerOpen = ref(false)
     const drawerListing = ref(null)
 
     const drawerSellerName = computed(() => {
@@ -782,66 +779,71 @@ console.log('Telegram:', telegramId.value)
           <!-- Tabs -->
           <ul class="nav nav-tabs rounded-3 overflow-hidden shadow-soft mb-4">
             <li class="nav-item">
-              <button class="nav-link" :class="{active: activeTab==='profile'}" @click="openTab('profile')">Profile</button>
+              <button class="nav-link" :class="{ active: activeTab === 'profile' }"
+                @click="openTab('profile')">Profile</button>
             </li>
             <li class="nav-item">
-              <button class="nav-link" :class="{active: activeTab==='my'}" @click="openTab('my')">My Listings</button>
+              <button class="nav-link" :class="{ active: activeTab === 'my' }" @click="openTab('my')">My
+                Listings</button>
             </li>
             <li class="nav-item">
-              <button class="nav-link" :class="{active: activeTab==='bookings'}" @click="openTab('bookings')">Booking Requests</button>
+              <button class="nav-link" :class="{ active: activeTab === 'bookings' }"
+                @click="openTab('bookings')">Booking
+                Requests</button>
             </li>
             <li class="nav-item">
-              <button class="nav-link" :class="{active: activeTab==='liked'}" @click="openTab('liked')">Liked</button>
+              <button class="nav-link" :class="{ active: activeTab === 'liked' }"
+                @click="openTab('liked')">Liked</button>
             </li>
           </ul>
 
           <!-- PROFILE -->
-          <div v-show="activeTab==='profile'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
+          <div v-show="activeTab === 'profile'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
             <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-4">
+              <!-- Avatar -->
               <div class="position-relative">
-                <img
-                  :src="avatarUrl || 'https://ui-avatars.com/api/?name=H&background=ECE8FF&color=5A43C5&size=128'"
+                <img :src="avatarUrl || 'https://ui-avatars.com/api/?name=H&background=ECE8FF&color=5A43C5&size=128'"
                   class="rounded-circle border object-fit-cover" style="width:96px;height:96px" alt="Avatar" />
                 <label class="btn btn-sm btn-light border position-absolute bottom-0 end-0 px-2 py-1">
                   Change <input type="file" accept="image/*" class="d-none" @change="onPickAvatar" />
                 </label>
               </div>
+
+              <!-- User Info -->
               <div class="flex-grow-1">
-                <h3 class="m-0">{{ displayName }}</h3>
+                <!-- Name + socials -->
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <h3 class="m-0">{{ displayName }}</h3>
+
+                  <!-- Socials beside name -->
+                  <a v-if="instagramId" :href="`https://instagram.com/${instagramId}`" target="_blank" rel="noopener"
+                    class="text-decoration-none" @click.stop>
+                    <img src="/src/assets/instagram.png" alt="Instagram" style="width:22px;height:22px;" />
+                  </a>
+
+                  <a v-if="telegramId" :href="`https://t.me/${telegramId}`" target="_blank" rel="noopener"
+                    class="text-decoration-none" @click.stop>
+                    <img src="/src/assets/telegram.png" alt="Telegram" style="width:22px;height:22px;" />
+                  </a>
+                </div>
+
                 <div class="text-muted">{{ email || '—' }}</div>
 
                 <!-- Rating Display -->
                 <div v-if="totalReviews > 0" class="d-flex align-items-center gap-2 mt-2">
                   <div class="stars-display">
-                    <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(averageRating) }">★</span>
+                    <span v-for="i in 5" :key="i" class="star"
+                      :class="{ filled: i <= Math.round(averageRating) }">★</span>
                   </div>
                   <span class="fw-semibold">{{ averageRating.toFixed(1) }}</span>
-                  <span class="text-muted small">({{ totalReviews }} {{ totalReviews === 1 ? 'review' : 'reviews' }})</span>
+                  <span class="text-muted small">
+                    ({{ totalReviews }} {{ totalReviews === 1 ? 'review' : 'reviews' }})
+                  </span>
                 </div>
                 <div v-else class="text-muted small mt-2">No rating yet</div>
-                <!-- Social Media Icons -->
-                <div v-if="instagramId || telegramId" class="d-flex align-items-center gap-3 mt-2">
-                  <a
-                    v-if="instagramId"
-                    :href="`https://instagram.com/${instagramId}`"
-                    target="_blank"
-                    rel="noopener"
-                    class="text-decoration-none text-muted"
-                  >
-                    <img src="/src/assets/instagram.png" alt="Instagram" style="width: 22px; height: 22px;" />
-                  </a>
-                  <a
-                    v-if="telegramId"
-                    :href="`https://t.me/${telegramId}`"
-                    target="_blank"
-                    rel="noopener"
-                    class="text-decoration-none text-muted"
-                  >
-                  <img src="/src/assets/telegram.png" alt="Telegram" style="width: 22px; height: 22px;" />
-                  </a>
-                </div>
               </div>
             </div>
+
             <div v-if="err" class="alert alert-danger py-2">{{ err }}</div>
             <div v-if="ok" class="alert alert-success py-2">{{ ok }}</div>
 
@@ -879,11 +881,7 @@ console.log('Telegram:', telegramId.value)
                 <label class="form-label fw-semibold">Instagram</label>
                 <div class="input-group">
                   <span class="input-group-text">@</span>
-                  <input
-                    class="form-control"
-                    v-model="instagramId"
-                    placeholder="your_instagram_handle"
-                  />
+                  <input class="form-control" v-model="instagramId" placeholder="your_instagram_handle" />
                 </div>
                 <div class="form-text">Enter your Instagram username (no link, just the handle)</div>
               </div>
@@ -892,11 +890,7 @@ console.log('Telegram:', telegramId.value)
                 <label class="form-label fw-semibold">Telegram</label>
                 <div class="input-group">
                   <span class="input-group-text">@</span>
-                  <input
-                    class="form-control"
-                    v-model="telegramId"
-                    placeholder="your_telegram_handle"
-                  />
+                  <input class="form-control" v-model="telegramId" placeholder="your_telegram_handle" />
                 </div>
                 <div class="form-text">Enter your Telegram username (no link, just the handle)</div>
               </div>
@@ -910,9 +904,9 @@ console.log('Telegram:', telegramId.value)
             </div>
           </div>
 
-          
+
           <!-- MY LISTINGS -->
-          <div v-show="activeTab==='my'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
+          <div v-show="activeTab === 'my'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
             <h4 class="mb-4">My Listings</h4>
 
             <!-- Loading -->
@@ -927,23 +921,14 @@ console.log('Telegram:', telegramId.value)
 
             <!-- Grid -->
             <div v-else class="row g-3 g-md-4">
-              <div
-                v-for="l in myListings"
-                :key="l.listingId || l.id"
-                class="col-12 col-sm-6 col-lg-4 d-flex flex-column"
-              >
-                <ListingCard
-                  class="w-100 flex-grow-1"
-                  :listing="l"
-                  :liked="likedSet?.has(l.listingId || l.id)"
+              <div v-for="l in myListings" :key="l.listingId || l.id"
+                class="col-12 col-sm-6 col-lg-4 d-flex flex-column">
+                <ListingCard class="w-100 flex-grow-1" :listing="l" :liked="likedSet?.has(l.listingId || l.id)"
                   :likesCount="likeCounts[l.listingId || l.id] || 0"
                   :sellerNameOverride="profileMap[l.userId]?.displayName || ''"
                   :sellerAvatarOverride="profileMap[l.userId]?.photoURL || ''"
-                  :reveal="revealedMy.has(l.listingId || l.id)"
-                  @toggle-like="onToggleLike"
-                  @image-loaded="handleMyImageLoaded"
-                  @open="openDrawer(l)"
-                />
+                  :reveal="revealedMy.has(l.listingId || l.id)" @toggle-like="onToggleLike"
+                  @image-loaded="handleMyImageLoaded" @open="openDrawer(l)" />
 
                 <!-- Boost section inside the same container/column -->
                 <div class="mt-2">
@@ -954,31 +939,17 @@ console.log('Telegram:', telegramId.value)
 
                   <!-- Action Buttons -->
                   <div class="d-flex gap-2 boost-section">
-                    <router-link
-                      class="btn btn-sm btn-primary"
-                      :to="{ path: '/boosting', query: { listingId: l.listingId || l.id } }"
-                      style="flex: 1;"
-                    >
+                    <router-link class="btn btn-sm btn-primary"
+                      :to="{ path: '/boosting', query: { listingId: l.listingId || l.id } }" style="flex: 1;">
                       Boost
                     </router-link>
-                    <button
-                      class="btn btn-sm btn-primary"
-                      @click="startEditListing(l)"
-                      style="flex: 1;"
-                    >
+                    <button class="btn btn-sm btn-primary" @click="startEditListing(l)" style="flex: 1;">
                       Edit
                     </button>
-                    <button
-                      class="btn btn-sm btn-success"
-                      @click="showQRCode(l)"
-                      style="flex: 1;"
-                    >
+                    <button class="btn btn-sm btn-success" @click="showQRCode(l)" style="flex: 1;">
                       QR Code
                     </button>
-                    <button
-                      class="btn btn-sm btn-outline-danger"
-                      @click="confirmDeleteListing(l)"
-                    >
+                    <button class="btn btn-sm btn-outline-danger" @click="confirmDeleteListing(l)">
                       Delete
                     </button>
                   </div>
@@ -988,9 +959,11 @@ console.log('Telegram:', telegramId.value)
           </div>
 
           <!-- BOOKING REQUESTS -->
-          <div v-show="activeTab==='bookings'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
+          <div v-show="activeTab === 'bookings'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
             <h4 class="mb-4">Booking Requests</h4>
-            <div v-if="bookingsLoading" class="text-center py-4"><div class="spinner-border"></div></div>
+            <div v-if="bookingsLoading" class="text-center py-4">
+              <div class="spinner-border"></div>
+            </div>
             <div v-else-if="!bookingRequests.length" class="text-muted">No booking requests yet.</div>
             <div v-else>
               <div v-for="booking in bookingRequests" :key="booking.id" class="booking-request-card card mb-3">
@@ -1033,24 +1006,21 @@ console.log('Telegram:', telegramId.value)
           </div>
 
           <!-- LIKED -->
-          <div v-show="activeTab==='liked'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
+          <div v-show="activeTab === 'liked'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
             <h4 class="mb-4">Liked Listings</h4>
-            <div v-if="likedLoading" class="text-center py-4"><div class="spinner-border"></div></div>
+            <div v-if="likedLoading" class="text-center py-4">
+              <div class="spinner-border"></div>
+            </div>
             <div v-else-if="!likedListings.length" class="text-muted">No liked listings yet.</div>
             <div v-else class="row g-3 g-md-4">
-              <div v-for="l in likedListings" :key="l.listingId || l.id" class="col-12 col-sm-6 col-lg-4 d-flex flex-column">
-                <ListingCard
-                  class="w-100 flex-grow-1"
-                  :listing="l"
-                  :liked="likedSet?.has(l.listingId || l.id)"
+              <div v-for="l in likedListings" :key="l.listingId || l.id"
+                class="col-12 col-sm-6 col-lg-4 d-flex flex-column">
+                <ListingCard class="w-100 flex-grow-1" :listing="l" :liked="likedSet?.has(l.listingId || l.id)"
                   :likesCount="likeCounts[l.listingId || l.id] || 0"
                   :sellerNameOverride="profileMap[l.userId]?.displayName || ''"
                   :sellerAvatarOverride="profileMap[l.userId]?.photoURL || ''"
-                  :reveal="revealedLiked.has(l.listingId || l.id)"
-                  @toggle-like="onToggleLike"
-                  @image-loaded="handleLikedImageLoaded"
-                  @open="openDrawer(l)"
-                />
+                  :reveal="revealedLiked.has(l.listingId || l.id)" @toggle-like="onToggleLike"
+                  @image-loaded="handleLikedImageLoaded" @open="openDrawer(l)" />
               </div>
             </div>
           </div>
@@ -1060,13 +1030,8 @@ console.log('Telegram:', telegramId.value)
     </div>
 
     <!-- LISTING DRAWER (REUSED) -->
-    <ListingDrawer
-      :open="drawerOpen"
-      :listing="drawerListing"
-      :sellerName="drawerSellerName"
-      :sellerAvatar="drawerSellerAvatar"
-      @close="closeDrawer"
-    />
+    <ListingDrawer :open="drawerOpen" :listing="drawerListing" :sellerName="drawerSellerName"
+      :sellerAvatar="drawerSellerAvatar" @close="closeDrawer" />
 
     <!-- Delete Confirmation Modal -->
     <div v-if="showDeleteModal" class="modal-backdrop" @click="cancelDelete">
@@ -1133,7 +1098,7 @@ console.log('Telegram:', telegramId.value)
 }
 
 .shadow-soft {
-  box-shadow: 0 8px 28px rgba(0,0,0,.06);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .06);
 }
 
 .object-fit-cover {
@@ -1176,7 +1141,8 @@ console.log('Telegram:', telegramId.value)
   font-weight: 600;
 }
 
-.form-control, input[type="date"] {
+.form-control,
+input[type="date"] {
   background: var(--color-bg-white);
   border-color: var(--color-border);
   color: var(--color-text-primary);
@@ -1198,7 +1164,8 @@ console.log('Telegram:', telegramId.value)
   color: var(--color-text-primary);
 }
 
-h3, h4 {
+h3,
+h4 {
   color: var(--color-text-primary);
 }
 
@@ -1389,7 +1356,8 @@ h3, h4 {
     font-size: 0.875rem;
   }
 
-  h2, h3 {
+  h2,
+  h3 {
     font-size: 1.5rem;
   }
 
@@ -1408,7 +1376,8 @@ h3, h4 {
     padding: 1rem;
   }
 
-  h2, h3 {
+  h2,
+  h3 {
     font-size: 1.25rem;
   }
 
@@ -1489,5 +1458,4 @@ h3, h4 {
     max-width: 250px;
   }
 }
-
 </style>

@@ -315,43 +315,38 @@ function closeDrawer() {
 async function incrementViewCount(listingId) {
   const db = getFirestore();
   try {
-    // Reference to the document in 'allListings' collection
     const listingDocRef = doc(db, 'allListings', listingId);
-    
-    // Get the current document to check if viewCount exists
     const docSnap = await getDoc(listingDocRef);
 
     if (docSnap.exists()) {
       const listingData = docSnap.data();
+
+      // Initialize viewCount if missing
       if (listingData.viewCount === undefined) {
-        // If viewCount doesn't exist, set it to 0 first
-        await updateDoc(listingDocRef, {
-          viewCount: 0
-        });
+        await updateDoc(listingDocRef, { viewCount: 0 });
       }
 
-      // Increment the 'viewCount' field
-      await updateDoc(listingDocRef, {
-        viewCount: increment(1)  // This will increment the view count by 1
-      });
+      // Increment viewCount by 1
+      await updateDoc(listingDocRef, { viewCount: increment(1) });
 
-      console.log("View count incremented successfully.");
+      console.log("✅ View count incremented successfully.");
     } else {
-      console.log("Listing document does not exist.");
+      console.warn("⚠️ Listing document does not exist.");
     }
   } catch (error) {
-    console.error("Error incrementing view count: ", error);
+    console.error("❌ Error incrementing view count:", error);
   }
 }
 
+// Call this from anywhere — no `this` needed
 async function handleListingClick(listingId) {
-      try {
-        // Increment view count when the listing is clicked
-        await this.incrementViewCount(listingId);
-      } catch (error) {
-        console.error('Error handling listing click:', error);
-      }
-    }
+  try {
+    await incrementViewCount(listingId);
+  } catch (error) {
+    console.error('❌ Error handling listing click:', error);
+  }
+}
+
   
 
 /* ---------- lifecycle ---------- */

@@ -885,7 +885,7 @@ export default {
               <div class="flex-grow-1">
                 <!-- Name + socials -->
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                  <h3 class="m-0">{{ displayName }}</h3>
+                  <h3 class="m-0">{{ username || '—' }}</h3>
 
                   <!-- Socials beside name -->
                   <a v-if="instagramId" :href="`https://instagram.com/${instagramId}`" target="_blank" rel="noopener"

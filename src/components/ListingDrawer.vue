@@ -972,6 +972,12 @@ watch(() => props.open, (isOpen) => {
           </div>
         </div>
 
+        <!-- Chat button -->
+        <button class="btn btn-sm btn-outline-primary" @click="startChat" title="Chat with seller">
+          <Icon icon="mdi:message-text" class="me-1" />
+          Chat
+        </button>
+
         <!-- Category badge -->
         <span class="badge text-bg-primary">
           {{ active?.businessCategory || listing?.businessCategory }}

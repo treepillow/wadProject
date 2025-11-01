@@ -15,6 +15,10 @@ const userReviews = ref([])
 const loading = ref(true)
 const error = ref('')
 
+// Social handles
+const instagramId = ref('')
+const telegramId = ref('')
+
 // Stats
 const totalRating = ref(0)
 const avgRating = computed(() => {
@@ -35,6 +39,10 @@ async function fetchUserProfile() {
     }
 
     userProfile.value = { id: userDoc.id, ...userDoc.data() }
+
+    // Load social handles if exist
+    instagramId.value = userProfile.value.instagram || ''
+    telegramId.value = userProfile.value.telegram || ''
 
     // Fetch user's listings
     const listingsQuery = query(
@@ -100,6 +108,7 @@ onMounted(() => {
         <!-- User Header -->
         <div class="profile-header card shadow-sm p-4 mb-4">
           <div class="d-flex align-items-center gap-4">
+            <!-- Avatar -->
             <div class="profile-avatar">
               <img
                 v-if="userProfile.photoURL || userProfile.profilePicture"
@@ -117,12 +126,42 @@ onMounted(() => {
               </div>
             </div>
 
+            <!-- User Info & Stats -->
             <div class="flex-grow-1">
-              <div class="d-flex align-items-center gap-1 mb-1">
+              <div class="d-flex align-items-center mb-1">
                 <h2 class="mb-0">{{ userProfile.username || userProfile.displayName || 'User' }}</h2>
-                <SellerBadge v-if="userProfile.stats" :points="(userProfile.stats.reviews || 0) + (userProfile.stats.boosts || 0) * 5" :progress="false" />
+                <SellerBadge 
+                  v-if="userProfile.stats" 
+                  :points="(userProfile.stats.reviews || 0) + (userProfile.stats.boosts || 0) * 5" 
+                  :progress="false" 
+                />
+
+                <!-- Social Icons -->
+                <div class="d-flex ms-1 gap-1">
+                  <a 
+                    v-if="instagramId" 
+                    :href="`https://instagram.com/${instagramId}`" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    title="Instagram"
+                  >
+                    <img src="/src/assets/instagram.png" alt="Instagram" style="width:24px; height:24px;">
+                  </a>
+                  <a 
+                    v-if="telegramId" 
+                    :href="`https://t.me/${telegramId}`" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    title="Telegram"
+                  >
+                    <img src="/src/assets/telegram.png" alt="Telegram" style="width:24px; height:24px;">
+                  </a>
+                </div>
               </div>
+
               <p class="text-muted mb-3">{{ userProfile.email }}</p>
+
+              <!-- Stats Row -->
               <div class="stats-row d-flex gap-4">
                 <div class="stat-item">
                   <div class="stat-value">{{ userListings.length }}</div>

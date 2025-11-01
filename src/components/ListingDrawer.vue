@@ -187,7 +187,7 @@ async function submitBooking() {
 }
 
 /* Esc to close */
-function onEsc(e){
+function onEsc(e) {
   if (e.key === 'Escape') {
     if (showReportModal.value) {
       closeReportModal()
@@ -236,16 +236,16 @@ watch(
 onMounted(() => {
   document.addEventListener('keydown', onEsc)
   if (props.listing?.userId) {
-      fetchUserHandles(props.listing.userId)
-    }
+    fetchUserHandles(props.listing.userId)
+  }
 })
 onBeforeUnmount(() => document.removeEventListener('keydown', onEsc))
 
 /* Hours helpers */
-const DAY_LABEL = { mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Fri', sat:'Sat', sun:'Sun' }
-const dayKeys = ['mon','tue','wed','thu','fri','sat','sun']
-function isStructuredHours(v){ return v && typeof v === 'object' && !Array.isArray(v) }
-function fmt(h){
+const DAY_LABEL = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' }
+const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+function isStructuredHours(v) { return v && typeof v === 'object' && !Array.isArray(v) }
+function fmt(h) {
   if (!h || h.closed) return 'Closed'
   if (h.open && h.close) return `${h.open} – ${h.close}`
   return ''
@@ -253,7 +253,7 @@ function fmt(h){
 
 /* Active business (changes when clicking map markers) */
 const active = ref(null)
-watch(() => props.listing, (v)=> { active.value = v || null }, { immediate: true })
+watch(() => props.listing, (v) => { active.value = v || null }, { immediate: true })
 
 /* Photos from active */
 const photos = computed(() => {
@@ -385,8 +385,8 @@ async function getLatLngForListing(L) {
 
   const addr = L.locationFormatted
     || (L.location
-        ? `BLK ${L.location?.blk || ''} ${L.location?.street || ''} Singapore ${L.location?.postal || ''} ${L.location?.unit || ''}`.trim()
-        : null)
+      ? `BLK ${L.location?.blk || ''} ${L.location?.street || ''} Singapore ${L.location?.postal || ''} ${L.location?.unit || ''}`.trim()
+      : null)
   if (!addr) return null
 
   const cacheKey = `addr:${addr}`
@@ -411,11 +411,11 @@ async function getLatLngForListing(L) {
 
 function distM(a, b) {
   const R = 6371e3
-  const φ1 = a.lat * Math.PI/180, φ2 = b.lat * Math.PI/180
-  const Δφ = (b.lat - a.lat) * Math.PI/180
-  const Δλ = (b.lng - a.lng) * Math.PI/180
-  const s = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2
-  return 2*R*Math.asin(Math.sqrt(s))
+  const φ1 = a.lat * Math.PI / 180, φ2 = b.lat * Math.PI / 180
+  const Δφ = (b.lat - a.lat) * Math.PI / 180
+  const Δλ = (b.lng - a.lng) * Math.PI / 180
+  const s = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(s))
 }
 
 const gmapsLink = computed(() => {
@@ -423,8 +423,8 @@ const gmapsLink = computed(() => {
   if (!L) return '#'
   const addr = L.locationFormatted
     || (L.location
-        ? `BLK ${L.location?.blk || ''} ${L.location?.street || ''} Singapore ${L.location?.postal || ''} ${L.location?.unit || ''}`.trim()
-        : L.businessName)
+      ? `BLK ${L.location?.blk || ''} ${L.location?.street || ''} Singapore ${L.location?.postal || ''} ${L.location?.unit || ''}`.trim()
+      : L.businessName)
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr || L.businessName)}`
 })
 
@@ -441,7 +441,7 @@ async function fetchNearby(centerLL, category) {
   try {
     // Make sure Google Maps JS is available before geocoding
     if (!window.google?.maps) {
-      await ensureMapsLoaded().catch(() => {})
+      await ensureMapsLoaded().catch(() => { })
     }
 
     // Query listings in the same category
@@ -529,7 +529,7 @@ async function initMapAndMarkers() {
     m.addListener('click', () => {
       active.value = L
       infoWindow.setContent(
-        `<div style="font-size:13px;"><strong>${escapeHtml(L.businessName||'Listing')}</strong><br>${escapeHtml(L.businessCategory||'')}</div>`
+        `<div style="font-size:13px;"><strong>${escapeHtml(L.businessName || 'Listing')}</strong><br>${escapeHtml(L.businessCategory || '')}</div>`
       )
       infoWindow.open({ map, anchor: m })
     })
@@ -540,8 +540,8 @@ async function initMapAndMarkers() {
   setTimeout(() => window.google.maps.event.trigger(map, 'resize'), 50)
 }
 
-function escapeHtml(s){
-  return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]))
 }
 
 function formatDate(timestamp) {
@@ -568,7 +568,7 @@ async function refreshAll() {
   if (!props.open || !props.listing) return
 
   await nextTick()                 // ensure DOM is painted
-  await ensureMapsLoaded().catch(()=>{})
+  await ensureMapsLoaded().catch(() => { })
 
 
   if (!window.google?.maps) return
@@ -586,14 +586,14 @@ async function refreshAll() {
   // keep map responsive to container size changes
   if (!resizeObs && mapEl.value) {
     resizeObs = new ResizeObserver(() => {
-      try { window.google.maps.event.trigger(map, 'resize') } catch (_) {}
+      try { window.google.maps.event.trigger(map, 'resize') } catch (_) { }
     })
     resizeObs.observe(mapEl.value)
   }
 
   // extra kick after CSS transition
   setTimeout(() => {
-    try { window.google.maps.event.trigger(map, 'resize') } catch(_) {}
+    try { window.google.maps.event.trigger(map, 'resize') } catch (_) { }
   }, 150)
 }
 
@@ -605,28 +605,28 @@ watch([() => props.open, () => props.listing?.listingId], async ([isOpen]) => {
     setTimeout(refreshAll, 10)
   } else {
     // TEARDOWN (fixes "map not appearing again" on re-open)
-    if (infoWindow) { try { infoWindow.close() } catch(_){} }
+    if (infoWindow) { try { infoWindow.close() } catch (_) { } }
     infoWindow = null
     markers.forEach(m => m.setMap(null))
     markers = []
     map = null
     // do not clear geocoder/geoCache; re-use across opens
-    if (resizeObs) { try { resizeObs.disconnect() } catch(_){} resizeObs = null }
+    if (resizeObs) { try { resizeObs.disconnect() } catch (_) { } resizeObs = null }
   }
 })
 
 /* Resize */
-function handleResize(){ if (map && window.google?.maps) window.google.maps.event.trigger(map, 'resize') }
+function handleResize() { if (map && window.google?.maps) window.google.maps.event.trigger(map, 'resize') }
 onMounted(() => window.addEventListener('resize', handleResize))
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
   // final teardown
-  if (infoWindow) { try { infoWindow.close() } catch(_){} }
+  if (infoWindow) { try { infoWindow.close() } catch (_) { } }
   infoWindow = null
   markers.forEach(m => m.setMap(null))
   markers = []
   map = null
-  if (resizeObs) { try { resizeObs.disconnect() } catch(_){} resizeObs = null }
+  if (resizeObs) { try { resizeObs.disconnect() } catch (_) { } resizeObs = null }
 })
 
 /* ========== REVIEWS & RATING SYSTEM ========== */
@@ -933,30 +933,49 @@ watch(() => props.open, (isOpen) => {
 
       <!-- Header -->
       <div class="header d-flex align-items-center gap-3 mb-3">
+        <!-- Avatar -->
         <div class="rounded-circle overflow-hidden avatar seller-avatar-clickable" @click="goToSellerProfile">
-          <img v-if="sellerAvatar" :src="sellerAvatar" class="w-100 h-100" style="object-fit:cover" alt="" />
-          <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary fw-bold">
-            {{ (sellerName||'S').toString().trim().charAt(0).toUpperCase() }}
+          <img v-if="sellerAvatar" :src="sellerAvatar" class="w-100 h-100" style="object-fit:cover"
+            alt="Seller avatar" />
+          <div v-else
+            class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary fw-bold">
+            {{ (sellerName || 'S').toString().trim().charAt(0).toUpperCase() }}
           </div>
         </div>
+
+        <!-- Seller Info -->
         <div class="flex-grow-1">
           <div class="fw-semibold small text-muted">Seller</div>
-          <div class="d-flex gap-2 align-items-center">
-            <span class="fw-semibold seller-name-clickable" @click="goToSellerProfile">{{ sellerName || 'Seller' }}</span>
-            <SellerBadge :points="listing?.sellerStats ? (listing.sellerStats.reviews||0)+(listing.sellerStats.boosts||0)*5 : 0" :progress="false" />
+
+          <!-- Name + socials + badge -->
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="fw-semibold seller-name-clickable" @click="goToSellerProfile">
+              {{ sellerName || 'Seller' }}
+            </span>
+
+            <!-- Social icons beside name -->
+            <a v-if="instagramHandle" :href="`https://instagram.com/${instagramHandle}`" target="_blank" rel="noopener"
+              class="text-decoration-none" @click.stop>
+              <img src="/src/assets/instagram.png" alt="Instagram" style="width:18px;height:18px;" />
+            </a>
+
+            <a v-if="telegramHandle" :href="`https://t.me/${telegramHandle}`" target="_blank" rel="noopener"
+              class="text-decoration-none" @click.stop>
+              <img src="/src/assets/telegram.png" alt="Telegram" style="width:18px;height:18px;" />
+            </a>
+
+            <!-- Seller badge -->
+            <SellerBadge :points="listing?.sellerStats
+              ? (listing.sellerStats.reviews || 0) +
+              (listing.sellerStats.boosts || 0) * 5
+              : 0" :progress="false" />
           </div>
         </div>
-        <button class="btn btn-sm btn-outline-primary" @click="startChat" title="Chat with seller">
-          <Icon icon="mdi:message-text" class="me-1" />
-          Chat
-        </button>
-            <a v-if="instagramHandle" :href="`https://instagram.com/${instagramHandle}`" target="_blank" rel="noopener">
-          <img src="/src/assets/instagram.png" alt="Instagram" style="width:22px;height:22px;" />
-        </a>
-        <a v-if="telegramHandle" :href="`https://t.me/${telegramHandle}`" target="_blank" rel="noopener">
-          <img src="/src/assets/telegram.png" alt="Telegram" style="width:22px;height:22px;" />
-        </a>
-        <span class="badge text-bg-primary">{{ active?.businessCategory || listing?.businessCategory }}</span>
+
+        <!-- Category badge -->
+        <span class="badge text-bg-primary">
+          {{ active?.businessCategory || listing?.businessCategory }}
+        </span>
       </div>
 
       <!-- Title row -->
@@ -999,22 +1018,20 @@ watch(() => props.open, (isOpen) => {
             <div class="card-body p-2">
               <div class="d-flex align-items-center justify-content-between mb-2">
                 <h6 class="m-0">Nearby in category</h6>
-                <small class="text-muted" v-if="active">within ~{{ Math.round(radiusM/1000) }}km</small>
+                <small class="text-muted" v-if="active">within ~{{ Math.round(radiusM / 1000) }}km</small>
               </div>
 
               <div v-if="loadingNearby" class="small text-muted">Loading nearby…</div>
               <div v-else-if="errorNearby" class="small text-danger">{{ errorNearby }}</div>
               <ul v-else class="list-unstyled m-0 nearby-list">
                 <li v-for="n in nearby" :key="n.listingId"
-                    :class="['nearby-item', {'is-active': n.listingId === active?.listingId}]"
-                    @click="active = n">
+                  :class="['nearby-item', { 'is-active': n.listingId === active?.listingId }]" @click="active = n">
                   <div class="d-flex align-items-center gap-2">
                     <img v-if="(n.photoUrls && n.photoUrls[0]) || (n.photos && n.photos[0]?.url)"
-                         :src="n.photoUrls?.[0] || n.photos?.[0]?.url"
-                         class="thumb" alt="">
+                      :src="n.photoUrls?.[0] || n.photos?.[0]?.url" class="thumb" alt="">
                     <div class="flex-grow-1">
                       <div class="fw-semibold small truncate">{{ n.businessName }}</div>
-                      <div class="xsmall text-muted">{{ (n._distanceM/1000).toFixed(2) }} km</div>
+                      <div class="xsmall text-muted">{{ (n._distanceM / 1000).toFixed(2) }} km</div>
                     </div>
                   </div>
                 </li>
@@ -1028,14 +1045,14 @@ watch(() => props.open, (isOpen) => {
         <section class="right">
           <!-- Gallery -->
           <div v-if="photos?.length" class="gallery mb-3">
-            <img v-for="(p,i) in photos" :key="i" :src="p" class="gallery-img" :alt="`photo-${i+1}`" />
+            <img v-for="(p, i) in photos" :key="i" :src="p" class="gallery-img" :alt="`photo-${i + 1}`" />
           </div>
 
           <!-- Menu / Services -->
           <div v-if="active?.menu?.length" class="mb-3">
             <h6 class="section-title">Menu / Services</h6>
             <ul class="list-unstyled small m-0">
-              <li v-for="(m,i) in active.menu" :key="i" class="d-flex justify-content-between border-bottom py-1">
+              <li v-for="(m, i) in active.menu" :key="i" class="d-flex justify-content-between border-bottom py-1">
                 <span>{{ m.name }}</span>
                 <strong v-if="m.price">S${{ m.price }}</strong>
               </li>
@@ -1065,7 +1082,8 @@ watch(() => props.open, (isOpen) => {
             <h6 class="section-title">Location</h6>
             <div class="small">
               {{ active.locationFormatted ||
-                 `BLK ${active.location?.blk} ${active.location?.street} Singapore ${active.location?.postal} ${active.location?.unit || ''}` }}
+                `BLK ${active.location?.blk} ${active.location?.street} Singapore ${active.location?.postal}
+              ${active.location?.unit || ''}` }}
             </div>
           </div>
 
@@ -1093,7 +1111,8 @@ watch(() => props.open, (isOpen) => {
                   <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(avgRating) }">★</span>
                 </div>
                 <span class="fw-semibold">{{ avgRating.toFixed(1) }}</span>
-                <span class="text-muted small">({{ totalReviews }} {{ totalReviews === 1 ? 'review' : 'reviews' }})</span>
+                <span class="text-muted small">({{ totalReviews }} {{ totalReviews === 1 ? 'review' : 'reviews'
+                  }})</span>
               </div>
             </div>
 
@@ -1106,34 +1125,26 @@ watch(() => props.open, (isOpen) => {
                 <div class="mb-2">
                   <label class="form-label small mb-1">Your Rating:</label>
                   <div class="stars-input" @mouseleave="hoverRating = 0">
-                    <span v-for="i in 5" :key="i"
-                          class="star"
-                          :class="{ filled: i <= userRating, hover: hoverRating > 0 && i <= hoverRating }"
-                          @click="userRating = i"
-                          @mouseenter="hoverRating = i">★</span>
+                    <span v-for="i in 5" :key="i" class="star"
+                      :class="{ filled: i <= userRating, hover: hoverRating > 0 && i <= hoverRating }"
+                      @click="userRating = i" @mouseenter="hoverRating = i">★</span>
                   </div>
                 </div>
 
                 <!-- Review Text -->
                 <div class="mb-2">
                   <label class="form-label small mb-1">Your Review:</label>
-                  <textarea
-                    v-model="userReviewText"
-                    class="form-control form-control-sm"
-                    rows="3"
-                    placeholder="Share your experience with this service..."
-                  ></textarea>
+                  <textarea v-model="userReviewText" class="form-control form-control-sm" rows="3"
+                    placeholder="Share your experience with this service..."></textarea>
                 </div>
 
                 <!-- Alerts -->
                 <div v-if="reviewError" class="alert alert-danger alert-sm py-1 px-2 small mb-2">{{ reviewError }}</div>
-                <div v-if="reviewSuccess" class="alert alert-success alert-sm py-1 px-2 small mb-2">{{ reviewSuccess }}</div>
+                <div v-if="reviewSuccess" class="alert alert-success alert-sm py-1 px-2 small mb-2">{{ reviewSuccess }}
+                </div>
 
                 <!-- Submit Button -->
-                <button
-                  class="btn btn-primary btn-sm w-100"
-                  :disabled="submittingReview"
-                  @click="submitReview">
+                <button class="btn btn-primary btn-sm w-100" :disabled="submittingReview" @click="submitReview">
                   <span v-if="!submittingReview">Submit Review</span>
                   <span v-else>
                     <span class="spinner-border spinner-border-sm me-1"></span>
@@ -1158,24 +1169,22 @@ watch(() => props.open, (isOpen) => {
                   <div class="card-body p-3">
                     <div class="d-flex align-items-start gap-2 mb-2">
                       <!-- Reviewer Avatar -->
-                      <div
-                        class="reviewer-avatar rounded-circle overflow-hidden"
+                      <div class="reviewer-avatar rounded-circle overflow-hidden"
                         :class="{ 'reviewer-avatar-clickable': review.userId }"
-                        @click="review.userId ? goToReviewerProfile(review.userId, $event) : null"
-                      >
-                        <img v-if="review.reviewerAvatar" :src="review.reviewerAvatar" class="w-100 h-100" style="object-fit:cover" alt="">
-                        <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary fw-bold small">
+                        @click="review.userId ? goToReviewerProfile(review.userId, $event) : null">
+                        <img v-if="review.reviewerAvatar" :src="review.reviewerAvatar" class="w-100 h-100"
+                          style="object-fit:cover" alt="">
+                        <div v-else
+                          class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary fw-bold small">
                           {{ (review.reviewerName || 'A').charAt(0).toUpperCase() }}
                         </div>
                       </div>
 
                       <div class="flex-grow-1">
                         <div class="d-flex align-items-center justify-content-between mb-1">
-                          <span
-                            class="fw-semibold small"
-                            :class="{ 'reviewer-name-clickable': review.userId }"
-                            @click="review.userId ? goToReviewerProfile(review.userId, $event) : null"
-                          >{{ review.reviewerName }}</span>
+                          <span class="fw-semibold small" :class="{ 'reviewer-name-clickable': review.userId }"
+                            @click="review.userId ? goToReviewerProfile(review.userId, $event) : null">{{
+                            review.reviewerName }}</span>
                           <div class="stars-display-small">
                             <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= review.rating }">★</span>
                           </div>
@@ -1206,7 +1215,8 @@ watch(() => props.open, (isOpen) => {
         </div>
 
         <div class="report-modal-body">
-          <p class="text-muted mb-3">Help us keep the platform safe by reporting inappropriate or fraudulent listings.</p>
+          <p class="text-muted mb-3">Help us keep the platform safe by reporting inappropriate or fraudulent listings.
+          </p>
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Reason for Report *</label>
@@ -1218,13 +1228,9 @@ watch(() => props.open, (isOpen) => {
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Explanation *</label>
-            <textarea
-              v-model="reportExplanation"
-              class="form-control"
-              rows="4"
+            <textarea v-model="reportExplanation" class="form-control" rows="4"
               placeholder="Please provide details about why you're reporting this listing..."
-              maxlength="500"
-            ></textarea>
+              maxlength="500"></textarea>
             <div class="text-end text-muted small mt-1">{{ reportExplanation.length }}/500</div>
           </div>
         </div>
@@ -1250,36 +1256,24 @@ watch(() => props.open, (isOpen) => {
         </div>
 
         <div class="booking-modal-body">
-          <p class="text-muted mb-3">Fill in the details below to request an appointment with {{ active?.businessName }}.</p>
+          <p class="text-muted mb-3">Fill in the details below to request an appointment with {{ active?.businessName
+            }}.</p>
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Preferred Date *</label>
-            <input
-              type="date"
-              v-model="bookingDate"
-              class="form-control"
-              :min="new Date().toISOString().split('T')[0]"
-            />
+            <input type="date" v-model="bookingDate" class="form-control"
+              :min="new Date().toISOString().split('T')[0]" />
           </div>
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Preferred Time *</label>
-            <input
-              type="time"
-              v-model="bookingTime"
-              class="form-control"
-            />
+            <input type="time" v-model="bookingTime" class="form-control" />
           </div>
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Message (Optional)</label>
-            <textarea
-              v-model="bookingMessage"
-              class="form-control"
-              rows="3"
-              placeholder="Any special requests or additional information..."
-              maxlength="300"
-            ></textarea>
+            <textarea v-model="bookingMessage" class="form-control" rows="3"
+              placeholder="Any special requests or additional information..." maxlength="300"></textarea>
             <div class="text-end text-muted small mt-1">{{ bookingMessage.length }}/300</div>
           </div>
 
@@ -1303,11 +1297,13 @@ watch(() => props.open, (isOpen) => {
 
 <style scoped>
 .drawer-backdrop {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.35);
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .35);
   backdrop-filter: blur(1px);
   z-index: 1050;
 }
+
 .drawer-panel {
   position: fixed;
   top: 50%;
@@ -1320,7 +1316,8 @@ watch(() => props.open, (isOpen) => {
   z-index: 1060;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   padding: 32px 40px;
-  padding-top: 70px; /* Space for close button */
+  padding-top: 70px;
+  /* Space for close button */
   overflow-y: auto;
   border-radius: 20px;
 }
@@ -1348,6 +1345,7 @@ watch(() => props.open, (isOpen) => {
     padding-top: 60px;
   }
 }
+
 .close-btn {
   position: absolute;
   top: 16px;
@@ -1370,12 +1368,15 @@ watch(() => props.open, (isOpen) => {
   color: var(--color-text-white) !important;
   background: var(--color-primary);
 }
+
 .header {
-  padding-right: 20px; /* Extra space so badge doesn't touch close button */
+  padding-right: 20px;
+  /* Extra space so badge doesn't touch close button */
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--color-border);
 }
+
 .header .avatar {
   width: 48px;
   height: 48px;
@@ -1396,35 +1397,41 @@ watch(() => props.open, (isOpen) => {
   font-size: 1.75rem;
   font-weight: 700;
   flex: 1;
-  min-width: 0; /* Allow truncation */
+  min-width: 0;
+  /* Allow truncation */
 }
 
 @media (max-width: 767.98px) {
   .listing-title {
     font-size: 1.5rem;
   }
+
   .title-row .btn {
     font-size: 0.875rem;
     padding: 0.5rem 0.875rem;
   }
 }
+
 .truncate {
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 28px;
 }
-@media (max-width: 980px){
+
+@media (max-width: 980px) {
   .grid {
     grid-template-columns: 1fr;
     gap: 20px;
   }
 }
+
 .left .map {
   width: 100%;
   height: 400px;
@@ -1434,6 +1441,7 @@ watch(() => props.open, (isOpen) => {
   overflow: hidden;
   margin-bottom: 16px;
 }
+
 .map-fallback {
   width: 100%;
   height: 100%;
@@ -1443,20 +1451,24 @@ watch(() => props.open, (isOpen) => {
   color: var(--color-text-secondary);
   font-size: .9rem;
 }
+
 .nearby {
   background: var(--color-bg-white);
   color: var(--color-text-primary);
   border-radius: 12px;
   border: 1px solid var(--color-border);
 }
+
 .nearby h6 {
   color: var(--color-text-primary);
   font-size: 1rem;
 }
+
 .nearby .nearby-list {
   max-height: 280px;
   overflow: auto;
 }
+
 .nearby-item {
   padding: 10px 12px;
   border-radius: 10px;
@@ -1465,17 +1477,21 @@ watch(() => props.open, (isOpen) => {
   color: var(--color-text-primary);
   transition: all 0.2s ease;
 }
+
 .nearby-item:hover {
   background: var(--color-bg-purple-tint);
   border-color: var(--color-border);
 }
+
 .nearby-item.is-active {
   background: var(--color-bg-purple-tint);
   border-color: var(--color-primary-pale);
 }
+
 .nearby-item .fw-semibold {
   color: var(--color-text-primary);
 }
+
 .thumb {
   width: 48px;
   height: 48px;
@@ -1483,21 +1499,25 @@ watch(() => props.open, (isOpen) => {
   border-radius: 10px;
   border: 1px solid var(--color-border);
 }
+
 .xsmall {
   font-size: .8rem;
   color: var(--color-text-secondary);
 }
+
 .section-title {
   color: var(--color-text-primary);
   margin-bottom: 0.75rem;
   font-weight: 600;
   font-size: 1rem;
 }
+
 .gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 12px;
 }
+
 .gallery-img {
   width: 100%;
   aspect-ratio: 4/3;
@@ -1507,13 +1527,32 @@ watch(() => props.open, (isOpen) => {
   transition: transform 0.2s ease;
   cursor: pointer;
 }
+
 .gallery-img:hover {
   transform: scale(1.02);
 }
-.oh-table { display: grid; gap: 6px; }
-.oh-row { display:flex; justify-content:space-between; border-bottom:1px dashed var(--color-border); padding-bottom:4px; }
-.oh-day { width:64px; color: var(--color-text-secondary); }
-.oh-time { font-weight:600; color: var(--color-text-primary); }
+
+.oh-table {
+  display: grid;
+  gap: 6px;
+}
+
+.oh-row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed var(--color-border);
+  padding-bottom: 4px;
+}
+
+.oh-day {
+  width: 64px;
+  color: var(--color-text-secondary);
+}
+
+.oh-time {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
 
 /* Booking Info Box */
 .booking-info-box {
@@ -1521,40 +1560,61 @@ watch(() => props.open, (isOpen) => {
   border: 2px solid var(--color-primary-pale);
   transition: all 0.2s ease;
 }
+
 .booking-info-box:hover {
   border-color: var(--color-primary-lighter);
   box-shadow: var(--shadow-sm);
 }
-.fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity .18s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 
 /* Modal fade and scale animation */
-.modal-fade-enter-active, .modal-fade-leave-active {
+.modal-fade-enter-active,
+.modal-fade-leave-active {
   transition: all .25s ease;
 }
-.modal-fade-enter-from, .modal-fade-leave-to {
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.95);
 }
-.modal-fade-enter-to, .modal-fade-leave-from {
+
+.modal-fade-enter-to,
+.modal-fade-leave-from {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
 }
 
 /* Mobile - slide up from bottom */
 @media (max-width: 767.98px) {
-  .modal-fade-enter-from, .modal-fade-leave-to {
+
+  .modal-fade-enter-from,
+  .modal-fade-leave-to {
     opacity: 0;
     transform: translateY(100%);
   }
-  .modal-fade-enter-to, .modal-fade-leave-from {
+
+  .modal-fade-enter-to,
+  .modal-fade-leave-from {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
 /* Reviews & Rating Styles */
-.reviews-section { border-top: 2px solid var(--color-border); padding-top: 20px; }
+.reviews-section {
+  border-top: 2px solid var(--color-border);
+  padding-top: 20px;
+}
 
 .stars-display .star,
 .stars-display-small .star,
@@ -1564,7 +1624,9 @@ watch(() => props.open, (isOpen) => {
   transition: color 0.2s ease;
 }
 
-.stars-display-small .star { font-size: 14px; }
+.stars-display-small .star {
+  font-size: 14px;
+}
 
 .stars-display .star.filled,
 .stars-display-small .star.filled {
@@ -1735,23 +1797,30 @@ watch(() => props.open, (isOpen) => {
   color: var(--color-text-secondary) !important;
 }
 
-h4, h5, h6 {
+h4,
+h5,
+h6 {
   color: var(--color-text-primary);
 }
 
-.form-control, .form-select, textarea {
+.form-control,
+.form-select,
+textarea {
   background: var(--color-bg-white);
   border-color: var(--color-border);
   color: var(--color-text-primary);
 }
 
-.form-control:focus, .form-select:focus, textarea:focus {
+.form-control:focus,
+.form-select:focus,
+textarea:focus {
   background: var(--color-bg-white);
   border-color: var(--color-primary);
   color: var(--color-text-primary);
 }
 
-.form-control::placeholder, textarea::placeholder {
+.form-control::placeholder,
+textarea::placeholder {
   color: var(--color-text-secondary);
 }
 
@@ -2000,6 +2069,7 @@ h4, h5, h6 {
     transform: translateY(-50px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;

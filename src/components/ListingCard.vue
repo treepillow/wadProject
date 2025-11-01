@@ -3,7 +3,7 @@ import StartChatButton from './StartChatButton.vue'
 import { computed, ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { db } from '@/firebase'
-import { collection, query, getDocs } from 'firebase/firestore'
+import { collection, query, doc, getDoc, getDocs } from 'firebase/firestore'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import SellerBadge from './SellerBadge.vue'
 
@@ -25,6 +25,9 @@ const emit = defineEmits(['toggle-like', 'image-loaded', 'open'])
 
 const avgRating = ref(0)
 const totalReviews = ref(0)
+
+const instagramHandle = ref('')
+const telegramHandle = ref('')
 
 async function fetchRating() {
   try {
@@ -53,8 +56,33 @@ async function fetchRating() {
   }
 }
 
+async function fetchUserHandles(userId) {
+  if (!userId) return
+
+  try {
+    const userDocRef = doc(db, 'users', userId)
+    const userSnap = await getDoc(userDocRef)
+
+    if (!userSnap.exists()) {
+      console.warn('User not found:', userId)
+      return
+    }
+
+    const userData = userSnap.data() || {}
+
+    instagramHandle.value = userData.instagram || ''
+    telegramHandle.value = userData.telegram || ''
+
+    console.log('Fetched handles:', instagramHandle.value, telegramHandle.value)
+
+  } catch (e) {
+    console.error('Error fetching user handles:', e)
+  }
+}
+
 onMounted(() => {
   fetchRating()
+  fetchUserHandles(props.listing.userId)
 })
 
 /* ---------------- LISTING DATA ---------------- */
@@ -68,7 +96,7 @@ const sellerName = computed(() =>
   props.listing.userDisplayName ||
   props.listing.username ||
   props.listing.ownerName ||
-  (props.listing.userId ? `user_${props.listing.userId.slice(0,6)}` : 'Seller')
+  (props.listing.userId ? `user_${props.listing.userId.slice(0, 6)}` : 'Seller')
 )
 
 const sellerAvatar = computed(() =>
@@ -77,7 +105,7 @@ const sellerAvatar = computed(() =>
 
 const imgLoaded = ref(false)
 const imgErrored = ref(false)
-function onImgLoad () {
+function onImgLoad() {
   imgLoaded.value = true
   emit('image-loaded', props.listing.listingId || props.listing.id)
 }
@@ -116,21 +144,23 @@ function goToUserProfile(event) {
 </script>
 
 <template>
-  <div
-    class="card h-100 shadow-sm selectable card-border"
-    :class="{ 'reveal-in': reveal }"
-    @click="emit('open', listing)"
-  >
+  <div class="card h-100 shadow-sm selectable card-border" :class="{ 'reveal-in': reveal }"
+    @click="emit('open', listing)">
     <!-- Header -->
     <div class="card-header bg-transparent border-0 pb-0 d-flex align-items-center gap-2">
-      <div class="avatar-box rounded-circle overflow-hidden d-inline-block" style="width:28px;height:28px;" @click="goToUserProfile">
+      <div class="avatar-box rounded-circle overflow-hidden d-inline-block" style="width:28px;height:28px;"
+        @click="goToUserProfile">
         <img v-if="sellerAvatar" :src="sellerAvatar" alt="avatar" class="w-100 h-100" style="object-fit:cover;">
-        <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary small">
+        <div v-else
+          class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary small">
           {{ (sellerName || 'S').toString().trim().charAt(0).toUpperCase() }}
         </div>
       </div>
-      <span class="fw-semibold small text-truncate seller-name-link" style="max-width:100px" :title="sellerName" @click="goToUserProfile">{{ sellerName }}</span>
-      <SellerBadge :points="listing.sellerStats ? (listing.sellerStats.reviews||0)+(listing.sellerStats.boosts||0)*5 : 0" :progress="false" style="min-width:40px;" />
+      <span class="fw-semibold small text-truncate seller-name-link" style="max-width:100px" :title="sellerName"
+        @click="goToUserProfile">{{ sellerName }}</span>
+      <SellerBadge
+        :points="listing.sellerStats ? (listing.sellerStats.reviews || 0) + (listing.sellerStats.boosts || 0) * 5 : 0"
+        :progress="false" style="min-width:40px;" />
     </div>
 
     <!-- Image box -->
@@ -140,17 +170,8 @@ function goToUserProfile(event) {
         <div v-if="!imgLoaded && !imgErrored" class="skeleton"></div>
 
         <!-- Actual image -->
-        <img
-          v-if="photo && !imgErrored"
-          :src="photo"
-          :alt="listing.businessName"
-          class="img-cover"
-          loading="lazy"
-          decoding="async"
-          @load="onImgLoad"
-          @error="onImgError"
-          :class="{ 'img-visible': imgLoaded }"
-        />
+        <img v-if="photo && !imgErrored" :src="photo" :alt="listing.businessName" class="img-cover" loading="lazy"
+          decoding="async" @load="onImgLoad" @error="onImgError" :class="{ 'img-visible': imgLoaded }" />
 
         <!-- Fallback -->
         <div v-if="!photo || imgErrored" class="img-fallback">No photo</div>
@@ -159,7 +180,23 @@ function goToUserProfile(event) {
 
     <!-- Content -->
     <div class="card-body d-flex flex-column">
-      <h6 class="card-title mb-1 text-truncate" :title="listing.businessName">{{ listing.businessName }}</h6>
+      <!-- Business name + social icons -->
+      <div class="d-flex align-items-center justify-content-between mb-1">
+        <h6 class="card-title mb-0 text-truncate flex-grow-1" :title="listing.businessName">
+          {{ listing.businessName }}
+        </h6>
+        <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
+          <a v-if="instagramHandle" :href="`https://instagram.com/${instagramHandle}`" target="_blank" rel="noopener"
+            class="text-decoration-none" @click.stop>
+            <img src="/src/assets/instagram.png" alt="Instagram" style="width:18px;height:18px;" />
+          </a>
+          <a v-if="telegramHandle" :href="`https://t.me/${telegramHandle}`" target="_blank" rel="noopener"
+            class="text-decoration-none" @click.stop>
+            <img src="/src/assets/telegram.png" alt="Telegram" style="width:18px;height:18px;" />
+          </a>
+        </div>
+      </div>
+
 
       <!-- Rating Display -->
       <div v-if="totalReviews > 0" class="rating-display mb-2">
@@ -188,24 +225,15 @@ function goToUserProfile(event) {
     <div class="card-footer bg-transparent d-flex justify-content-between align-items-center">
       <div class="d-flex align-items-center gap-2">
         <span class="small text-muted">{{ likesCount }}</span>
-        <button
-          class="btn btn-sm"
-          :class="liked ? 'btn-danger' : 'btn-outline-danger'"
-          @click.stop="emit('toggle-like', listing)"
-          aria-label="Toggle like"
-        >♥</button>
+        <button class="btn btn-sm" :class="liked ? 'btn-danger' : 'btn-outline-danger'"
+          @click.stop="emit('toggle-like', listing)" aria-label="Toggle like">♥</button>
       </div>
       <div class="d-flex gap-2">
         <!-- ✅ Only show StartChatButton if this is NOT your own listing -->
         <!-- ✅ Only show StartChatButton if this is NOT your own listing -->
-        <StartChatButton
-          v-if="listing.userId !== $auth?.currentUser?.uid"
-          :targetUserId="listing.userId"
-          :listingId="listing.listingId || listing.id"         
-          :listingTitle="listing.businessName"                 
-          :listingCover="listing.photoUrls?.[0] || listing.photos?.[0]?.url"
-          @click.stop
-        />
+        <StartChatButton v-if="listing.userId !== $auth?.currentUser?.uid" :targetUserId="listing.userId"
+          :listingId="listing.listingId || listing.id" :listingTitle="listing.businessName"
+          :listingCover="listing.photoUrls?.[0] || listing.photos?.[0]?.url" @click.stop />
 
       </div>
     </div>
@@ -254,8 +282,21 @@ function goToUserProfile(event) {
   box-shadow: 0 8px 24px rgba(75, 42, 166, 0.15) !important;
 }
 
-.reveal-in { animation: fadeIn .35s ease both; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: none } }
+.reveal-in {
+  animation: fadeIn .35s ease both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px)
+  }
+
+  to {
+    opacity: 1;
+    transform: none
+  }
+}
 
 .img-box {
   height: 220px;
@@ -265,17 +306,73 @@ function goToUserProfile(event) {
   overflow: hidden;
   box-shadow: inset 0 2px 8px rgba(75, 42, 166, 0.05);
 }
-.img-cover { width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: 0; transition: opacity 0.4s ease; }
-.img-visible { opacity: 1; }
-.skeleton { position: absolute; inset: 0; background: linear-gradient(90deg,#eee 0%,#f5f5f5 20%,#eee 40%,#eee 100%); background-size:200% 100%; animation: shimmer 1.1s infinite; }
-@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
-.img-fallback { position:absolute; inset:0; background: var(--color-bg-purple-tint); color: var(--color-text-secondary); display:flex; justify-content:center; align-items:center; }
 
-.rating-display { display: flex; align-items: center; gap: 6px; }
-.stars-small { display: flex; gap: 1px; }
-.stars-small .star { color: var(--color-border); font-size: 14px; }
-.stars-small .star.filled { color: #ffc107; }
-.rating-text { font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary); }
+.img-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.img-visible {
+  opacity: 1;
+}
+
+.skeleton {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #eee 0%, #f5f5f5 20%, #eee 40%, #eee 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.1s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0
+  }
+
+  100% {
+    background-position: -200% 0
+  }
+}
+
+.img-fallback {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg-purple-tint);
+  color: var(--color-text-secondary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.rating-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stars-small {
+  display: flex;
+  gap: 1px;
+}
+
+.stars-small .star {
+  color: var(--color-border);
+  font-size: 14px;
+}
+
+.stars-small .star.filled {
+  color: #ffc107;
+}
+
+.rating-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
 
 .boost-timer {
   background: var(--color-bg-purple-tint);

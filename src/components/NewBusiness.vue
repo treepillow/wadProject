@@ -339,7 +339,19 @@ export default {
       if (!streetOk && !buildingOk)
         return { ok:false, reason:'Address not found. Please check your street name and postal code.' }
 
-      return { ok:true, data:{ blk: omBlk||userBlk, road: omRoad||userStreet, postal, building: best?.BUILDING||'', address: best?.ADDRESS||'', confidence: Math.max(score, buildingOk?1:0) } }
+      return {
+        ok:true,
+        data:{
+          blk: omBlk||userBlk,
+          road: omRoad||userStreet,
+          postal,
+          building: best?.BUILDING||'',
+          address: best?.ADDRESS||'',
+          confidence: Math.max(score, buildingOk?1:0),
+          lat: best?.LATITUDE ? parseFloat(best.LATITUDE) : null,
+          lng: best?.LONGITUDE ? parseFloat(best.LONGITUDE) : null
+        }
+      }
     },
 
     /* ---------- Real-time validation ---------- */
@@ -594,7 +606,9 @@ export default {
               blk,
               street,
               postal,
-              unit: unitFormatted
+              unit: unitFormatted,
+              lat: check.data.lat,
+              lng: check.data.lng
             },
             locationFormatted,
             menu,
@@ -636,7 +650,9 @@ export default {
             blk,
             street,
             postal,
-            unit: unitFormatted
+            unit: unitFormatted,
+            lat: check.data.lat,
+            lng: check.data.lng
           },
           locationFormatted,
           photos: photoObjs.length > 0 ? photoObjs : undefined,

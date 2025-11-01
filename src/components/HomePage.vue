@@ -12,6 +12,8 @@ import SearchBar from './SearchBar.vue'
 import Categories from './Categories.vue'
 import ListingCard from './ListingCard.vue'
 import ListingDrawer from './ListingDrawer.vue'
+import MapExplorer from './MapExplorer.vue'
+import { Icon } from '@iconify/vue'
 import { nextTick } from 'vue'
 
 const listings     = ref([])
@@ -28,6 +30,9 @@ const searchFilters = ref({ business: '', location: '' })
 const filterOpen = ref(false)
 const minLikes = ref(0)
 const minRating = ref(0)
+
+// Map Explorer state
+const mapExplorerOpen = ref(false)
 
 async function applyFilter() {
   await nextTick()
@@ -312,6 +317,10 @@ function closeDrawer() {
   drawerListing.value = null
 }
 
+function openDrawerFromMap(listing) {
+  openDrawer(listing)
+}
+
 async function incrementViewCount(listingId) {
   const db = getFirestore();
   try {
@@ -368,6 +377,23 @@ onBeforeUnmount(() => {
   <div class="page-wrapper">
     <div class="content-container py-3">
       <SearchBar @search="handleSearch" />
+
+      <!-- Map Explorer Banner -->
+      <div class="map-banner" @click="mapExplorerOpen = true">
+        <div class="map-banner-content">
+          <div class="map-banner-icon">
+            <Icon icon="mdi:map-marker-radius" />
+          </div>
+          <div class="map-banner-text">
+            <h3>Explore Nearby Businesses</h3>
+            <p>Discover home businesses on an interactive map</p>
+          </div>
+          <div class="map-banner-arrow">
+            <Icon icon="mdi:arrow-right" />
+          </div>
+        </div>
+      </div>
+
       <div class="categories-row mt-3">
         <Categories :selected="selectedCats" @toggle="toggleCategory" />
       </div>
@@ -469,6 +495,13 @@ onBeforeUnmount(() => {
       :sellerName="drawerSellerName"
       :sellerAvatar="drawerSellerAvatar"
       @close="closeDrawer"
+    />
+
+    <!-- Map Explorer -->
+    <MapExplorer
+      :isOpen="mapExplorerOpen"
+      @close="mapExplorerOpen = false"
+      @openListing="openDrawerFromMap"
     />
   </div>
 </template>
@@ -692,6 +725,123 @@ input[type='range'] {
 
   .card-sm :deep(.img-box) {
     height: 160px !important;
+  }
+}
+
+/* Map Banner Styles */
+.map-banner {
+  margin: 20px 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  overflow: hidden;
+  position: relative;
+}
+
+.map-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(50%, -50%);
+}
+
+:root.dark-mode .map-banner {
+  background: linear-gradient(135deg, #5A43C5 0%, #4a148c 100%);
+}
+
+.map-banner:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.map-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.map-banner-icon {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.map-banner-text {
+  flex: 1;
+}
+
+.map-banner-text h3 {
+  margin: 0;
+  color: white;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.map-banner-text p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+}
+
+.map-banner-arrow {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.map-banner:hover .map-banner-arrow {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateX(4px);
+}
+
+@media (max-width: 768px) {
+  .map-banner {
+    padding: 20px;
+  }
+
+  .map-banner-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 28px;
+  }
+
+  .map-banner-text h3 {
+    font-size: 18px;
+  }
+
+  .map-banner-text p {
+    font-size: 13px;
+  }
+
+  .map-banner-arrow {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
   }
 }
 

@@ -5,7 +5,7 @@ import { getAuth } from 'firebase/auth'
 import {
   getFirestore, doc, getDoc, updateDoc, serverTimestamp,
   collection, getDocs, query, orderBy, where,
-  onSnapshot, getCountFromServer, setDoc, deleteDoc
+  onSnapshot, getCountFromServer, setDoc, deleteDoc, addDoc
 } from 'firebase/firestore'
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { useDarkMode } from '@/composables/useDarkMode'
@@ -360,7 +360,31 @@ export default {
           orderBy('createdAt', 'desc')
         )
         const snap = await getDocs(q)
-        bookingRequests.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+
+        // Fetch buyer details for each booking
+        const bookingsWithUserData = await Promise.all(
+          snap.docs.map(async (docSnap) => {
+            const bookingData = { id: docSnap.id, ...docSnap.data() }
+
+            // Fetch buyer's user data to get username
+            if (bookingData.buyerId) {
+              try {
+                const buyerDoc = await getDoc(doc(db, 'users', bookingData.buyerId))
+                if (buyerDoc.exists()) {
+                  const buyerData = buyerDoc.data()
+                  bookingData.buyerUsername = buyerData.username || bookingData.buyerName
+                  bookingData.buyerPhone = buyerData.phone || bookingData.buyerPhone
+                }
+              } catch (err) {
+                console.error('Error fetching buyer data:', err)
+              }
+            }
+
+            return bookingData
+          })
+        )
+
+        bookingRequests.value = bookingsWithUserData
         bookingsLoaded.value = true
       } catch (error) {
         console.error('Error loading booking requests:', error)
@@ -375,10 +399,58 @@ export default {
           status: 'accepted',
           updatedAt: serverTimestamp()
         })
+
         // Update local state
         const booking = bookingRequests.value.find(b => b.id === bookingId)
         if (booking) booking.status = 'accepted'
-        toast.success('Booking accepted! Please contact the buyer to confirm details.')
+
+        // Send chat message to buyer
+        if (booking && booking.buyerId) {
+          try {
+            // Find or create chat between seller and buyer
+            const chatsRef = collection(db, 'chats')
+            const q = query(chatsRef, where('participants', 'array-contains', user.value.uid))
+            const snap = await getDocs(q)
+
+            let chatId = null
+            snap.forEach(d => {
+              const p = d.data()?.participants || []
+              if (p.length === 2 && p.includes(booking.buyerId)) {
+                chatId = d.id
+              }
+            })
+
+            // Create new chat if doesn't exist
+            if (!chatId) {
+              const chatDoc = await addDoc(chatsRef, {
+                participants: [user.value.uid, booking.buyerId],
+                lastMessage: '',
+                updatedAt: serverTimestamp()
+              })
+              chatId = chatDoc.id
+            }
+
+            // Send acceptance message
+            const message = `Your booking request for "${booking.listingName}" on ${booking.date} at ${booking.time} has been accepted! I'll contact you soon to confirm the details.`
+
+            await addDoc(collection(db, `chats/${chatId}/messages`), {
+              senderId: user.value.uid,
+              text: message,
+              timestamp: serverTimestamp()
+            })
+
+            // Update chat's last message
+            await updateDoc(doc(db, 'chats', chatId), {
+              lastMessage: message,
+              updatedAt: serverTimestamp()
+            })
+          } catch (chatError) {
+            console.error('Error sending chat message:', chatError)
+            // Don't fail the booking acceptance if chat fails
+          }
+        }
+
+        toast.success('Booking accepted! A message has been sent to the buyer.')
       } catch (error) {
         console.error('Error accepting booking:', error)
         toast.error('Failed to accept booking. Please try again.')
@@ -807,7 +879,7 @@ console.log('Telegram:', telegramId.value)
                 </label>
               </div>
               <div class="flex-grow-1">
-                <h3 class="m-0">{{ displayName }}</h3>
+                <h3 class="m-0">{{ username || '—' }}</h3>
                 <div class="text-muted">{{ email || '—' }}</div>
 
                 <!-- Rating Display -->
@@ -998,7 +1070,7 @@ console.log('Telegram:', telegramId.value)
                   <div class="d-flex justify-content-between align-items-start mb-3">
                     <div>
                       <h6 class="mb-1">{{ booking.listingName }}</h6>
-                      <p class="text-muted small mb-0">Request from: {{ booking.buyerName }}</p>
+                      <p class="text-muted small mb-0">Request from: {{ booking.buyerUsername || booking.buyerName }}</p>
                     </div>
                     <span class="badge" :class="{
                       'bg-warning': booking.status === 'pending',
@@ -1011,7 +1083,7 @@ console.log('Telegram:', telegramId.value)
                     <strong>Date:</strong> {{ booking.date }}<br>
                     <strong>Time:</strong> {{ booking.time }}<br>
                     <strong>Email:</strong> {{ booking.buyerEmail }}<br>
-                    <strong v-if="booking.buyerPhone">Phone:</strong> {{ booking.buyerPhone }}
+                    <strong>Phone:</strong> {{ booking.buyerPhone || 'Not provided' }}
                   </div>
 
                   <div v-if="booking.message" class="mb-3">

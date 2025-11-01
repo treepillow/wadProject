@@ -7,7 +7,9 @@ import {
   doc, updateDoc, addDoc, serverTimestamp, getDoc, orderBy, increment
 } from 'firebase/firestore'
 import { useToast } from '@/composables/useToast'
+import { startChatWithUser } from '@/helpers/chatHelper'
 import SellerBadge from './SellerBadge.vue'
+import { Icon } from '@iconify/vue'
 
 const router = useRouter()
 const toast = useToast()
@@ -213,9 +215,6 @@ async function fetchUserHandles(userId) {
 
     instagramHandle.value = userData.instagram || ''
     telegramHandle.value = userData.telegram || ''
-
-    console.log('Fetched handles:', instagramHandle.value, telegramHandle.value)
-
   } catch (e) {
     console.error('Error fetching user handles:', e)
   }
@@ -873,6 +872,37 @@ function goToReviewerProfile(userId, event) {
   }
 }
 
+/* Start chat with seller */
+async function startChat() {
+  const user = auth.currentUser
+  if (!user) {
+    toast.error('Please log in to start a chat')
+    router.push({ name: 'login' })
+    return
+  }
+
+  const sellerId = props.listing?.userId
+  if (!sellerId) {
+    toast.error('Seller information not available')
+    return
+  }
+
+  if (sellerId === user.uid) {
+    toast.info('You cannot chat with yourself')
+    return
+  }
+
+  try {
+    const listingId = props.listing?.listingId || props.listing?.id
+    const chatId = await startChatWithUser(user.uid, sellerId, listingId)
+    emit('close')
+    router.push({ name: 'chat', query: { chatId } })
+  } catch (error) {
+    console.error('Error starting chat:', error)
+    toast.error('Failed to start chat. Please try again.')
+  }
+}
+
 // Fetch reviews when drawer opens
 watch(() => props.open, (isOpen) => {
   if (isOpen && props.listing) {
@@ -916,6 +946,10 @@ watch(() => props.open, (isOpen) => {
             <SellerBadge :points="listing?.sellerStats ? (listing.sellerStats.reviews||0)+(listing.sellerStats.boosts||0)*5 : 0" :progress="false" />
           </div>
         </div>
+        <button class="btn btn-sm btn-outline-primary" @click="startChat" title="Chat with seller">
+          <Icon icon="mdi:message-text" class="me-1" />
+          Chat
+        </button>
             <a v-if="instagramHandle" :href="`https://instagram.com/${instagramHandle}`" target="_blank" rel="noopener">
           <img src="/src/assets/instagram.png" alt="Instagram" style="width:22px;height:22px;" />
         </a>

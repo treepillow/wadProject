@@ -5,9 +5,8 @@ import ChatBox from './ChatBox.vue'
 
 <template>
   <div>
-    <!-- Top section (search) -->
+
     <div class="container py-3">
-      <SearchBar />
     </div>
 
     <!-- Main chat container -->

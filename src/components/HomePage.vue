@@ -328,8 +328,6 @@ async function incrementViewCount(listingId) {
 
       // Increment viewCount by 1
       await updateDoc(listingDocRef, { viewCount: increment(1) });
-
-      console.log("✅ View count incremented successfully.");
     } else {
       console.warn("⚠️ Listing document does not exist.");
     }

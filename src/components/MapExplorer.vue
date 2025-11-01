@@ -198,8 +198,13 @@ async function loadListings() {
 function updateMarkers() {
   if (!map.value) return
 
-  // Clear existing markers
-  markers.value.forEach(marker => marker.setMap(null))
+  // Clear existing markers and overlays
+  markers.value.forEach(marker => {
+    if (marker.overlay) {
+      marker.overlay.setMap(null)
+    }
+    marker.setMap(null)
+  })
   markers.value = []
 
   const bounds = new window.google.maps.LatLngBounds()
@@ -219,14 +224,21 @@ function updateMarkers() {
 
     console.log(`Adding marker for ${listing.businessName} at`, position)
 
-    // Create custom marker with simpler icon
+    // Create invisible marker for click handling
     const marker = new window.google.maps.Marker({
       position,
       map: map.value,
-      icon: createCustomMarkerIcon(listing.businessCategory),
-      title: listing.businessName,
-      animation: window.google.maps.Animation.DROP
+      icon: {
+        path: window.google.maps.SymbolPath.CIRCLE,
+        scale: 0
+      },
+      title: listing.businessName
     })
+
+    // Create custom HTML overlay with image and name
+    const overlay = createCustomOverlay(position, listing)
+    overlay.setMap(map.value)
+    marker.overlay = overlay
 
     marker.addListener('click', () => {
       activeListing.value = listing
@@ -246,106 +258,177 @@ function updateMarkers() {
   }
 }
 
-// Create custom Zenly-style marker - simple colorful circles
-function createCustomMarkerIcon(category) {
-  const colors = {
-    'Food & Beverages': '#FF6B6B',
-    'Beauty & Wellness': '#FFD93D',
-    'Education': '#6BCB77',
-    'Home Services': '#4D96FF',
-    'Retail': '#9D4EDD',
-    'default': '#5A43C5'
+// Create custom HTML overlay with business image and name
+function createCustomOverlay(position, listing) {
+  class CustomOverlay extends window.google.maps.OverlayView {
+    constructor(position, listing) {
+      super()
+      this.position = position
+      this.listing = listing
+      this.div = null
+    }
+
+    onAdd() {
+      const div = document.createElement('div')
+      div.style.position = 'absolute'
+      div.style.cursor = 'pointer'
+      div.style.display = 'flex'
+      div.style.flexDirection = 'column'
+      div.style.alignItems = 'center'
+      div.style.gap = '4px'
+      div.style.transform = 'translate(-50%, -100%)'
+      div.style.zIndex = '1000'
+
+      // Business image container
+      const imageContainer = document.createElement('div')
+      imageContainer.style.width = '48px'
+      imageContainer.style.height = '48px'
+      imageContainer.style.borderRadius = '50%'
+      imageContainer.style.overflow = 'hidden'
+      imageContainer.style.border = '3px solid white'
+      imageContainer.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)'
+      imageContainer.style.backgroundColor = '#f0f0f0'
+
+      const img = document.createElement('img')
+      img.src = this.listing.photoUrls?.[0] || this.listing.imageUrl || 'https://via.placeholder.com/48'
+      img.style.width = '100%'
+      img.style.height = '100%'
+      img.style.objectFit = 'cover'
+      imageContainer.appendChild(img)
+
+      // Business name label
+      const nameLabel = document.createElement('div')
+      nameLabel.textContent = this.listing.businessName
+      nameLabel.style.backgroundColor = 'white'
+      nameLabel.style.padding = '4px 8px'
+      nameLabel.style.borderRadius = '12px'
+      nameLabel.style.fontSize = '11px'
+      nameLabel.style.fontWeight = '600'
+      nameLabel.style.whiteSpace = 'nowrap'
+      nameLabel.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)'
+      nameLabel.style.maxWidth = '120px'
+      nameLabel.style.overflow = 'hidden'
+      nameLabel.style.textOverflow = 'ellipsis'
+
+      div.appendChild(imageContainer)
+      div.appendChild(nameLabel)
+
+      // Click handler
+      div.addEventListener('click', () => {
+        activeListing.value = this.listing
+        map.value.panTo(this.position)
+        map.value.setZoom(15)
+      })
+
+      this.div = div
+      const panes = this.getPanes()
+      panes.overlayMouseTarget.appendChild(div)
+    }
+
+    draw() {
+      const overlayProjection = this.getProjection()
+      const pos = overlayProjection.fromLatLngToDivPixel(
+        new window.google.maps.LatLng(this.position.lat, this.position.lng)
+      )
+
+      if (this.div) {
+        this.div.style.left = pos.x + 'px'
+        this.div.style.top = pos.y + 'px'
+      }
+    }
+
+    onRemove() {
+      if (this.div) {
+        this.div.parentNode.removeChild(this.div)
+        this.div = null
+      }
+    }
   }
 
-  const color = colors[category] || colors.default
-
-  // Simple circle marker (Zenly style)
-  return {
-    path: window.google.maps.SymbolPath.CIRCLE,
-    fillColor: color,
-    fillOpacity: 1,
-    strokeColor: '#ffffff',
-    strokeWeight: 3,
-    scale: 10
-  }
+  return new CustomOverlay(position, listing)
 }
 
-// Zenly-inspired map styles - vibrant and playful
+// Zenly-inspired map styles - vibrant, colorful, and playful
 const zenlyMapStyles = [
   {
     "featureType": "all",
     "elementType": "geometry",
-    "stylers": [{ "color": "#ebe3cd" }]
+    "stylers": [{ "color": "#FFE8D6" }]
   },
   {
     "featureType": "all",
     "elementType": "labels.text.fill",
-    "stylers": [{ "color": "#523735" }]
+    "stylers": [{ "color": "#4A4A4A" }]
   },
   {
     "featureType": "all",
     "elementType": "labels.text.stroke",
-    "stylers": [{ "color": "#f5f1e6" }]
+    "stylers": [{ "color": "#FFFFFF", "weight": 3 }]
   },
   {
     "featureType": "water",
     "elementType": "geometry",
-    "stylers": [{ "color": "#aadaff" }]
-  },
-  {
-    "featureType": "water",
-    "elementType": "labels.text.fill",
-    "stylers": [{ "color": "#92998d" }]
+    "stylers": [{ "color": "#A8D8EA" }]
   },
   {
     "featureType": "landscape",
     "elementType": "geometry",
-    "stylers": [{ "color": "#f5f1e6" }]
+    "stylers": [{ "color": "#FFE8D6" }]
   },
   {
     "featureType": "road",
     "elementType": "geometry",
-    "stylers": [{ "color": "#ffffff" }]
+    "stylers": [{ "color": "#FFFFFF" }]
   },
   {
     "featureType": "road",
     "elementType": "geometry.stroke",
-    "stylers": [{ "color": "#d6d1c6" }]
+    "stylers": [{ "color": "#FFD4A3" }]
   },
   {
     "featureType": "road.highway",
     "elementType": "geometry",
-    "stylers": [{ "color": "#ffd98e" }]
+    "stylers": [{ "color": "#FFCAA8" }]
   },
   {
     "featureType": "road.highway",
     "elementType": "geometry.stroke",
-    "stylers": [{ "color": "#ffb74d" }]
+    "stylers": [{ "color": "#FFB088" }]
+  },
+  {
+    "featureType": "road.arterial",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#FFE4C4" }]
   },
   {
     "featureType": "poi",
     "elementType": "geometry",
-    "stylers": [{ "color": "#dfd2ae" }]
+    "stylers": [{ "color": "#FFD4E5" }]
   },
   {
     "featureType": "poi.park",
     "elementType": "geometry",
-    "stylers": [{ "color": "#b8e6b8" }]
+    "stylers": [{ "color": "#C7F0BD" }]
   },
   {
     "featureType": "poi.school",
     "elementType": "geometry",
-    "stylers": [{ "color": "#ffd9d9" }]
+    "stylers": [{ "color": "#FFE8A1" }]
+  },
+  {
+    "featureType": "poi.business",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#E8D4F0" }]
   },
   {
     "featureType": "transit",
     "elementType": "geometry",
-    "stylers": [{ "color": "#dfd2ae" }]
+    "stylers": [{ "color": "#D4E8FF" }]
   },
   {
     "featureType": "administrative",
     "elementType": "geometry.stroke",
-    "stylers": [{ "color": "#c9b2a6" }]
+    "stylers": [{ "color": "#FFB4D4", "weight": 1 }]
   }
 ]
 

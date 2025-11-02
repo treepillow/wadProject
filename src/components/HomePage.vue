@@ -345,25 +345,19 @@ async function incrementViewCount(listingId) {
   }
 }
 
-// Call this from anywhere — no `this` needed
 async function handleListingClick(listingId) {
   try {
+    // Increment view count when the listing is clicked
     await incrementViewCount(listingId);
   } catch (error) {
-    console.error('❌ Error handling listing click:', error);
+    console.error('Error handling listing click:', error);
   }
 }
-
-  
 
 /* ---------- lifecycle ---------- */
 onMounted(() => {
   fetchPage()
   unsubAuth = onAuthStateChanged(auth, user => startLikesListener(user))
-  const listingId = drawerListing.value?.listingId;  // Or use the relevant listing ID from context
-  if (listingId) {
-    onViewListing({ id: listingId });  // Call this function to increment the view count
-  }
 })
 onBeforeUnmount(() => {
   if (unsubLikes) unsubLikes()

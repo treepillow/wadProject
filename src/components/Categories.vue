@@ -1,6 +1,4 @@
 <script>
-import { Icon } from '@iconify/vue';
-
 export default {
   name: 'Categories',
   props: {
@@ -11,7 +9,6 @@ export default {
     const src = (file) => new URL(`../assets/category_images/${file}`, import.meta.url).href
     return {
       options: [
-        'Trending',
         'Food and Drinks',
         'Beauty',
         'Fitness',
@@ -28,9 +25,6 @@ export default {
         'Education':       src('education.png'),
         'Pets':            src('pets.png'),
         'Others':          src('others.png')
-      },
-      icons:{
-        'Trending': 'fa-solid:fire'
       }
     }
   },
@@ -55,8 +49,7 @@ export default {
           :class="{ active: isActive(opt) }"
           @click="toggle(opt)"
         >
-          <img v-if="images[opt]" :src="images[opt]" alt="category image" width="50" height="50" />
-          <Icon v-else :icon="icons[opt]" width="50" height="50" />
+          <img :src="images[opt]" alt="category image" width="50" height="50" />
         </button>
         <div class="category-text text-center fs-5">{{ opt }}</div>
       </div>
@@ -76,8 +69,7 @@ export default {
               :class="{ active: isActive(opt) }"
               @click="toggle(opt)"
             >
-              <img v-if="images[opt]" :src="images[opt]" alt="category image" width="50" height="50" />
-              <Icon v-else :icon="icons[opt]" width="50" height="50" />
+              <img :src="images[opt]" alt="category image" width="50" height="50" />
             </button>
             <div class="category-text text-center">{{ opt }}</div>
           </div>
@@ -204,17 +196,5 @@ hr { border: 1; opacity: 0.25; }
     font-size: 0.55rem;
     margin-top: 3px;
   }
-}
-
-:root.dark-mode .category .iconify {
-  color: #ffffff;
-}
-
-:root.dark-mode .category .iconify[data-icon='fa-solid:fire'] {
-  color: #ffffff;
-}
-
-:root.dark-mode .category:hover .iconify {
-  color: var(--color-primary);
 }
 </style>

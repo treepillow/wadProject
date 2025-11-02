@@ -32,13 +32,13 @@ const router = createRouter({
     },
     {
       path: '/',
-      name: 'about',
-      component: AboutPage, meta: {guestOnly: true}
-    },
-    {
-      path: '/home',
       name: 'home',
       component: HomePage, meta: {requiresAuth: true}
+    },
+    {
+      path: '/about',
+      name: 'about',
+      component: AboutPage, meta: {guestOnly: true}
     },
     {
       path: '/Profile',

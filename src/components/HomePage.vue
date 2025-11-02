@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import {
   getFirestore, collection, query, orderBy, limit, getDoc, getDocs, startAfter,
   doc, setDoc, updateDoc, increment, deleteDoc, onSnapshot, where,
@@ -14,7 +14,6 @@ import ListingCard from './ListingCard.vue'
 import ListingDrawer from './ListingDrawer.vue'
 import MapExplorer from './MapExplorer.vue'
 import { Icon } from '@iconify/vue'
-import { nextTick } from 'vue'
 
 const listings     = ref([])
 const loading      = ref(true)
@@ -26,37 +25,265 @@ const noMore       = ref(false)
 
 const selectedCats = ref([])
 const searchFilters = ref({ business: '', location: '' })
+const isApplyingFilter = ref(false) // Flag to prevent infinite loops
 
-const filterOpen = ref(false)
-const minLikes = ref(0)
-const minRating = ref(0)
+const sortDropdownOpen = ref(false)
+const sortBy = ref('trending')
+const minPrice = ref(null)
+const maxPrice = ref(null)
+const userLocation = ref(null)
 
 // Map Explorer state
 const mapExplorerOpen = ref(false)
 
-async function applyFilter() {
-  await nextTick()
+// Distance calculation helper (Haversine formula)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371 // Radius of the earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
 
-  const filtered = listings.value.filter(r => {
-    const likes = likeCounts[r.listingId || r.id] ?? 0
-    const rating = r.rating ?? 0
-    return likes >= minLikes.value && rating >= minRating.value
-  })
+// Get lat/lng from listing location (simplified - would need geocoding in production)
+async function getLatLngForListing(listing) {
+  // For now, return null - would need Google Maps geocoding
+  // This is a placeholder for the actual geocoding logic
+  return null
+}
 
-  if (filtered.length === 0) {
-    alert("No listings match the selected filters.")
+function calculateBestMatchScore(listing) {
+  let score = 0
+  
+  // Category relevance (highest weight)
+  if (selectedCats.value.length > 0 && listing.businessCategory) {
+    if (selectedCats.value.includes(listing.businessCategory)) {
+      score += 1000
+    }
   }
+  
+  // Business name/desc relevance (KEY SEARCH FEATURE)
+  const bizQuery = searchFilters.value.business.toLowerCase().trim()
+  if (bizQuery) {
+    const businessName = (listing.businessName || '').toLowerCase()
+    const businessDesc = (listing.businessDesc || '').toLowerCase()
+    
+    // Exact matches get highest score
+    if (businessName === bizQuery) score += 500
+    else if (businessName.includes(bizQuery)) score += 300
+    else if (businessDesc.includes(bizQuery)) score += 200
+    
+    // Also check for individual word matches for better relevance
+    const queryWords = bizQuery.split(/\s+/)
+    queryWords.forEach(word => {
+      if (word.length > 2) {
+        if (businessName.includes(word)) score += 50
+        if (businessDesc.includes(word)) score += 25
+      }
+    })
+  }
+  
+  // Location relevance (KEY SEARCH FEATURE) - higher priority for Best Match
+  const locQuery = searchFilters.value.location.toLowerCase().trim()
+  if (locQuery) {
+    const location = (listing.locationFormatted || listing.location?.street || '').toLowerCase()
+    // Exact location match gets very high score
+    if (location === locQuery) score += 800
+    else if (location.includes(locQuery)) score += 500
+    
+    // Also check for individual location words
+    const locWords = locQuery.split(/\s+/)
+    locWords.forEach(word => {
+      if (word.length > 2 && location.includes(word)) score += 200
+    })
+  }
+  
+  // Add trending factors as tie-breaker and quality signals
+  const id = listing.id || listing.listingId
+  const viewCount = listing.viewCount || 0
+  const likes = likeCounts[id] || 0
+  const reviews = listing.totalReviews || 0
+  const rating = listing.rating || 0
+  
+  // Trending factors as quality indicators
+  let trendingScore = 0
+  
+  // Check if boosted
+  let boosted = 0
+  if (listing.boostedUntil) {
+    const boostedUntil = listing.boostedUntil?.seconds ? listing.boostedUntil.seconds * 1000 : Date.parse(listing.boostedUntil)
+    if (boostedUntil > Date.now()) {
+      boosted = 1
+    }
+  }
+  
+  // Get badge level points from profile map
+  let badgePoints = 0
+  if (listing.userId && profileMap.value[listing.userId]?.stats) {
+    const stats = profileMap.value[listing.userId].stats
+    badgePoints = (stats.reviews || 0) + (stats.boosts || 0) * 5
+  }
+  
+  // Calculate age decay
+  let ageScore = 1
+  if (listing.createdAt) {
+    const createdAt = listing.createdAt?.seconds ? listing.createdAt.seconds * 1000 : Date.parse(listing.createdAt)
+    const ageInDays = (Date.now() - createdAt) / (24 * 60 * 60 * 1000)
+    ageScore = Math.max(0.5, 1 - (ageInDays / 180))
+  }
+  
+  // Add trending factors to score with substantial weight
+  trendingScore = (
+    (viewCount * 0.3) +
+    (likes * 2) +
+    (reviews * 3) +
+    (rating * 5) +
+    (boosted * 300) +
+    (badgePoints * 0.1) +
+    (ageScore * 50)
+  )
+  
+  return score + trendingScore
+}
 
+function calculateTrendingScore(listings, likeCounts, profileMap) {
+  return listings.map(listing => {
+    const id = listing.id || listing.listingId
+    const viewCount = listing.viewCount || 0
+    const likes = likeCounts[id] || 0
+    
+    // Get reviews count from the listing (fetching all reviews would be too expensive)
+    const reviews = listing.totalReviews || 0
+    const rating = listing.rating || 0
+    
+    // Check if boosted
+    let boosted = 0
+    if (listing.boostedUntil) {
+      const boostedUntil = listing.boostedUntil?.seconds ? listing.boostedUntil.seconds * 1000 : Date.parse(listing.boostedUntil)
+      if (boostedUntil > Date.now()) {
+        boosted = 1
+      }
+    }
+    
+    // Get badge level points from profile map
+    let badgePoints = 0
+    if (listing.userId && profileMap[listing.userId]?.stats) {
+      const stats = profileMap[listing.userId].stats
+      badgePoints = (stats.reviews || 0) + (stats.boosts || 0) * 5
+    }
+    
+    // Calculate age decay (newer listings get boost, but not too much)
+    let ageScore = 1
+    if (listing.createdAt) {
+      const createdAt = listing.createdAt?.seconds ? listing.createdAt.seconds * 1000 : Date.parse(listing.createdAt)
+      const ageInDays = (Date.now() - createdAt) / (24 * 60 * 60 * 1000)
+      ageScore = Math.max(0.5, 1 - (ageInDays / 180)) // Decay over 6 months
+    }
+    
+    // Trending score formula with weights
+    const trendingScore = (
+      (viewCount * 0.3) +           // Views matter but not too much
+      (likes * 2) +                 // Likes count more
+      (reviews * 3) +               // Reviews count even more
+      (rating * 5) +                // Average rating matters
+      (boosted * 300) +             // Boosted listings get significant boost
+      (badgePoints * 0.1) +         // Badge level gives small boost
+      (ageScore * 50)               // Newer listings get some boost
+    )
+    
+    return { ...listing, trendingScore }
+  }).sort((a, b) => b.trendingScore - a.trendingScore) // Sort descending
+}
+
+function applySorting() {
+  let filtered = [...listings.value]
+  
+  // Apply price range filter (only if both min and max are set)
+  if (minPrice.value !== null && maxPrice.value !== null) {
+    filtered = filtered.filter(listing => {
+      const price = parseFloat(listing.menu?.[0]?.price?.replace(/[^0-9.]/g, '')) || 0
+      return price >= minPrice.value && price <= maxPrice.value
+    })
+  }
+  
+  // Apply sorting
+  switch (sortBy.value) {
+    case 'best-match':
+      // Best Match algorithm
+      filtered = filtered.map(listing => ({
+        ...listing,
+        bestMatchScore: calculateBestMatchScore(listing)
+      })).sort((a, b) => b.bestMatchScore - a.bestMatchScore)
+      break
+    case 'trending':
+      // Trending algorithm
+      filtered = calculateTrendingScore(filtered, likeCounts, profileMap.value)
+      break
+    case 'most-reviewed':
+      filtered.sort((a, b) => (b.totalReviews || 0) - (a.totalReviews || 0))
+      break
+    case 'oldest':
+      filtered.sort((a, b) => {
+        const aTime = a.createdAt?.seconds || a.createdAt || 0
+        const bTime = b.createdAt?.seconds || b.createdAt || 0
+        return aTime - bTime
+      })
+      break
+    case 'cheapest':
+      filtered.sort((a, b) => {
+        const aPrice = parseFloat(a.menu?.[0]?.price?.replace(/[^0-9.]/g, '')) || Infinity
+        const bPrice = parseFloat(b.menu?.[0]?.price?.replace(/[^0-9.]/g, '')) || Infinity
+        return aPrice - bPrice
+      })
+      break
+    case 'most-expensive':
+      filtered.sort((a, b) => {
+        const aPrice = parseFloat(a.menu?.[0]?.price?.replace(/[^0-9.]/g, '')) || 0
+        const bPrice = parseFloat(b.menu?.[0]?.price?.replace(/[^0-9.]/g, '')) || 0
+        return bPrice - aPrice
+      })
+      break
+    case 'nearby':
+      // Sort by location match if location is provided
+      if (searchFilters.value.location) {
+        filtered.sort((a, b) => {
+          const locA = (a.locationFormatted || a.location?.street || '').toLowerCase()
+          const locB = (b.locationFormatted || b.location?.street || '').toLowerCase()
+          const query = searchFilters.value.location.toLowerCase()
+          const matchA = locA.includes(query) ? 1 : 0
+          const matchB = locB.includes(query) ? 1 : 0
+          return matchB - matchA
+        })
+      }
+      break
+  }
+  
   listings.value = filtered
-  filterOpen.value = false
+  sortDropdownOpen.value = false
 }
 
 function resetFilter() {
-  minLikes.value = 0
-  minRating.value = 0
+  sortBy.value = 'trending'
+  minPrice.value = null
+  maxPrice.value = null
   reloadForFilters()
-  filterOpen.value = false
+  sortDropdownOpen.value = false
 }
+
+// Computed title for page
+const pageTitle = computed(() => {
+  if (searchFilters.value.business && !selectedCats.value.length) {
+    return `Search Results for "${searchFilters.value.business}"`
+  } else if (selectedCats.value.length > 0) {
+    return selectedCats.value[0] // Show first selected category
+  } else {
+    return 'Trending'
+  }
+})
 
 // likes state
 const likedSet     = ref(new Set())
@@ -108,7 +335,8 @@ function startProfileListener(uid) {
     const data = snap.data() || {}
     const displayName = data.username || data.displayName || ''
     const photoURL    = data.photoURL || data.profilePicture || data.avatarUrl || data.profilePhoto || ''
-    profileMap.value = { ...profileMap.value, [uid]: { displayName, photoURL } }
+    const stats = data.stats || { reviews: 0, boosts: 0 }
+    profileMap.value = { ...profileMap.value, [uid]: { displayName, photoURL, stats } }
   })
   profileUnsubs.set(uid, unsub)
 }
@@ -129,24 +357,66 @@ function resetPaging() {
   batchTotalImages.value = 0
   batchLoadedImages.value = 0
 }
-function reloadForFilters() {
+async function reloadForFilters() {
   loading.value = true
   resetPaging()
-  fetchPage()
+  await fetchPage()
+  // Apply sorting after data is loaded
+  setTimeout(() => {
+    if (sortBy.value && listings.value.length > 0) {
+      applySorting()
+    }
+  }, 500)
 }
 
 /* watch: whenever categories or search changes, reload first page */
-watch(selectedCats, () => {
+watch(selectedCats, async (newCats) => {
+  if (isApplyingFilter.value) return
+  isApplyingFilter.value = true
+  
+  // Automatically switch to Best Match when category is selected
+  if (newCats.length > 0 && sortBy.value !== 'best-match') {
+    sortBy.value = 'best-match'
+  }
+  // Clear search if category is selected
+  if (newCats.length > 0 && searchFilters.value.business) {
+    searchFilters.value = { business: '', location: '' }
+  }
+  
+  await nextTick()
+  isApplyingFilter.value = false
   reloadForFilters()
 }, { deep: true })
 
-watch(searchFilters, () => {
+watch(searchFilters, async (newFilters) => {
+  if (isApplyingFilter.value) return
+  isApplyingFilter.value = true
+  
+  // Automatically switch to Best Match when search is performed
+  if (newFilters.business && sortBy.value !== 'best-match') {
+    sortBy.value = 'best-match'
+  }
+  // Clear category if search is performed
+  if (newFilters.business && selectedCats.value.length > 0) {
+    selectedCats.value = []
+  }
+  // If Best Match was selected but search was cleared, reset to Trending
+  if (!newFilters.business && sortBy.value === 'best-match' && selectedCats.value.length === 0) {
+    sortBy.value = 'trending'
+  }
+  
+  await nextTick()
+  isApplyingFilter.value = false
   reloadForFilters()
 }, { deep: true })
 
 /* handle search from SearchBar component */
 function handleSearch(filters) {
   searchFilters.value = filters
+  // Automatically switch to Best Match when search is performed
+  if (filters.business && sortBy.value !== 'best-match') {
+    sortBy.value = 'best-match'
+  }
 }
 
 /* ---------- listings pagination ---------- */
@@ -159,15 +429,10 @@ async function fetchPage () {
     const parts = []
 
     // Apply category filter if any (Firestore 'in' supports up to 10 items)
-    if (selectedCats.value.includes('Trending')) {
-      // "Trending" selected → show all, sorted by viewCount
-      parts.push(orderBy('viewCount', 'desc'))
-    } 
-    else if (selectedCats.value.length > 0) {
+    if (selectedCats.value.length > 0) {
       // Filter by selected categories (max 10 for Firestore `in` clause)
       parts.push(where('businessCategory', 'in', selectedCats.value.slice(0, 10)))
     }
-
     parts.push(orderBy('createdAt','desc'))
     if (lastDoc.value) parts.push(startAfter(lastDoc.value))
     parts.push(limit(pageSize))
@@ -221,6 +486,7 @@ async function fetchPage () {
     rows.forEach(r => {
       // Use the rating stored in the listing document, or default to 0
       r.rating = r.averageRating || r.rating || 0
+      r.totalReviews = r.totalReviews || 0
     })
 
 
@@ -290,9 +556,12 @@ async function onToggleLike(listing) {
 
 /* UI actions */
 function toggleCategory(name) {
-  const s = new Set(selectedCats.value)
-  s.has(name) ? s.delete(name) : s.add(name)
-  selectedCats.value = [...s]
+  // Allow only one category at a time
+  if (selectedCats.value.length === 1 && selectedCats.value[0] === name) {
+    selectedCats.value = [] // Deselect if already selected
+  } else {
+    selectedCats.value = [name] // Select only this category
+  }
 }
 function clearFilters() {
   if (selectedCats.value.length === 0) return
@@ -355,8 +624,14 @@ async function handleListingClick(listingId) {
 }
 
 /* ---------- lifecycle ---------- */
-onMounted(() => {
-  fetchPage()
+onMounted(async () => {
+  await fetchPage()
+  // Apply trending sorting after initial load
+  setTimeout(() => {
+    if (sortBy.value === 'trending' && listings.value.length > 0) {
+      applySorting()
+    }
+  }, 500)
   unsubAuth = onAuthStateChanged(auth, user => startLikesListener(user))
 })
 onBeforeUnmount(() => {
@@ -392,22 +667,88 @@ onBeforeUnmount(() => {
         <Categories :selected="selectedCats" @toggle="toggleCategory" />
       </div>
 
-      <!-- Filter + Reset Buttons -->
-<div class="d-flex justify-content-end align-items-center my-3 gap-2">
-  <button class="btn btn-outline-primary" @click="filterOpen = true">
-    <i class="fas fa-filter me-2"></i> Filter
-  </button>
-  <button class="btn btn-outline-secondary" @click="resetFilter">
-    Reset
-  </button>
-</div>
+      <!-- Page Title -->
+      <h2 class="page-title mt-4 mb-3">{{ pageTitle }}</h2>
 
-
-      <!-- centered selected chips -->
-      <div v-if="selectedCats.length" class="chip-bar my-3">
-        <span v-for="c in selectedCats" :key="c" class="chip chip--selected">{{ c }}</span>
-        <button class="btn btn-sm chip-clear ms-2" @click="clearFilters">Clear</button>
+      <!-- Sort Dropdown -->
+      <div class="d-flex justify-content-end align-items-center my-3 gap-2">
+        <div class="sort-dropdown-wrapper position-relative">
+          <button 
+            class="btn btn-outline-primary d-flex align-items-center gap-2" 
+            @click="sortDropdownOpen = !sortDropdownOpen"
+          >
+            <span>Sort: <strong>{{ sortBy === 'trending' ? 'Trending' : sortBy === 'best-match' ? 'Best Match' : sortBy === 'most-reviewed' ? 'Most Reviewed' : sortBy === 'oldest' ? 'Oldest First' : sortBy === 'cheapest' ? 'Cheapest First' : sortBy === 'most-expensive' ? 'Most Expensive First' : sortBy === 'nearby' ? 'Nearest First' : 'Trending' }}</strong></span>
+            <i class="fas" :class="sortDropdownOpen ? 'fa-caret-up' : 'fa-caret-down'"></i>
+          </button>
+          
+          <!-- Dropdown Menu -->
+          <div v-if="sortDropdownOpen" class="sort-dropdown-menu">
+            <div 
+              v-if="searchFilters.business"
+              class="sort-dropdown-item" 
+              :class="{ active: sortBy === 'best-match' }"
+              @click="sortBy = 'best-match'; applySorting()"
+            >
+              <span class="radio-dot"></span>
+              <span>Best Match</span>
+            </div>
+            <div 
+              class="sort-dropdown-item" 
+              :class="{ active: sortBy === 'most-reviewed' }"
+              @click="sortBy = 'most-reviewed'; applySorting()"
+            >
+              <span class="radio-dot"></span>
+              <span>Most Reviewed</span>
+            </div>
+            <div 
+              class="sort-dropdown-item" 
+              :class="{ active: sortBy === 'oldest' }"
+              @click="sortBy = 'oldest'; applySorting()"
+            >
+              <span class="radio-dot"></span>
+              <span>Oldest First</span>
+            </div>
+            <div 
+              class="sort-dropdown-item" 
+              :class="{ active: sortBy === 'cheapest' }"
+              @click="sortBy = 'cheapest'; applySorting()"
+            >
+              <span class="radio-dot"></span>
+              <span>Cheapest First</span>
+            </div>
+            <div 
+              class="sort-dropdown-item" 
+              :class="{ active: sortBy === 'most-expensive' }"
+              @click="sortBy = 'most-expensive'; applySorting()"
+            >
+              <span class="radio-dot"></span>
+              <span>Most Expensive First</span>
+            </div>
+            <div 
+              class="sort-dropdown-item" 
+              :class="{ active: sortBy === 'nearby' }"
+              @click="sortBy = 'nearby'; applySorting()"
+            >
+              <span class="radio-dot"></span>
+              <span>Nearest First</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Price Range Filters -->
+        <div class="d-flex align-items-center gap-2">
+          <label class="small text-muted mb-0">Price:</label>
+          <input type="number" class="form-control form-control-sm" style="width: 80px;" v-model.number="minPrice" placeholder="Min" />
+          <span class="text-muted">-</span>
+          <input type="number" class="form-control form-control-sm" style="width: 80px;" v-model.number="maxPrice" placeholder="Max" />
+          <button class="btn btn-sm btn-outline-secondary" @click="applySorting">Apply</button>
+        </div>
       </div>
+      
+      <!-- Click outside to close dropdown -->
+      <div v-if="sortDropdownOpen" class="dropdown-overlay" @click="sortDropdownOpen = false"></div>
+
+
     </div>
 
     <div class="content-container pb-5">
@@ -448,38 +789,10 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <div v-else-if="listings.length && noMore" class="text-center text-muted mt-4">
-          You’ve reached the end.
+          You've reached the end.
         </div>
       </div>
     </div>
-
-<!-- Slide-in Filter Drawer -->
-<div class="filter-drawer" :class="{ open: filterOpen }">
-  <div class="drawer-content p-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h4 class="mb-0">Filter Listings</h4>
-      <button class="btn-close" @click="filterOpen = false"></button>
-    </div>
-
-    <div class="mb-4">
-      <label class="form-label fw-semibold">Minimum Likes: {{ minLikes }}</label>
-      <input type="range" class="form-range" min="0" max="100" step="1" v-model.number="minLikes" />
-    </div>
-
-    <div class="mb-4">
-      <label class="form-label fw-semibold">Minimum Rating: {{ minRating }}</label>
-      <input type="range" class="form-range" min="0" max="5" step="0.1" v-model.number="minRating" />
-    </div>
-
-    <div class="d-flex gap-2">
-      <button class="btn btn-primary w-100" @click="applyFilter">Apply</button>
-      <button class="btn btn-outline-secondary w-100" @click="resetFilter">Reset</button>
-    </div>
-  </div>
-</div>
-
-<!-- Overlay -->
-<div v-if="filterOpen" class="drawer-overlay" @click="filterOpen = false"></div>
 
 
     <!-- Drawer (REUSED) -->
@@ -549,6 +862,12 @@ onBeforeUnmount(() => {
   transition: opacity 0.2s ease;
 }
 
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
 .chip-bar { text-align: center; }
 .chip {
   display: inline-flex;
@@ -599,55 +918,88 @@ onBeforeUnmount(() => {
   .categories-row::-webkit-scrollbar { display: none; }
 }
 
-.filter-drawer {
-  position: fixed;
-  top: 0;
-  right: -75%;
-  width: 75%;
-  height: 100vh;
-  background: var(--color-bg-white);
-  color: var(--color-text-primary);
-  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.2);
-  transition: right 0.35s ease;
-  z-index: 1050;
-  overflow-y: auto;
-  border-radius: 12px 0 0 12px;
+/* Sort Dropdown Styles */
+.sort-dropdown-wrapper {
+  z-index: 1000;
 }
-.filter-drawer.open {
+
+.sort-dropdown-menu {
+  position: absolute;
+  top: 100%;
   right: 0;
+  margin-top: 0.5rem;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  min-width: 250px;
+  overflow: hidden;
+  z-index: 1001;
+  animation: fadeIn 0.2s ease-out;
 }
-.drawer-content {
-  max-width: 600px;
-  margin: 0 auto;
+
+.sort-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  border-bottom: 1px solid var(--color-border);
 }
-.filter-drawer .form-label {
-  color: var(--color-text-primary);
+
+.sort-dropdown-item:last-child {
+  border-bottom: none;
 }
-.filter-drawer h4 {
-  color: var(--color-text-primary);
+
+.sort-dropdown-item:hover {
+  background: var(--color-bg-purple-tint);
 }
-.drawer-overlay {
+
+.sort-dropdown-item.active {
+  background: var(--color-bg-purple-tint);
+}
+
+.radio-dot {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.sort-dropdown-item.active .radio-dot {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.sort-dropdown-item.active .radio-dot::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+}
+
+.dropdown-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 1040;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
 }
 
-input[type='range'] {
-  width: 100%;
-  accent-color: #7a5af8;
-  cursor: pointer;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 767.98px) {
-  .filter-drawer {
-    width: 90%;
-    right: -90%;
-  }
-
   /* 2 cards per row on mobile */
   .row.g-3 {
     --bs-gutter-x: 0.75rem;
@@ -669,12 +1021,6 @@ input[type='range'] {
 }
 
 @media (max-width: 575.98px) {
-  .filter-drawer {
-    width: 100%;
-    right: -100%;
-    border-radius: 0;
-  }
-
   /* Keep 2 cards per row, adjust gutter */
   .row.g-3 {
     --bs-gutter-x: 0.6rem;
@@ -840,3 +1186,4 @@ input[type='range'] {
 }
 
 </style>
+

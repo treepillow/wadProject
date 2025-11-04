@@ -27,7 +27,12 @@ import SellerBadge from './SellerBadge.vue'
 useDarkMode()
 
 // Message notifications
-const { markChatAsRead } = useMessageNotifications()
+const { markChatAsRead, chatUnreadCounts } = useMessageNotifications()
+
+// Helper to check if a chat has unread messages
+function hasUnreadMessages(chatId) {
+  return chatUnreadCounts.value[chatId] > 0
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -92,15 +97,33 @@ function subscribeMyChats() {
 
   onSnapshot(q, async (snap) => {
     const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    for (const chat of rows) await populateUserMeta(chat)
+    
+    // First, populate meta from cache synchronously (instant display)
+    for (const chat of rows) {
+      chat.meta = chat.meta || {}
+      if (chat.participants) {
+        for (const uid of chat.participants) {
+          if (uid === currentUserId.value) continue
+          // Use cache if available (instant)
+          if (userCache.value[uid]) {
+            chat.meta[uid] = userCache.value[uid]
+          }
+        }
+      }
+    }
+    
+    // Update chats list with cached meta (instant display)
     chats.value = rows
+    
+    // Now fetch missing user meta asynchronously (non-blocking)
+    Promise.all(rows.map(chat => populateUserMeta(chat))).catch(() => {})
 
     const deepId = route.query.chatId
     if (deepId) {
       const found = rows.find(c => c.id === deepId)
       if (found) { selectChat(found); return }
     }
-    if (!activeChat.value && rows.length > 0) selectChat(rows[0])
+    // Don't auto-select first chat - let user choose
   })
 }
 
@@ -109,7 +132,12 @@ async function populateUserMeta(chat) {
   chat.meta = chat.meta || {}
   for (const uid of chat.participants) {
     if (uid === currentUserId.value) continue
-    if (!userCache.value[uid]) {
+    
+    // Skip if already populated from cache (no need to fetch again)
+    if (chat.meta[uid]) continue
+    
+    // Only fetch if not in cache (async, non-blocking)
+    try {
       const userSnap = await getDoc(doc(db, 'users', uid))
       if (userSnap.exists()) {
         const u = userSnap.data()
@@ -119,8 +147,15 @@ async function populateUserMeta(chat) {
       } else {
         userCache.value[uid] = { displayName: 'User', photoURL: '' }
       }
+      // Update chat meta and trigger reactivity
+      chat.meta[uid] = userCache.value[uid]
+      // Force Vue reactivity update
+      chats.value = [...chats.value]
+    } catch (e) {
+      // Silently handle errors - use fallback
+      chat.meta[uid] = { displayName: 'User', photoURL: '' }
+      chats.value = [...chats.value]
     }
-    chat.meta[uid] = userCache.value[uid]
   }
 }
 
@@ -150,6 +185,7 @@ function closeBadgeInfoModal() { badgeModalOpen.value = false }
 
 /* ───────── Select chat ───────── */
 function selectChat(chat) {
+  // Update active chat immediately for instant UI response
   activeChat.value = chat
   activeChatListing.value = null
   drawerOpen.value = false
@@ -157,23 +193,35 @@ function selectChat(chat) {
   drawerSellerName.value = ''
   drawerSellerAvatar.value = ''
 
-  router.replace({ query: { chatId: chat.id } })
+  // Clear messages immediately to avoid showing old messages
+  messages.value = []
 
-  // Mark chat as read when selected
+  // Update router query (non-blocking)
+  router.replace({ query: { chatId: chat.id } }).catch(() => {})
+
+  // Mark chat as read when selected - this will set lastReadAt to now
+  // This ensures all existing messages are marked as read, not just new ones
   markChatAsRead(chat.id)
 
+  // Clean up previous message listener
   if (unsubscribeMsgs) { unsubscribeMsgs(); unsubscribeMsgs = null }
 
+  // Set up new message listener immediately
   const q = query(collection(db, `chats/${chat.id}/messages`), orderBy('timestamp', 'asc'))
   unsubscribeMsgs = onSnapshot(q, (snap) => {
     messages.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
     
-    // Mark as read when messages are loaded/updated (in case new messages arrive)
-    if (chat.id) {
+    // Mark as read when messages are first loaded, but only once for this chat opening
+    // This ensures the notification count becomes 0 and highlight is removed when viewing a chat
+    // Only mark as read if this is still the active chat AND we haven't already marked it
+    if (chat.id === activeChat.value?.id) {
+      // markChatAsRead is already called in selectChat, but call it again to ensure
+      // lastReadAt is updated to the current time (in case new messages came in)
       markChatAsRead(chat.id)
     }
   })
 
+  // Fetch listing info asynchronously (non-blocking) - don't wait for it
   const sellerId = getOtherUid(chat)
   const listingId =
     chat.listingId ||
@@ -185,7 +233,8 @@ function selectChat(chat) {
     route.query.listingId
 
   if (sellerId && listingId) {
-    fetchListingForChat(sellerId, listingId)
+    // Don't await - let it load in background
+    fetchListingForChat(sellerId, listingId).catch(() => {})
   }
 }
 
@@ -221,7 +270,7 @@ async function fetchListingForChat(sellerId, listingId) {
     }
     activeChatListing.value = null
   } catch (e) {
-    console.warn('fetchListingForChat error:', e)
+    // Silently handle errors - console filter will suppress them
     activeChatListing.value = null
   }
 }
@@ -280,10 +329,12 @@ async function deleteChat(chatId) {
     }
     chats.value = chats.value.filter(c => c.id !== chatId)
   } catch (err) {
-    console.error('Error deleting chat:', err)
+    // Silently handle errors - console filter will suppress them
     alert('Failed to delete chat. Please try again.')
   }
 }
+
+
 
 /* ───────── Time helpers + date dividers ───────── */
 function formatTime(ts) {
@@ -355,7 +406,7 @@ const groupedMessages = computed(() => {
           <div
             v-for="chat in chats"
             :key="chat.id"
-            :class="['conversation-item', { active: activeChat?.id === chat.id }]"
+            :class="['conversation-item', { active: activeChat?.id === chat.id, 'has-unread': hasUnreadMessages(chat.id) }]"
             @click="selectChat(chat); sidebarCollapsed = true"
           >
             <div class="avatar-wrapper">
@@ -564,6 +615,9 @@ const groupedMessages = computed(() => {
 .conversation-item { display: flex; align-items: center; padding: 1rem 1.5rem; cursor: pointer; transition: background-color .2s ease; border-bottom: 1px solid var(--color-border); gap: 1rem; }
 .conversation-item:hover { background: var(--color-bg-purple-tint); }
 .conversation-item.active { background: var(--color-primary-pale); border-left: 3px solid var(--color-primary); }
+.conversation-item.has-unread { background: rgba(75, 42, 166, 0.15); border-left: 3px solid var(--color-primary); font-weight: 600; }
+.conversation-item.has-unread:hover { background: rgba(75, 42, 166, 0.2); }
+.conversation-item.has-unread.active { background: var(--color-primary-pale); border-left: 3px solid var(--color-primary); }
 .avatar-wrapper { flex-shrink: 0; }
 .user-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid var(--color-border); }
 .conversation-details { flex: 1; min-width: 0; }

@@ -898,7 +898,7 @@ async function startChat() {
     emit('close')
     router.push({ name: 'chat', query: { chatId } })
   } catch (error) {
-    console.error('Error starting chat:', error)
+    // Silently handle errors - console filter will suppress them
     toast.error('Failed to start chat. Please try again.')
   }
 }

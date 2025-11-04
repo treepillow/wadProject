@@ -465,7 +465,7 @@ export default {
               updatedAt: serverTimestamp()
             })
           } catch (chatError) {
-            console.error('Error sending chat message:', chatError)
+            // Silently handle errors - console filter will suppress them
             // Don't fail the booking acceptance if chat fails
           }
         }

@@ -161,7 +161,7 @@ export default {
         // Show success message
         this.showNotification("Login successful!", "success");
         setTimeout(() => {
-          this.$router.replace("/home");
+          this.$router.replace("/");
         }, 1000);
       } catch (err) {
         // Simplify error message
@@ -202,7 +202,7 @@ export default {
         // Profile is complete, allow login
         this.showNotification("Login successful!", "success");
         setTimeout(() => {
-          this.$router.replace("/home");
+          this.$router.replace("/");
         }, 1000);
       } catch (err) {
         if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {

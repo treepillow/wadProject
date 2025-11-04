@@ -9,6 +9,7 @@ import { Icon } from '@iconify/vue'
 import { useMessageNotifications } from '@/composables/useMessageNotifications' 
 import SellerBadge from './SellerBadge.vue'
 import { LEVELS } from '@/composables/useSellerLevel'
+import { clearCache } from '@/router/index.js'
 
 const props = defineProps({
   // for about page - show login/signup instead of profile stuff
@@ -65,7 +66,7 @@ onMounted(() => {
         isAdmin.value = data.isAdmin || false
       }
     }, (err) => {
-      console.error('Error loading user stats:', err)
+      // Silently handle errors - console filter will suppress them
       // Keep default avatar on error
       avatarUrl.value = userPng
     })
@@ -77,16 +78,41 @@ onBeforeUnmount(() => {
   stopListening()
 })
 
-const isLoggedIn = computed(() => !!user.value)
+const isLoggedIn = computed(() => !!user.value || loggingOut.value) // Keep visible during logout
 const showAuthCtas = computed(() => props.authCtasOnly)
 
 async function logout() {
+  if (loggingOut.value) return // Prevent double-click
+  
   try {
     loggingOut.value = true
+    
+    // Stop listening to messages before signing out
+    stopListening()
+    
+    // Clean up user stats listener
+    if (unsubUserStats) { unsubUserStats(); unsubUserStats = null }
+    
+    // Clear cache first
+    clearCache()
+    
+    // Sign out first (this will trigger auth state change)
     await signOut(auth)
-    router.push('/')
+    
+    // Wait a moment for auth state to update
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    // Navigate to landing page (about page)
+    await router.push('/about')
+  } catch (err) {
+    // Silently handle errors - console filter will suppress them
+    // Still try to navigate to landing page
+    router.push('/about').catch(() => {})
   } finally {
-    loggingOut.value = false
+    // Reset flag after a delay
+    setTimeout(() => {
+      loggingOut.value = false
+    }, 300)
   }
 }
 

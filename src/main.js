@@ -15,12 +15,15 @@ app.use(router)
 
 onAuthStateChanged(auth, (user) => {
   const to = router.currentRoute.value;
-  // If user just became null while sitting on a protected page → redirect
+  // If user just became null while sitting on a protected page → redirect to landing page (about)
   if (!user && to.meta?.requiresAuth) {
-    router.replace({ name: "signup", query: { redirect: to.fullPath } });
+    // Only redirect if we're not already on a guest-only page (like about/login/signup)
+    if (to.name !== 'about' && to.name !== 'login' && to.name !== 'signup') {
+      router.replace({ name: "about" });
+    }
   }
   // If user logs in while on guest-only page, you can optionally bounce them:
-  if (user && to.meta?.guestOnly) {
+  if (user && to.meta?.guestOnly && to.name !== 'login' && to.name !== 'signup') {
     router.replace({ name: "home" });
   }
 });

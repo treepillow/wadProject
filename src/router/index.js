@@ -35,6 +35,11 @@ const router = createRouter({
       name: 'home',
       component: HomePage, meta: {requiresAuth: true}
     },
+    // Redirect /home to / for backward compatibility
+    {
+      path: '/home',
+      redirect: '/'
+    },
     {
       path: '/about',
       name: 'about',
@@ -156,7 +161,8 @@ router.beforeEach(async (to, _from, next) => {
   const user = await getCurrentUser();
 
   if (to.meta.requiresAuth && !user) {
-    return next({ name: "about", query: { redirect: to.fullPath } });
+    // Redirect to login (not signup) when not authenticated
+    return next({ name: "login", query: { redirect: to.fullPath } });
   }
 
   if (to.meta.guestOnly && user) {
@@ -180,5 +186,11 @@ router.beforeEach(async (to, _from, next) => {
   next();
 });
 
- 
+// Function to clear router cache (used on logout)
+export function clearCache() {
+  cachedUser = null;
+  cachedUserData = null;
+  lastFetchTime = 0;
+}
+
 export default router

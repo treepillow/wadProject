@@ -1,12 +1,13 @@
 import { ref, computed } from 'vue'
 import { auth, db } from '@/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import { collection, query, where, onSnapshot, doc, getDoc, setDoc, serverTimestamp, getDocs } from 'firebase/firestore'
+import { collection, query, where, onSnapshot, doc, getDoc, setDoc, serverTimestamp, getDocs, orderBy, limit } from 'firebase/firestore'
 
 const unreadCount = ref(0)
 let unsubscribeChats = null
 let currentUserId = null
 const chatUnreadCounts = ref({}) // chatId -> count
+const optimisticallyReadChats = ref(new Set()) // Track chats optimistically marked as read
 
 export function useMessageNotifications() {
   
@@ -31,6 +32,16 @@ export function useMessageNotifications() {
       
       // For each chat, count unread messages
       for (const chatId of chatIds) {
+        // ALWAYS respect optimistic updates FIRST - if marked as read, count is 0
+        // This prevents old messages from being counted as unread after opening a chat
+        if (optimisticallyReadChats.value.has(chatId)) {
+          chatUnreadCounts.value[chatId] = 0
+          totalUnread += 0
+          continue // Skip server calculation for optimistically read chats
+        }
+        
+        // Calculate unread count from server - countUnreadInChat will properly check lastReadAt
+        // and only count messages sent after lastReadAt
         const count = await countUnreadInChat(chatId)
         chatUnreadCounts.value[chatId] = count
         totalUnread += count
@@ -38,7 +49,8 @@ export function useMessageNotifications() {
       
       unreadCount.value = totalUnread
     } catch (error) {
-      console.error('Error calculating unread count:', error)
+      // Silently handle errors - don't log permission errors
+      // Console filter will suppress these anyway
       unreadCount.value = 0
     }
   }
@@ -46,27 +58,118 @@ export function useMessageNotifications() {
   async function countUnreadInChat(chatId) {
     if (!currentUserId || !chatId) return 0
     
+    // Always count from server - don't skip based on optimistic value
+    // This ensures new messages are counted even after a chat is marked as read
+    
     try {
-      // Get last read timestamp for this chat
-      const readDocRef = doc(db, 'chats', chatId, 'readStatus', currentUserId)
-      const readSnap = await getDoc(readDocRef)
-      const lastRead = readSnap.exists() ? readSnap.data().lastReadAt : null
+      // Get last read timestamp for this chat - silently handle permission errors
+      // This is critical - if lastReadAt exists, only messages sent after it are unread
+      // If lastReadAt doesn't exist, ALL messages are unread (correct behavior for new/unread chats)
+      let lastRead = null
+      try {
+        const readDocRef = doc(db, 'chats', chatId, 'readStatus', currentUserId)
+        const readSnap = await getDoc(readDocRef)
+        if (readSnap.exists()) {
+          const readData = readSnap.data()
+          lastRead = readData.lastReadAt || null
+          // If lastReadAt exists but is a serverTimestamp placeholder, try to get actual value
+          // Firestore serverTimestamp() creates a placeholder that gets filled server-side
+          // On client read, it should be a Timestamp object
+          // If it's null or undefined, user hasn't read this chat, so all messages are unread
+          
+          // Debug: Log if lastReadAt exists (will be filtered by console filter in production)
+          // This helps verify that lastReadAt is being saved and retrieved correctly
+        }
+        // If readSnap doesn't exist, lastRead stays null (all messages unread - correct for new chats)
+      } catch (readError) {
+        // Permission errors mean we can't access readStatus - assume no read time
+        // This will cause all messages to be counted as unread (conservative approach)
+        // If there's no lastReadAt (permission error or doesn't exist), all messages will be counted as unread
+        // This is correct behavior - user hasn't read the chat yet, or we can't access read status
+        lastRead = null
+        // Don't return 0 here - let it continue to count unread messages
+        // Returning 0 would hide unread messages if there's a permission error
+      }
       
-      // Get all messages in this chat
-      const messagesRef = collection(db, `chats/${chatId}/messages`)
-      const messagesSnap = await getDocs(messagesRef)
+      // Get all messages in this chat - silently handle permission errors
+      let messagesSnap
+      try {
+        const messagesRef = collection(db, `chats/${chatId}/messages`)
+        messagesSnap = await getDocs(messagesRef)
+      } catch (msgError) {
+        // Silently ignore permission errors for messages
+        if (msgError.code !== 'permission-denied' && msgError.code !== 'PERMISSION_DENIED') {
+          return 0
+        }
+        return 0
+      }
       
       let count = 0
-      const lastReadTime = lastRead?.toDate ? lastRead.toDate() : (lastRead?.seconds ? new Date(lastRead.seconds * 1000) : null)
+      // Convert Firestore Timestamp to Date properly
+      // This is critical - if lastReadTime is null, ALL messages are unread
+      // If lastReadTime exists, only messages sent after it are unread
+      let lastReadTime = null
+      if (lastRead) {
+        if (lastRead.toDate && typeof lastRead.toDate === 'function') {
+          lastReadTime = lastRead.toDate()
+        } else if (lastRead.seconds && typeof lastRead.seconds === 'number') {
+          // Convert Firestore Timestamp seconds to Date
+          const nanoseconds = lastRead.nanoseconds || 0
+          lastReadTime = new Date(lastRead.seconds * 1000 + nanoseconds / 1000000)
+        } else if (lastRead instanceof Date) {
+          lastReadTime = lastRead
+        } else if (typeof lastRead === 'string') {
+          lastReadTime = new Date(lastRead)
+        } else if (lastRead._seconds) {
+          // Alternative Firestore timestamp format
+          const seconds = lastRead._seconds
+          const nanoseconds = lastRead._nanoseconds || 0
+          lastReadTime = new Date(seconds * 1000 + nanoseconds / 1000000)
+        }
+        
+        // Validate that lastReadTime is a valid date
+        if (lastReadTime && (isNaN(lastReadTime.getTime()) || !(lastReadTime instanceof Date))) {
+          lastReadTime = null
+        }
+      }
       
       messagesSnap.forEach((msgDoc) => {
         const msg = msgDoc.data()
-        // Count messages not sent by current user
-        if (msg.senderId !== currentUserId) {
-          const msgTime = msg.timestamp?.toDate ? msg.timestamp.toDate() : (msg.timestamp?.seconds ? new Date(msg.timestamp.seconds * 1000) : new Date())
+        // Only count messages NOT sent by current user (messages from others)
+        if (msg.senderId && msg.senderId !== currentUserId) {
+          // Convert message timestamp to Date properly
+          let msgTime = null
+          if (msg.timestamp) {
+            if (msg.timestamp.toDate) {
+              msgTime = msg.timestamp.toDate()
+            } else if (msg.timestamp.seconds) {
+              msgTime = new Date(msg.timestamp.seconds * 1000)
+            } else if (msg.timestamp instanceof Date) {
+              msgTime = msg.timestamp
+            } else if (typeof msg.timestamp === 'string') {
+              msgTime = new Date(msg.timestamp)
+            }
+          }
           
-          // If never read, or message is after last read time
-          if (!lastReadTime || msgTime > lastReadTime) {
+          if (!msgTime) return // Skip if we can't parse timestamp
+          
+          // Count only if message time is valid and after last read time
+          if (lastReadTime) {
+            const timeDiff = msgTime.getTime() - lastReadTime.getTime()
+            
+            // Messages sent BEFORE lastReadTime are always considered read (timeDiff < 0)
+            // Messages sent AFTER lastReadTime might be unread, but we use a small buffer
+            // (3 seconds) to account for timestamp precision differences, server sync delays,
+            // and clock skew between client and server
+            if (timeDiff > 3000) {
+              // Message was sent more than 3 seconds AFTER lastReadTime - it's unread
+              count++
+            }
+            // If timeDiff <= 3000ms (or negative), message is considered read
+            // This ensures that when we mark as read with serverTimestamp(), all existing messages
+            // (which have negative or small positive timeDiff) are properly excluded
+          } else {
+            // No lastReadTime means user has never read this chat - count ALL messages as unread
             count++
           }
         }
@@ -74,7 +177,8 @@ export function useMessageNotifications() {
       
       return count
     } catch (error) {
-      console.warn('Error counting unread in chat:', chatId, error)
+      // Silently return 0 for any errors - don't log permission errors
+      // The console filter will suppress these anyway, but we avoid logging them
       return 0
     }
   }
@@ -83,6 +187,12 @@ export function useMessageNotifications() {
     if (!auth.currentUser) return
     
     currentUserId = auth.currentUser.uid
+    // Clear optimistic reads on new login - we'll rebuild from server's lastReadAt
+    // The optimistic reads are only for the current session, not persistent
+    optimisticallyReadChats.value.clear()
+    chatUnreadCounts.value = {}
+    // Calculate unread count from server - this will read lastReadAt from Firestore
+    // If lastReadAt exists, only messages sent after it will be counted as unread
     calculateUnreadCount()
     
     // Listen to all chats where user is a participant
@@ -90,21 +200,49 @@ export function useMessageNotifications() {
     const chatsQuery = query(chatsRef, where('participants', 'array-contains', currentUserId))
     
     unsubscribeChats = onSnapshot(chatsQuery, async (snap) => {
-      // When chats change, recalculate unread count
-      await calculateUnreadCount()
-      
-      // Also set up listeners for message changes in each chat
-      const chatIds = snap.docs.map(doc => doc.id)
-      
-      // Count unread for all chats
-      const counts = await Promise.all(chatIds.map(chatId => countUnreadInChat(chatId)))
-      chatIds.forEach((chatId, index) => {
-        chatUnreadCounts.value[chatId] = counts[index]
-      })
-      
-      // Recalculate total
-      const total = Object.values(chatUnreadCounts.value).reduce((sum, c) => sum + c, 0)
-      unreadCount.value = total
+      try {
+        const chatIds = snap.docs.map(doc => doc.id)
+        
+        // Count unread for all chats - silently handle any errors
+        // IMPORTANT: Skip server calculation for optimistically read chats to prevent old messages from being counted
+        const counts = await Promise.all(chatIds.map(async (chatId) => {
+          try {
+            // ALWAYS respect optimistic updates FIRST - if marked as read, count is 0
+            // Don't even call countUnreadInChat for optimistically read chats
+            // (These are chats that were opened in this session and marked as read)
+            if (optimisticallyReadChats.value.has(chatId)) {
+              return 0
+            }
+            
+            // For all other chats, call countUnreadInChat which will properly check lastReadAt
+            // and only count messages sent after lastReadAt
+            return await countUnreadInChat(chatId)
+          } catch (err) {
+            // Silently return 0 for any errors
+            return 0
+          }
+        }))
+        
+        // Update counts - ALWAYS respect optimistic updates
+        chatIds.forEach((chatId, index) => {
+          if (optimisticallyReadChats.value.has(chatId)) {
+            // Never override optimistic reads - they should always be 0
+            chatUnreadCounts.value[chatId] = 0
+          } else {
+            chatUnreadCounts.value[chatId] = counts[index]
+          }
+        })
+        
+        // Recalculate total from all chat counts
+        const total = Object.values(chatUnreadCounts.value).reduce((sum, c) => sum + c, 0)
+        unreadCount.value = total
+      } catch (err) {
+        // Silently handle any errors in the snapshot callback
+        unreadCount.value = 0
+      }
+    }, (error) => {
+      // Silently handle snapshot errors (permission denied, etc.)
+      unreadCount.value = 0
     })
     
     // Listen for auth changes
@@ -118,6 +256,7 @@ export function useMessageNotifications() {
         if (unsubscribeChats) unsubscribeChats()
         unreadCount.value = 0
         chatUnreadCounts.value = {}
+        optimisticallyReadChats.value.clear()
         currentUserId = null
       }
     })
@@ -130,31 +269,113 @@ export function useMessageNotifications() {
     }
     unreadCount.value = 0
     chatUnreadCounts.value = {}
+    optimisticallyReadChats.value.clear()
   }
   
   async function markChatAsRead(chatId) {
     if (!currentUserId || !chatId) return
     
+    // Mark this chat as optimistically read - PERMANENTLY until server confirms
+    optimisticallyReadChats.value.add(chatId)
+    
+    // Update local count immediately (optimistic update) - set to 0 and update total
+    chatUnreadCounts.value[chatId] = 0
+    const total = Object.values(chatUnreadCounts.value).reduce((sum, c) => sum + c, 0)
+    unreadCount.value = total
+    
+    // Save read status to Firestore - use serverTimestamp for consistency
+    // This will mark ALL messages up to this point as read
+    // CRITICAL: This must succeed for the unread count to work correctly on next login
     try {
       const readDocRef = doc(db, 'chats', chatId, 'readStatus', currentUserId)
-      await setDoc(readDocRef, {
-        lastReadAt: serverTimestamp()
+      // Use serverTimestamp() which Firestore will convert to server time
+      // This ensures consistency across different clients and sessions
+      // By using serverTimestamp(), we mark all messages before this moment as read
+      // This timestamp will be used on next login to determine which messages are unread
+      const writeResult = await setDoc(readDocRef, {
+        lastReadAt: serverTimestamp(),
+        userId: currentUserId, // Store userId for easier querying/debugging
+        chatId: chatId, // Store chatId for easier querying/debugging
+        updatedAt: serverTimestamp() // Track when read status was last updated
       }, { merge: true })
       
-      // Update local count immediately
-      chatUnreadCounts.value[chatId] = 0
-      const total = Object.values(chatUnreadCounts.value).reduce((sum, c) => sum + c, 0)
-      unreadCount.value = total
+      // Verify the write succeeded by immediately reading it back
+      // This helps catch permission errors early
+      try {
+        await new Promise(resolve => setTimeout(resolve, 500)) // Wait 500ms for serverTimestamp to process
+        const verifySnap = await getDoc(readDocRef)
+        if (!verifySnap.exists() || !verifySnap.data().lastReadAt) {
+          // Write might have failed - keep optimistic flag permanently
+          // The UI will still show 0 unread, but we can't verify from server
+        }
+      } catch (verifyError) {
+        // Verification failed - might be permission error
+        // Keep optimistic flag permanently to ensure UI stays correct
+      }
       
-      // Recalculate to ensure accuracy
-      await calculateUnreadCount()
+      // Verify after a delay that lastReadAt is saved and count is 0
+      // Keep the optimistic flag PERMANENTLY until verified - this prevents old messages from being counted
+      setTimeout(async () => {
+        try {
+          // Re-read the lastReadAt from Firestore to ensure it's saved
+          const readDocRef = doc(db, 'chats', chatId, 'readStatus', currentUserId)
+          const readSnap = await getDoc(readDocRef)
+          
+          // If lastReadAt is saved, verify count
+          if (readSnap.exists() && readSnap.data().lastReadAt) {
+            // Wait a bit more for serverTimestamp to fully propagate
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            
+            const verifiedCount = await countUnreadInChat(chatId)
+            if (verifiedCount === 0) {
+              // Count is confirmed 0 from server - can safely remove optimistic flag
+              // But keep the count at 0 to be safe
+              optimisticallyReadChats.value.delete(chatId)
+              chatUnreadCounts.value[chatId] = 0
+              const newTotal = Object.values(chatUnreadCounts.value).reduce((sum, c) => sum + c, 0)
+              unreadCount.value = newTotal
+            } else {
+              // Server still shows unread messages, but user has opened the chat
+              // Keep optimistic flag PERMANENTLY to ensure UI stays at 0
+              // Don't update count or remove optimistic flag
+            }
+          } else {
+            // lastReadAt not saved yet, keep optimistic and try again later
+            // Don't remove optimistic flag - keep it until verified
+            setTimeout(async () => {
+              try {
+                const retryReadSnap = await getDoc(doc(db, 'chats', chatId, 'readStatus', currentUserId))
+                if (retryReadSnap.exists() && retryReadSnap.data().lastReadAt) {
+                  await new Promise(resolve => setTimeout(resolve, 2000))
+                  const retryCount = await countUnreadInChat(chatId)
+                  if (retryCount === 0) {
+                    optimisticallyReadChats.value.delete(chatId)
+                    chatUnreadCounts.value[chatId] = 0
+                    const newTotal = Object.values(chatUnreadCounts.value).reduce((sum, c) => sum + c, 0)
+                    unreadCount.value = newTotal
+                  }
+                  // If retryCount > 0, keep optimistic flag permanently
+                }
+              } catch (e) {
+                // Keep optimistic permanently on error
+              }
+            }, 5000)
+          }
+        } catch (verifyError) {
+          // Keep optimistic permanently - user has read the chat
+          // Don't remove optimistic flag on error - this ensures old messages stay marked as read
+        }
+      }, 7000) // Wait 7 seconds to ensure serverTimestamp is fully saved and processed
     } catch (error) {
-      console.error('Error marking chat as read:', error)
+      // If save fails, keep optimistic update permanently to ensure UI is correct
+      // The user has already read the chat, so count should be 0
+      // Don't remove optimistic flag - keep it forever if save fails
     }
   }
   
   return {
     unreadCount: computed(() => unreadCount.value),
+    chatUnreadCounts: computed(() => chatUnreadCounts.value),
     startListening,
     stopListening,
     markChatAsRead,

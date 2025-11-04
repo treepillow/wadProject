@@ -168,6 +168,14 @@ function closeNavbar() {
 function closeMenuFromBackdrop() {
   closeNavbar()
 }
+// Handle home link click - close any open modals/overlays
+function handleHomeClick() {
+  closeNavbar()
+  
+  // Close MapExplorer if it's open by dispatching a custom event
+  // MapExplorer will listen for this event
+  window.dispatchEvent(new CustomEvent('close-map-explorer'))
+}
 </script>
 
 <template>
@@ -181,7 +189,11 @@ function closeMenuFromBackdrop() {
           <span class="navbar-toggler-icon"></span>
         </button>
 
-        <RouterLink to="/" class="navbar-brand d-flex align-items-center gap-2 text-decoration-none order-1 flex-grow-1">
+        <RouterLink 
+          to="/" 
+          class="navbar-brand d-flex align-items-center gap-2 text-decoration-none order-1 flex-grow-1"
+          @click="handleHomeClick"
+        >
           <img src="../assets/homes_logo.png" alt="Homes" class="brand-logo" />
           <span class="brand-name">Homes</span>
         </RouterLink>

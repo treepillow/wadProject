@@ -3,12 +3,13 @@
     <Transition name="map-explorer">
       <div v-if="isOpen" class="map-explorer-overlay" @click="closeExplorer">
         <div class="map-explorer-container" @click.stop>
-          <!-- Navigation Bar -->
+          <!-- NavBar at top -->
+          <div class="map-navbar-top">
+            <NavBar />
+          </div>
+          
+          <!-- Navigation Bar with Search -->
           <div class="map-navbar">
-            <button class="close-btn" @click="closeExplorer">
-              <Icon icon="mdi:close" />
-            </button>
-            
             <!-- Search and Filters Bar -->
             <div class="navbar-search-filters">
               <!-- Search Bar -->
@@ -19,7 +20,7 @@
                   v-model="searchQuery"
                   placeholder="Search businesses..."
                   class="search-input"
-                  @input="handleSearch"
+                  @keyup.enter="handleSearch"
                 />
                 <button
                   v-if="searchQuery"
@@ -29,6 +30,16 @@
                   <Icon icon="mdi:close-circle" />
                 </button>
               </div>
+              
+              <!-- Search Button -->
+              <button
+                class="search-btn"
+                @click="handleSearch"
+                :disabled="!searchQuery.trim()"
+                title="Search"
+              >
+                <Icon icon="mdi:magnify" />
+              </button>
 
               <!-- Categories Dropdown -->
               <div class="filter-control">
@@ -47,28 +58,30 @@
               <!-- Distance Filter -->
               <div v-if="userLocation && mapLoaded" class="filter-control">
                 <select
-                  v-model.number="distanceFilter"
+                  v-model="distanceFilterOption"
                   class="distance-select"
-                  @change="updateDistanceRing"
-                  :disabled="!distanceFilterEnabled"
+                  @change="handleDistanceFilterChange"
                 >
-                  <option :value="0.5">0.5 km</option>
-                  <option :value="1">1 km</option>
-                  <option :value="2">2 km</option>
-                  <option :value="5">5 km</option>
-                  <option :value="10">10 km</option>
-                  <option :value="20">20 km</option>
-                  <option :value="50">50 km</option>
+                  <option value="singapore">Singapore</option>
+                  <option value="0.5">0.5 km</option>
+                  <option value="1">1 km</option>
+                  <option value="2">2 km</option>
+                  <option value="5">5 km</option>
+                  <option value="10">10 km</option>
+                  <option value="20">20 km</option>
+                  <option value="50">50 km</option>
                 </select>
-                <button
-                  class="distance-toggle-btn"
-                  @click="toggleDistanceFilter"
-                  :class="{ active: distanceFilterEnabled }"
-                  title="Toggle Distance Filter"
-                >
-                  <Icon icon="mdi:map-marker-radius" />
-                </button>
               </div>
+              
+              <!-- My Location Button -->
+              <button
+                v-if="userLocation && mapLoaded"
+                class="my-location-btn"
+                @click="centerOnMyLocation"
+                title="Center on My Location"
+              >
+                <Icon icon="mdi:crosshairs-gps" />
+              </button>
             </div>
           </div>
 
@@ -102,59 +115,57 @@
           </div>
 
           <!-- Business Cards (Bottom Sheet) -->
-          <div class="business-cards-container">
-            <div class="business-cards-scroll">
-              <div
-                v-for="listing in filteredListings"
-                :key="listing.id"
-                class="business-card"
-                @click="openListing(listing)"
-              >
-                <div class="business-image">
-                  <img :src="listing.photoUrls?.[0] || '/placeholder.jpg'" alt="" />
-                  <div class="business-category-badge">{{ listing.businessCategory }}</div>
-                </div>
-                <div class="business-info">
-                  <h4 class="business-name">{{ listing.businessName }}</h4>
-                  <div class="business-rating">
-                    <Icon icon="mdi:star" class="star-icon" />
-                    <span>{{ (listingsReviews[listing.id || listing.listingId]?.avgRating || listing.averageRating || 0).toFixed(1) }}</span>
-                    <span class="review-count" v-if="listingsReviews[listing.id || listing.listingId]?.totalReviews">
-                      ({{ listingsReviews[listing.id || listing.listingId].totalReviews }})
-                    </span>
-                    <span v-else-if="listing.totalReviews">({{ listing.totalReviews }})</span>
+          <div class="business-cards-container" :class="{ collapsed: businessCardsCollapsed }">
+            <!-- Collapse Toggle Button -->
+            <button 
+              class="business-cards-toggle-btn" 
+              @click="toggleBusinessCards"
+              :title="businessCardsCollapsed ? 'Show Listings' : 'Hide Listings'"
+            >
+              <Icon :icon="businessCardsCollapsed ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
+              <span class="toggle-text">{{ businessCardsCollapsed ? 'Show Listings' : 'Hide Listings' }}</span>
+            </button>
+            
+            <Transition name="slide-up">
+              <div v-show="!businessCardsCollapsed" class="business-cards-scroll">
+                <div
+                  v-for="listing in filteredListings"
+                  :key="listing.id"
+                  class="business-card"
+                  @click="openListing(listing)"
+                >
+                  <div class="business-image">
+                    <img :src="listing.photoUrls?.[0] || '/placeholder.jpg'" alt="" />
+                    <div class="business-category-badge">{{ listing.businessCategory }}</div>
                   </div>
-                  <div v-if="listingsReviews[listing.id || listing.listingId]?.topReview" class="business-review-preview">
-                    <p class="review-text">{{ listingsReviews[listing.id || listing.listingId].topReview.text }}</p>
-                    <span class="review-author">— {{ listingsReviews[listing.id || listing.listingId].topReview.author }}</span>
+                  <div class="business-info">
+                    <h4 class="business-name">{{ listing.businessName }}</h4>
+                    <div class="business-rating">
+                      <Icon icon="mdi:star" class="star-icon" />
+                      <span>{{ (listingsReviews[listing.id || listing.listingId]?.avgRating || listing.averageRating || 0).toFixed(1) }}</span>
+                      <span class="review-count" v-if="listingsReviews[listing.id || listing.listingId]?.totalReviews">
+                        ({{ listingsReviews[listing.id || listing.listingId].totalReviews }})
+                      </span>
+                      <span v-else-if="listing.totalReviews">({{ listing.totalReviews }})</span>
+                    </div>
+                    <div v-if="listingsReviews[listing.id || listing.listingId]?.topReview" class="business-review-preview">
+                      <p class="review-text">{{ listingsReviews[listing.id || listing.listingId].topReview.text }}</p>
+                      <span class="review-author">— {{ listingsReviews[listing.id || listing.listingId].topReview.author }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </Transition>
           </div>
 
-          <!-- Active Listing Popup -->
-          <Transition name="popup">
-            <div v-if="activeListing" class="listing-popup" @click="activeListing = null">
-              <div class="popup-content" @click.stop>
-                <button class="popup-close" @click="activeListing = null">
-                  <Icon icon="mdi:close" />
-                </button>
-                <img :src="activeListing.photoUrls?.[0] || '/placeholder.jpg'" class="popup-image" />
-                <div class="popup-info">
-                  <h3>{{ activeListing.businessName }}</h3>
-                  <p class="popup-category">{{ activeListing.businessCategory }}</p>
-                  <div class="popup-rating">
-                    <Icon icon="mdi:star" class="star-icon" />
-                    <span>{{ activeListing.averageRating?.toFixed(1) || 'New' }}</span>
-                  </div>
-                  <button class="popup-view-btn" @click="viewListingDetails(activeListing)">
-                    View Details
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Transition>
+          <!-- Listing Drawer -->
+          <ListingDrawer
+            :open="drawerOpen"
+            :listing="drawerListing"
+            :seller-name="drawerSellerName"
+            :seller-avatar="drawerSellerAvatar"
+            @close="closeDrawer"
+          />
         </div>
       </div>
     </Transition>
@@ -167,6 +178,7 @@ import { Icon } from '@iconify/vue'
 import { db } from '@/firebase'
 import { collection, getDocs, query, orderBy, limit, getDoc, doc, onSnapshot } from 'firebase/firestore'
 import ListingDrawer from './ListingDrawer.vue'
+import NavBar from './NavBar.vue'
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false }
@@ -202,10 +214,12 @@ const hasRequestedLocation = ref(false)
 // Distance filter - preset values
 const distanceFilter = ref(5) // Default 5km
 const distanceFilterEnabled = ref(false)
+const distanceFilterOption = ref('singapore') // Default to Singapore (all listings)
 const distancePresets = [0.5, 1, 2, 5, 10, 20, 50] // Preset distances in km
 
 // Search
 const searchQuery = ref('')
+const businessCardsCollapsed = ref(false)
 
 
 const categories = computed(() => {
@@ -235,12 +249,17 @@ const filteredListings = computed(() => {
   // Distance filter
   if (distanceFilterEnabled.value && userLocation.value) {
     filtered = filtered.filter(l => {
-      if (!l.location?.lat || !l.location?.lng) return false
+      // Try multiple location data structures
+      const lat = l.location?.lat || l.geo?.lat || l.lat
+      const lng = l.location?.lng || l.geo?.lng || l.lng
+      
+      if (!lat || !lng) return false
+      
       const distance = calculateDistance(
         userLocation.value.lat,
         userLocation.value.lng,
-        Number(l.location.lat),
-        Number(l.location.lng)
+        Number(lat),
+        Number(lng)
       )
       return distance <= distanceFilter.value
     })
@@ -384,6 +403,20 @@ function addUserLocationMarker() {
   })
 }
 
+// Handle distance filter change
+function handleDistanceFilterChange() {
+  if (distanceFilterOption.value === 'singapore') {
+    // Show all listings (Singapore wide)
+    distanceFilterEnabled.value = false
+    distanceFilter.value = 50 // Set a large distance but don't use it
+  } else {
+    // Enable distance filter with selected distance
+    distanceFilterEnabled.value = true
+    distanceFilter.value = Number(distanceFilterOption.value)
+  }
+  updateMarkers()
+}
+
 // Update distance filter (no visual ring, just filtering)
 function updateDistanceRing() {
   // Just update markers based on distance filter
@@ -391,12 +424,22 @@ function updateDistanceRing() {
   updateMarkers()
 }
 
-// Toggle distance filter
-function toggleDistanceFilter() {
-  distanceFilterEnabled.value = !distanceFilterEnabled.value
-  updateDistanceRing()
+// Center map on user's location
+function centerOnMyLocation() {
+  if (!userLocation.value || !map.value) {
+    // Request location if not available
+    requestLocation()
+    return
+  }
+  
+  map.value.setCenter(userLocation.value)
+  map.value.setZoom(14)
+  
+  // Add user location marker if not already added
+  if (!window.userLocationMarker) {
+    addUserLocationMarker()
+  }
 }
-
 
 // Dismiss location prompt
 function dismissLocationPrompt() {
@@ -404,8 +447,14 @@ function dismissLocationPrompt() {
   hasRequestedLocation.value = true
 }
 
-// Handle search
+// Handle search - only when button is pressed
 function handleSearch() {
+  if (!searchQuery.value.trim()) {
+    // If search is empty, show all listings
+    updateMarkers()
+    return
+  }
+  // Update markers based on search filter
   updateMarkers()
 }
 
@@ -413,6 +462,11 @@ function handleSearch() {
 function clearSearch() {
   searchQuery.value = ''
   updateMarkers()
+}
+
+// Toggle business cards
+function toggleBusinessCards() {
+  businessCardsCollapsed.value = !businessCardsCollapsed.value
 }
 
 // Initialize map
@@ -492,6 +546,51 @@ function attachProfileListeners(rows) {
   uids.forEach(startProfileListener)
 }
 
+// Fetch reviews for a single listing
+async function fetchListingReviews(listingId) {
+  if (!listingId) return
+  try {
+    const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
+    const q = query(reviewsRef, orderBy('timestamp', 'desc'), limit(1))
+    const snapshot = await getDocs(q)
+    
+    let avgRating = 0
+    let totalReviews = 0
+    let topReview = null
+
+    // Get aggregate rating and total reviews from the listing document itself
+    const listingDoc = await getDoc(doc(db, 'allListings', listingId))
+    if (listingDoc.exists()) {
+      const data = listingDoc.data()
+      avgRating = data.averageRating || 0
+      totalReviews = data.totalReviews || 0
+    }
+
+    if (!snapshot.empty) {
+      const reviewData = snapshot.docs[0].data()
+      if (reviewData.text && reviewData.text.length > 0) {
+        topReview = {
+          text: reviewData.text,
+          author: reviewData.userName || 'Anonymous'
+        }
+      }
+    }
+    listingsReviews.value = {
+      ...listingsReviews.value,
+      [listingId]: { avgRating, totalReviews, topReview }
+    }
+  } catch (error) {
+    console.error(`Error fetching reviews for ${listingId}:`, error)
+  }
+}
+
+// Fetch reviews for all listings
+async function fetchAllReviews() {
+  const promises = listings.value.map(listing => fetchListingReviews(listing.id || listing.listingId))
+  await Promise.all(promises)
+  console.log('All reviews fetched.')
+}
+
 // Load all listings
 async function loadListings() {
   try {
@@ -506,6 +605,11 @@ async function loadListings() {
     // Fetch reviews for all listings
     await fetchAllReviews()
     
+    // Ensure distance filter defaults to Singapore (all listings)
+    distanceFilterOption.value = 'singapore'
+    distanceFilterEnabled.value = false
+    
+    // Update markers to show all listings
     updateMarkers()
   } catch (error) {
     console.error('Error loading listings:', error)
@@ -529,15 +633,18 @@ function updateMarkers() {
   let markersAdded = 0
 
   filteredListings.value.forEach(listing => {
-    // Check for location data
-    if (!listing.location?.lat || !listing.location?.lng) {
+    // Try multiple location data structures
+    const lat = listing.location?.lat || listing.geo?.lat || listing.lat
+    const lng = listing.location?.lng || listing.geo?.lng || listing.lng
+    
+    if (!lat || !lng) {
       console.log('Listing missing location:', listing.businessName)
       return
     }
 
     const position = {
-      lat: Number(listing.location.lat),
-      lng: Number(listing.location.lng)
+      lat: Number(lat),
+      lng: Number(lng)
     }
 
     console.log(`Adding marker for ${listing.businessName} at`, position)
@@ -571,8 +678,13 @@ function updateMarkers() {
 
   console.log(`Added ${markersAdded} markers to map`)
 
+  // Fit bounds to show all markers, or show Singapore if no markers
   if (markers.value.length > 0) {
     map.value.fitBounds(bounds)
+  } else {
+    // Default to Singapore center if no markers
+    map.value.setCenter({ lat: 1.3521, lng: 103.8198 })
+    map.value.setZoom(12)
   }
 }
 
@@ -856,10 +968,13 @@ function selectCategory(category) {
 
 function openListing(listing) {
   openDrawer(listing)
-  if (listing.location?.lat && listing.location?.lng) {
+  // Try multiple location data structures
+  const lat = listing.location?.lat || listing.geo?.lat || listing.lat
+  const lng = listing.location?.lng || listing.geo?.lng || listing.lng
+  if (lat && lng) {
     map.value.panTo({
-      lat: listing.location.lat,
-      lng: listing.location.lng
+      lat: Number(lat),
+      lng: Number(lng)
     })
     map.value.setZoom(15)
   }
@@ -887,17 +1002,35 @@ function closeExplorer() {
 // Watch for map open
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
+    // Prevent body scrolling
+    document.body.classList.add('map-explorer-open')
     setTimeout(initMap, 100)
+  } else {
+    // Re-enable body scrolling
+    document.body.classList.remove('map-explorer-open')
   }
 })
+
+// Listen for close event from NavBar home link
+function handleCloseEvent() {
+  if (props.isOpen) {
+    closeExplorer()
+  }
+}
 
 onMounted(() => {
   if (props.isOpen) {
     initMap()
   }
+  // Listen for close event from NavBar
+  window.addEventListener('close-map-explorer', handleCloseEvent)
 })
 
 onBeforeUnmount(() => {
+  // Re-enable body scrolling
+  document.body.classList.remove('map-explorer-open')
+  // Clean up event listener
+  window.removeEventListener('close-map-explorer', handleCloseEvent)
   markers.value.forEach(marker => marker.setMap(null))
   // Clean up profile listeners
   profileUnsubs.forEach(unsub => unsub && unsub())
@@ -917,32 +1050,59 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+/* Prevent body scrolling when map explorer is open */
+body.map-explorer-open {
+  overflow: hidden !important;
 }
 
 .map-explorer-container {
   position: relative;
   width: 100%;
-  height: 100%;
+  height: 100vh;
   max-width: 100vw;
   max-height: 100vh;
   background: white;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 :root.dark-mode .map-explorer-container {
   background: var(--color-bg-main);
 }
 
-/* Navigation Bar */
+/* NavBar at top */
+.map-navbar-top {
+  position: relative;
+  flex-shrink: 0;
+  z-index: 106;
+  background: var(--color-bg-main);
+}
+
+.map-navbar-top :deep(.navbar) {
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+:root.dark-mode .map-navbar-top :deep(.navbar) {
+  border-bottom-color: rgba(255,255,255,0.1);
+}
+
+.map-navbar-top :deep(.elevate) {
+  z-index: 106;
+}
+
+/* Navigation Bar with Search */
 .map-navbar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: relative;
+  flex-shrink: 0;
   background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.95) 100%);
   backdrop-filter: blur(10px);
   padding: 12px 20px;
-  z-index: 100;
+  z-index: 105;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   display: flex;
   align-items: center;
@@ -1005,45 +1165,6 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.distance-toggle-btn {
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: #666;
-  font-size: 20px;
-  padding: 0;
-}
-
-:root.dark-mode .distance-toggle-btn {
-  background: var(--color-bg-secondary);
-  border-color: #2a2a3e;
-  color: #aaa;
-}
-
-.distance-toggle-btn:hover {
-  background: var(--color-primary-pale);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.distance-toggle-btn.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: white;
-}
-
-:root.dark-mode .distance-toggle-btn.active {
-  background: var(--color-primary);
-  color: white;
-}
-
 .distance-select {
   padding: 8px 32px 8px 12px;
   border-radius: 8px;
@@ -1059,13 +1180,10 @@ onBeforeUnmount(() => {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
-  min-width: 110px;
+  min-width: 130px;
   height: 40px;
-}
-
-.distance-select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  z-index: 1;
+  pointer-events: auto;
 }
 
 :root.dark-mode .distance-select {
@@ -1077,11 +1195,11 @@ onBeforeUnmount(() => {
   background-position: right 12px center;
 }
 
-.distance-select:hover:not(:disabled) {
+.distance-select:hover {
   border-color: var(--color-primary);
 }
 
-.distance-select:focus:not(:disabled) {
+.distance-select:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
@@ -1133,16 +1251,21 @@ onBeforeUnmount(() => {
 
 
 .search-input-wrapper {
-  position: relative;
+  flex: 1;
   display: flex;
   align-items: center;
   background: white;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
   padding: 8px 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  border: 1px solid #e0e0e0;
-  flex: 1;
-  min-width: 200px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: all 0.2s ease;
+  min-width: 150px;
+}
+
+.search-input-wrapper:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 :root.dark-mode .search-input-wrapper {
@@ -1151,10 +1274,9 @@ onBeforeUnmount(() => {
 }
 
 .search-icon {
-  color: #666;
+  color: #999;
   font-size: 20px;
   margin-right: 8px;
-  flex-shrink: 0;
 }
 
 :root.dark-mode .search-icon {
@@ -1202,6 +1324,59 @@ onBeforeUnmount(() => {
 
 :root.dark-mode .search-clear-btn:hover {
   color: #aaa;
+}
+
+/* Search Button */
+.search-btn {
+  background: var(--color-primary);
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+  font-size: 20px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.search-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.search-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* My Location Button */
+.my-location-btn {
+  background: var(--color-primary);
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+  font-size: 20px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.my-location-btn:hover {
+  background: var(--color-primary-dark);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 .close-btn {
@@ -1382,13 +1557,11 @@ onBeforeUnmount(() => {
 
 /* Map Container */
 .map-container {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  overflow: hidden;
 }
 
 .map-loading {
@@ -1432,15 +1605,58 @@ onBeforeUnmount(() => {
 
 /* Business Cards Bottom Sheet */
 .business-cards-container {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: relative;
+  flex: 0 0 280px;
   background: white;
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
-  max-height: 200px;
   z-index: 99;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.business-cards-container.collapsed {
+  flex: 0 0 40px;
+}
+
+/* Business Cards Toggle Button */
+.business-cards-toggle-btn {
+  background: white;
+  border: none;
+  border-bottom: 1px solid #e0e0e0;
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 18px;
+  color: #666;
+  border-radius: 20px 20px 0 0;
+  flex-shrink: 0;
+}
+
+:root.dark-mode .business-cards-toggle-btn {
+  background: var(--color-bg-secondary);
+  border-bottom-color: #2a2a3e;
+  color: var(--color-text-primary);
+}
+
+.business-cards-toggle-btn:hover {
+  background: var(--color-primary-pale);
+  color: var(--color-primary);
+}
+
+.business-cards-toggle-btn .toggle-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.business-cards-toggle-btn svg {
+  font-size: 20px;
 }
 
 :root.dark-mode .business-cards-container {
@@ -1452,6 +1668,9 @@ onBeforeUnmount(() => {
   gap: 15px;
   padding: 20px;
   overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1;
+  min-height: 0;
 }
 
 .business-cards-scroll::-webkit-scrollbar {
@@ -1465,8 +1684,8 @@ onBeforeUnmount(() => {
 
 .business-card {
   flex-shrink: 0;
-  width: 200px;
-  min-height: 200px;
+  width: 240px;
+  min-height: 240px;
   background: white;
   border-radius: 12px;
   overflow: hidden;
@@ -1489,7 +1708,7 @@ onBeforeUnmount(() => {
 .business-image {
   position: relative;
   width: 100%;
-  height: 120px;
+  height: 140px;
   overflow: hidden;
 }
 
@@ -1512,19 +1731,21 @@ onBeforeUnmount(() => {
 }
 
 .business-info {
-  padding: 12px;
+  padding: 14px;
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 6px;
 }
 
 .business-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  margin: 0 0 6px 0;
+  margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 :root.dark-mode .business-name {
@@ -1537,6 +1758,43 @@ onBeforeUnmount(() => {
   gap: 4px;
   font-size: 13px;
   color: #666;
+  margin: 0;
+}
+
+.business-review-preview {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+:root.dark-mode .business-review-preview {
+  border-top-color: #2a2a3e;
+}
+
+.review-text {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.4;
+  margin: 0 0 4px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+:root.dark-mode .review-text {
+  color: #aaa;
+}
+
+.review-author {
+  font-size: 11px;
+  color: #999;
+  font-style: italic;
+}
+
+:root.dark-mode .review-author {
+  color: #777;
 }
 
 :root.dark-mode .business-rating {
@@ -1566,20 +1824,30 @@ onBeforeUnmount(() => {
   background: rgba(0, 0, 0, 0.7);
 }
 
-.review-text {
-  font-size: 0.85rem;
-  color: var(--color-text-secondary);
-  margin: 0 0 4px 0;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
+/* Slide up transition for business cards */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
   overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-  position: relative;
-  width: 100%;
-  max-width: 400px;
+}
+
+.slide-up-enter-from {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(10px);
+}
+
+.slide-up-leave-to {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(10px);
+}
+
+.slide-up-enter-to,
+.slide-up-leave-from {
+  opacity: 1;
+  max-height: 500px;
+  transform: translateY(0);
 }
 
 :root.dark-mode .popup-content {
@@ -1711,53 +1979,91 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   .map-navbar {
-    padding: 10px 12px;
-    gap: 8px;
+    padding: 8px 10px;
+    gap: 6px;
+    flex-wrap: wrap;
   }
 
   .navbar-search-filters {
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: wrap;
+    width: 100%;
   }
 
   .search-input-wrapper {
-    min-width: 120px;
+    min-width: 0;
+    flex: 1 1 100%;
     padding: 6px 10px;
+    order: 1;
+  }
+
+  .search-input {
+    font-size: 14px;
+  }
+
+  .search-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .filter-control {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .category-select {
-    min-width: 120px;
+    min-width: 0;
+    width: 100%;
     height: 36px;
-    font-size: 13px;
+    font-size: 12px;
     padding: 6px 28px 6px 10px;
+    order: 2;
   }
 
   .distance-select {
-    min-width: 90px;
+    min-width: 0;
+    width: 100%;
     height: 36px;
-    font-size: 13px;
+    font-size: 12px;
     padding: 6px 28px 6px 10px;
+    order: 3;
   }
 
-  .distance-toggle-btn {
+  .close-btn,
+  .search-btn,
+  .my-location-btn {
     width: 36px;
     height: 36px;
     font-size: 18px;
+    flex-shrink: 0;
   }
 
-  .navbar-toggle-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
+  .business-cards-container {
+    flex: 0 0 180px;
   }
-
-  .close-btn {
-    width: 36px;
+  
+  .business-cards-container.collapsed {
+    flex: 0 0 40px;
+  }
+  
+  .business-cards-toggle-btn {
     height: 36px;
-    font-size: 18px;
+    font-size: 16px;
+  }
+  
+  .business-cards-toggle-btn .toggle-text {
+    font-size: 12px;
   }
 
   .business-card {
-    width: 160px;
+    width: 180px;
+    min-height: 180px;
+  }
+  
+  .business-image {
+    height: 110px;
   }
 
   .location-prompt-content {
@@ -1780,6 +2086,93 @@ onBeforeUnmount(() => {
 
   .prompt-buttons .btn {
     width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .map-navbar {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .navbar-search-filters {
+    gap: 4px;
+  }
+
+  .search-input-wrapper {
+    padding: 6px 8px;
+    font-size: 14px;
+  }
+
+  .search-input {
+    font-size: 14px;
+  }
+
+  .category-select,
+  .distance-select {
+    height: 32px;
+    font-size: 11px;
+    padding: 4px 24px 4px 8px;
+  }
+
+  .close-btn,
+  .search-btn,
+  .my-location-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .business-cards-container {
+    flex: 0 0 150px;
+  }
+  
+  .business-cards-container.collapsed {
+    flex: 0 0 36px;
+  }
+  
+  .business-cards-toggle-btn {
+    height: 32px;
+    font-size: 14px;
+    gap: 6px;
+  }
+  
+  .business-cards-toggle-btn .toggle-text {
+    font-size: 11px;
+  }
+  
+  .business-cards-toggle-btn svg {
+    font-size: 18px;
+  }
+
+  .business-card {
+    width: 160px;
+    min-height: 150px;
+  }
+
+  .business-image {
+    height: 90px;
+  }
+
+  .business-info {
+    padding: 10px;
+    gap: 4px;
+  }
+
+  .business-name {
+    font-size: 13px;
+  }
+
+  .business-rating {
+    font-size: 11px;
+  }
+  
+  .review-text {
+    font-size: 11px;
+  }
+  
+  .review-author {
+    font-size: 10px;
   }
 }
 </style>

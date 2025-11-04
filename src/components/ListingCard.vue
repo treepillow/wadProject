@@ -1,6 +1,6 @@
 <script setup>
 import StartChatButton from './StartChatButton.vue'
-import { computed, ref, onMounted, reactive } from 'vue'
+import { computed, ref, onMounted, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { db } from '@/firebase'
 import { collection, query, doc, getDoc, getDocs } from 'firebase/firestore'
@@ -19,9 +19,52 @@ const props = defineProps({
   likesCount: { type: Number, default: 0 },
   sellerNameOverride: { type: String, default: '' },
   sellerAvatarOverride: { type: String, default: '' },
-  reveal: { type: Boolean, default: true }
+  reveal: { type: Boolean, default: true },
+  showAll: { type: Boolean, default: false } // New prop to control batch visibility
 })
-const emit = defineEmits(['toggle-like', 'image-loaded', 'open'])
+const emit = defineEmits(['toggle-like', 'image-loaded', 'open', 'card-ready'])
+
+// Cache the seller name once loaded to prevent flickering
+const cachedSellerName = ref('')
+const cachedSellerAvatar = ref('')
+let nameDebounceTimer = null
+let avatarDebounceTimer = null
+const isNameStable = ref(false)
+const isAvatarStable = ref(false)
+
+watch(() => props.sellerNameOverride, (newName) => {
+  // Once we've cached a stable name, don't update it anymore
+  if (isNameStable.value) return
+
+  // Clear previous timer
+  if (nameDebounceTimer) clearTimeout(nameDebounceTimer)
+
+  // Only cache non-empty, valid names after a longer delay
+  // This ensures we get the final value after all Firestore updates settle
+  if (newName && newName.trim() && newName !== 'Loading...') {
+    nameDebounceTimer = setTimeout(() => {
+      cachedSellerName.value = newName
+      isNameStable.value = true // Mark as stable - no more updates
+      // Notify parent that this card is ready
+      emit('card-ready', props.listing.listingId || props.listing.id)
+    }, 600) // Increased to 600ms for better stability
+  }
+}, { immediate: true })
+
+watch(() => props.sellerAvatarOverride, (newAvatar) => {
+  // Once we've cached a stable avatar, don't update it anymore
+  if (isAvatarStable.value) return
+
+  // Clear previous timer
+  if (avatarDebounceTimer) clearTimeout(avatarDebounceTimer)
+
+  if (newAvatar && newAvatar.trim()) {
+    avatarDebounceTimer = setTimeout(() => {
+      cachedSellerAvatar.value = newAvatar
+      isAvatarStable.value = true // Mark as stable - no more updates
+    }, 600) // Increased to 600ms for better stability
+  }
+}, { immediate: true })
 
 const avgRating = ref(0)
 const totalReviews = ref(0)
@@ -91,17 +134,25 @@ const photo = computed(() =>
 )
 const firstPrice = computed(() => props.listing.menu?.[0]?.price ?? null)
 
-const sellerName = computed(() =>
-  props.sellerNameOverride ||
-  props.listing.userDisplayName ||
-  props.listing.username ||
-  props.listing.ownerName ||
-  (props.listing.userId ? `user_${props.listing.userId.slice(0, 6)}` : 'Seller')
-)
+const sellerName = computed(() => {
+  // Only show the name when all cards are ready (showAll prop is true)
+  if (props.showAll && cachedSellerName.value) {
+    return cachedSellerName.value
+  }
 
-const sellerAvatar = computed(() =>
-  props.sellerAvatarOverride || props.listing.userPhotoURL || ''
-)
+  // Hide the name until all cards are ready (prevents any flickering)
+  return ''
+})
+
+const sellerAvatar = computed(() => {
+  // Only show the avatar when all cards are ready (showAll prop is true)
+  if (props.showAll && cachedSellerAvatar.value) {
+    return cachedSellerAvatar.value
+  }
+
+  // Hide the avatar until all cards are ready
+  return ''
+})
 
 const imgLoaded = ref(false)
 const imgErrored = ref(false)
@@ -148,19 +199,29 @@ function goToUserProfile(event) {
     @click="emit('open', listing)">
     <!-- Header -->
     <div class="card-header bg-transparent border-0 pb-0 d-flex align-items-center gap-2">
-      <div class="avatar-box rounded-circle overflow-hidden d-inline-block" style="width:28px;height:28px;"
-        @click="goToUserProfile">
-        <img v-if="sellerAvatar" :src="sellerAvatar" alt="avatar" class="w-100 h-100" style="object-fit:cover;">
-        <div v-else
-          class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary small">
-          {{ (sellerName || 'S').toString().trim().charAt(0).toUpperCase() }}
+      <!-- Show skeleton loader while waiting for all cards to be ready -->
+      <template v-if="!showAll">
+        <div class="skeleton-avatar rounded-circle" style="width:28px;height:28px;"></div>
+        <div class="skeleton-text" style="width:80px;height:16px;"></div>
+        <div style="min-width:40px;"></div>
+      </template>
+
+      <!-- Show actual content once all cards are ready -->
+      <template v-else>
+        <div class="avatar-box rounded-circle overflow-hidden d-inline-block" style="width:28px;height:28px;"
+          @click="goToUserProfile">
+          <img v-if="sellerAvatar" :src="sellerAvatar" alt="avatar" class="w-100 h-100" style="object-fit:cover;">
+          <div v-else
+            class="w-100 h-100 d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary small">
+            {{ (sellerName || 'S').toString().trim().charAt(0).toUpperCase() }}
+          </div>
         </div>
-      </div>
-      <span class="fw-semibold small text-truncate seller-name-link" style="max-width:100px" :title="sellerName"
-        @click="goToUserProfile">{{ sellerName }}</span>
-      <SellerBadge
-        :points="listing.sellerStats ? (listing.sellerStats.reviews || 0) + (listing.sellerStats.boosts || 0) * 5 : 0"
-        :progress="false" style="min-width:40px;" />
+        <span class="fw-semibold small text-truncate seller-name-link" style="max-width:100px" :title="sellerName"
+          @click="goToUserProfile">{{ sellerName }}</span>
+        <SellerBadge
+          :points="listing.sellerStats ? (listing.sellerStats.reviews || 0) + (listing.sellerStats.boosts || 0) * 5 : 0"
+          :progress="false" style="min-width:40px;" />
+      </template>
     </div>
 
     <!-- Image box -->
@@ -336,6 +397,25 @@ function goToUserProfile(event) {
   100% {
     background-position: -200% 0
   }
+}
+
+/* Skeleton loaders for seller info */
+.skeleton-avatar,
+.skeleton-text {
+  background: linear-gradient(90deg, #eee 0%, #f5f5f5 20%, #eee 40%, #eee 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.1s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-avatar {
+  border-radius: 50% !important;
+}
+
+:root.dark-mode .skeleton-avatar,
+:root.dark-mode .skeleton-text {
+  background: linear-gradient(90deg, #2a2a2a 0%, #3a3a3a 20%, #2a2a2a 40%, #2a2a2a 100%);
+  background-size: 200% 100%;
 }
 
 .img-fallback {

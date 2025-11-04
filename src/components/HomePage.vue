@@ -36,6 +36,22 @@ const userLocation = ref(null)
 // Map Explorer state
 const mapExplorerOpen = ref(false)
 
+// Card loading coordination - show all cards at once when ready
+const readyCards = ref(new Set())
+const showAllCards = ref(false)
+
+function handleCardReady(listingId) {
+  readyCards.value.add(listingId)
+  // Check if all current listings have their names loaded
+  const allReady = listings.value.every(l => readyCards.value.has(l.listingId || l.id))
+  if (allReady && listings.value.length > 0) {
+    // Small delay to ensure all DOM updates are complete
+    setTimeout(() => {
+      showAllCards.value = true
+    }, 100)
+  }
+}
+
 // Distance calculation helper (Haversine formula)
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371 // Radius of the earth in km
@@ -356,6 +372,9 @@ function resetPaging() {
   currentBatchIds = []
   batchTotalImages.value = 0
   batchLoadedImages.value = 0
+  // reset card loading coordination
+  readyCards.value = new Set()
+  showAllCards.value = false
 }
 async function reloadForFilters() {
   loading.value = true
@@ -770,10 +789,12 @@ onBeforeUnmount(() => {
                 :sellerNameOverride="profileMap[l.userId]?.displayName || ''"
                 :sellerAvatarOverride="profileMap[l.userId]?.photoURL || ''"
                 :reveal="revealedIds.has(l.listingId || l.id)"
+                :showAll="showAllCards"
                 @toggle-like="onToggleLike"
                 @image-loaded="() => handleImageLoaded(l.listingId || l.id)"
-                @open="openDrawer(l)" 
-                @click="handleListingClick(l.listingId || l.id)" 
+                @card-ready="handleCardReady"
+                @open="openDrawer(l)"
+                @click="handleListingClick(l.listingId || l.id)"
               />
             </div>
           </div>

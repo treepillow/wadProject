@@ -73,10 +73,18 @@ onMounted(() => {
 
 onBeforeUnmount(async () => {
   // Before leaving, check if the current chat has zero messages and delete it
+  // Only delete if we've actually loaded messages and confirmed it's empty
   if (activeChat.value && messages.value.length === 0) {
+    // Check if messages have actually been loaded by checking the listener
+    // If messages are still loading, don't delete
     try {
-      await deleteDoc(doc(db, 'chats', activeChat.value.id))
-      console.log('Deleted empty chat:', activeChat.value.id)
+      // Small delay to ensure messages have loaded
+      await new Promise(resolve => setTimeout(resolve, 100))
+      // Double-check messages are still empty after delay
+      if (messages.value.length === 0) {
+        await deleteDoc(doc(db, 'chats', activeChat.value.id))
+        console.log('Deleted empty chat:', activeChat.value.id)
+      }
     } catch (err) {
       console.error('Failed to delete empty chat:', err)
     }
@@ -193,18 +201,39 @@ const badgeModalOpen = ref(false)
 function openBadgeInfoModal() { badgeModalOpen.value = true }
 function closeBadgeInfoModal() { badgeModalOpen.value = false }
 
+/* ───────── Preset Questions ───────── */
+const presetQuestions = [
+  "What are your business hours?",
+  "Do you offer delivery?",
+  "What is your pricing?",
+  "Can you provide more details about your services?",
+  "Do you have any special offers or promotions?",
+  "How long does it take to complete an order?",
+  "What payment methods do you accept?",
+  "Do you provide samples or consultations?",
+  "What areas do you serve?",
+  "Can I see more photos of your work?"
+]
+
+const showPresetQuestions = ref(false)
+
+function selectPresetQuestion(question) {
+  newMessage.value = question
+  showPresetQuestions.value = false
+  // Auto-focus the input after selection
+  nextTick(() => {
+    const input = document.querySelector('.message-input')
+    if (input) input.focus()
+  })
+}
+
 /* ───────── Select chat ───────── */
 async function selectChat(chat) {
   // Before switching, delete the previous chat if it had no messages
-  if (activeChat.value && messages.value.length === 0 && activeChat.value.id !== chat.id) {
-    try {
-      await deleteDoc(doc(db, 'chats', activeChat.value.id))
-      console.log('Deleted empty chat:', activeChat.value.id)
-    } catch (err) {
-      console.error('Failed to delete empty chat:', err)
-    }
-  }
-
+  // Only delete if we've confirmed it was empty (not just cleared)
+  const previousChat = activeChat.value
+  const previousChatHadMessages = messages.value.length > 0
+  
   // Update active chat immediately for instant UI response
   activeChat.value = chat
   activeChatListing.value = null
@@ -240,6 +269,25 @@ async function selectChat(chat) {
       markChatAsRead(chat.id)
     }
   })
+
+  // Delete previous chat only if it truly had no messages (not just cleared)
+  // Wait a bit to ensure messages have loaded for the new chat before deleting old one
+  if (previousChat && !previousChatHadMessages && previousChat.id !== chat.id) {
+    // Wait for new chat messages to load first
+    setTimeout(async () => {
+      try {
+        // Double-check the previous chat still has no messages by querying it
+        const prevMsgsRef = collection(db, `chats/${previousChat.id}/messages`)
+        const prevMsgsSnap = await getDocs(prevMsgsRef)
+        if (prevMsgsSnap.empty) {
+          await deleteDoc(doc(db, 'chats', previousChat.id))
+          console.log('Deleted empty chat:', previousChat.id)
+        }
+      } catch (err) {
+        console.error('Failed to delete empty chat:', err)
+      }
+    }, 500) // Give time for messages to load
+  }
 
   // Fetch listing info asynchronously (non-blocking) - don't wait for it
   const sellerId = getOtherUid(chat)
@@ -317,6 +365,7 @@ async function sendMessage() {
   if (!newMessage.value.trim() || !activeChat.value) return
   const text = newMessage.value.trim()
   newMessage.value = ''
+  showPresetQuestions.value = false // Hide preset questions when sending a message
 
   await addDoc(collection(db, `chats/${activeChat.value.id}/messages`), {
     senderId: currentUserId.value,
@@ -551,15 +600,49 @@ const groupedMessages = computed(() => {
             </div>
           </div>
 
+          <!-- Preset Questions -->
+          <div v-if="showPresetQuestions && messages.length === 0" class="preset-questions-container">
+            <div class="preset-questions-header">
+              <span class="preset-questions-title">Quick Questions</span>
+              <button class="preset-questions-close" @click="showPresetQuestions = false" title="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            <div class="preset-questions-grid">
+              <button
+                v-for="(question, index) in presetQuestions"
+                :key="index"
+                class="preset-question-btn"
+                @click="selectPresetQuestion(question)"
+              >
+                {{ question }}
+              </button>
+            </div>
+          </div>
+
           <!-- Input -->
           <div class="message-input-container">
             <div class="input-wrapper">
+              <button
+                v-if="messages.length === 0"
+                class="preset-toggle-btn"
+                @click="showPresetQuestions = !showPresetQuestions"
+                :title="showPresetQuestions ? 'Hide preset questions' : 'Show preset questions'"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </button>
               <input
                 v-model="newMessage"
                 type="text"
                 placeholder="Type a message..."
                 class="message-input"
                 @keyup.enter="sendMessage"
+                @focus="showPresetQuestions = false"
                 autocomplete="off"
               />
               <button class="send-btn" @click="sendMessage" :disabled="!newMessage.trim()">
@@ -704,6 +787,110 @@ const groupedMessages = computed(() => {
 .send-btn:hover:not(:disabled) { background: var(--color-primary-hover); transform: scale(1.05); }
 .send-btn:disabled { opacity: .5; cursor: not-allowed; }
 
+/* Preset Questions */
+.preset-questions-container {
+  padding: 1rem 1.5rem;
+  background: var(--color-bg-white);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.preset-questions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.preset-questions-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.preset-questions-close {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.preset-questions-close:hover {
+  background: var(--color-bg-purple-tint);
+  color: var(--color-primary);
+}
+
+.preset-questions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+
+.preset-question-btn {
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-main);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+.preset-question-btn:hover {
+  background: var(--color-primary-pale);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(75, 42, 166, 0.15);
+}
+
+.preset-question-btn:active {
+  transform: translateY(0);
+}
+
+.preset-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.preset-toggle-btn:hover {
+  background: var(--color-bg-purple-tint);
+  color: var(--color-primary);
+}
+
 /* Responsive */
 @media (max-width: 991.98px) {
   .conversations-sidebar { width: 320px; min-width: 320px; }
@@ -719,6 +906,9 @@ const groupedMessages = computed(() => {
   .messages-container { padding: 1rem; }
   .message-bubble { max-width: 80%; }
   .message-input-container { padding: .75rem 1rem; }
+  .preset-questions-container { padding: 0.75rem 1rem; }
+  .preset-questions-grid { grid-template-columns: 1fr; gap: 0.5rem; }
+  .preset-question-btn { font-size: 0.813rem; padding: 0.625rem 0.875rem; }
 }
 @media (max-width: 575.98px) {
   .chat-layout { height: 70vh; border-radius: 8px; }

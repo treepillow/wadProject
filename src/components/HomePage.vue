@@ -690,16 +690,16 @@ onBeforeUnmount(() => {
       <h2 class="page-title mt-4 mb-3">{{ pageTitle }}</h2>
 
       <!-- Sort Dropdown -->
-      <div class="d-flex justify-content-end align-items-center my-3 gap-2">
+      <div class="d-flex justify-content-end align-items-center my-3 gap-2 flex-wrap">
         <div class="sort-dropdown-wrapper position-relative">
-          <button 
-            class="btn btn-outline-primary d-flex align-items-center gap-2" 
+          <button
+            class="btn btn-outline-primary d-flex align-items-center gap-2 sort-btn"
             @click="sortDropdownOpen = !sortDropdownOpen"
           >
-            <span>Sort: <strong>{{ sortBy === 'trending' ? 'Trending' : sortBy === 'best-match' ? 'Best Match' : sortBy === 'most-reviewed' ? 'Most Reviewed' : sortBy === 'oldest' ? 'Oldest First' : sortBy === 'cheapest' ? 'Cheapest First' : sortBy === 'most-expensive' ? 'Most Expensive First' : sortBy === 'nearby' ? 'Nearest First' : 'Trending' }}</strong></span>
+            <span class="sort-label">Sort: <strong>{{ sortBy === 'trending' ? 'Trending' : sortBy === 'best-match' ? 'Best Match' : sortBy === 'most-reviewed' ? 'Most Reviewed' : sortBy === 'oldest' ? 'Oldest First' : sortBy === 'cheapest' ? 'Cheapest First' : sortBy === 'most-expensive' ? 'Most Expensive First' : sortBy === 'nearby' ? 'Nearest First' : 'Trending' }}</strong></span>
             <i class="fas" :class="sortDropdownOpen ? 'fa-caret-up' : 'fa-caret-down'"></i>
           </button>
-          
+
           <!-- Dropdown Menu -->
           <div v-if="sortDropdownOpen" class="sort-dropdown-menu">
             <div 
@@ -755,12 +755,12 @@ onBeforeUnmount(() => {
         </div>
         
         <!-- Price Range Filters -->
-        <div class="d-flex align-items-center gap-2">
-          <label class="small text-muted mb-0">Price:</label>
-          <input type="number" class="form-control form-control-sm" style="width: 80px;" v-model.number="minPrice" placeholder="Min" />
+        <div class="d-flex align-items-center gap-2 price-filter-wrapper">
+          <label class="small text-muted mb-0 price-label">Price:</label>
+          <input type="number" class="form-control form-control-sm price-input" v-model.number="minPrice" placeholder="Min" />
           <span class="text-muted">-</span>
-          <input type="number" class="form-control form-control-sm" style="width: 80px;" v-model.number="maxPrice" placeholder="Max" />
-          <button class="btn btn-sm btn-outline-secondary" @click="applySorting">Apply</button>
+          <input type="number" class="form-control form-control-sm price-input" v-model.number="maxPrice" placeholder="Max" />
+          <button class="btn btn-sm btn-outline-secondary apply-btn" @click="applySorting">Apply</button>
         </div>
       </div>
       
@@ -1074,6 +1074,86 @@ onBeforeUnmount(() => {
 
   .pb-5 {
     padding-bottom: 2rem !important;
+  }
+
+  /* Mobile sort and price filter fixes */
+  .sort-btn {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.65rem;
+    white-space: nowrap;
+  }
+
+  .sort-label {
+    font-size: 0.75rem;
+  }
+
+  .price-filter-wrapper {
+    gap: 0.35rem !important;
+  }
+
+  .price-label {
+    font-size: 0.7rem;
+  }
+
+  .price-input {
+    width: 65px !important;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .apply-btn {
+    font-size: 0.7rem;
+    padding: 0.35rem 0.55rem;
+  }
+}
+
+/* Narrow mobile screens (393px - 412px width) */
+@media (max-width: 420px) {
+  .sort-btn {
+    font-size: 0.7rem;
+    padding: 0.35rem 0.6rem;
+  }
+
+  .sort-label {
+    font-size: 0.7rem;
+  }
+
+  .price-filter-wrapper {
+    gap: 0.3rem !important;
+  }
+
+  .price-label {
+    font-size: 0.65rem;
+  }
+
+  .price-input {
+    width: 58px !important;
+    font-size: 0.7rem;
+    padding: 0.3rem 0.35rem;
+  }
+
+  .apply-btn {
+    font-size: 0.65rem;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  /* Reduce card spacing for less cramped feel */
+  .row.g-3 {
+    --bs-gutter-x: 0.35rem;
+    --bs-gutter-y: 0.6rem;
+  }
+
+  .card-sm :deep(.img-box) {
+    height: 120px !important;
+  }
+
+  .content-container {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
   }
 }
 

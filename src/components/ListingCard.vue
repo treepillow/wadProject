@@ -618,4 +618,75 @@ function goToUserProfile(event) {
     font-size: 0.75rem !important;
   }
 }
+
+/* Narrow mobile screens (393px - 420px width) - 2 column layout optimized */
+@media (max-width: 420px) {
+  .card {
+    border-radius: 8px;
+  }
+
+  .img-box {
+    height: 120px !important;
+    border-radius: 6px !important;
+  }
+
+  .card-header {
+    padding: 0.4rem 0.5rem 0.25rem !important;
+  }
+
+  .card-body {
+    padding: 0.35rem 0.5rem !important;
+  }
+
+  .card-footer {
+    padding: 0.35rem 0.5rem !important;
+  }
+
+  .card-title {
+    font-size: 0.72rem !important;
+    margin-bottom: 0.2rem !important;
+    line-height: 1.1;
+  }
+
+  .badge {
+    font-size: 0.48rem !important;
+    padding: 0.12rem 0.3rem;
+  }
+
+  .btn-sm {
+    font-size: 0.52rem;
+    padding: 0.15rem 0.35rem;
+  }
+
+  .small {
+    font-size: 0.52rem !important;
+  }
+
+  .fw-bold {
+    font-size: 0.68rem;
+  }
+
+  .rating-display {
+    gap: 2px;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .rating-text {
+    font-size: 0.52rem;
+  }
+
+  .stars-small .star {
+    font-size: 7px;
+  }
+
+  .fw-semibold {
+    font-size: 0.58rem !important;
+  }
+
+  .avatar-box {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
+
 </style>

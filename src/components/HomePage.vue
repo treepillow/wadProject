@@ -215,7 +215,7 @@ function calculateTrendingScore(listings, likeCounts, profileMap) {
   }).sort((a, b) => b.trendingScore - a.trendingScore) // Sort descending
 }
 
-function applySorting() {
+async function applySorting() {
   let filtered = [...listings.value]
   
   // Apply price range filter (only if both min and max are set)
@@ -240,7 +240,41 @@ function applySorting() {
       filtered = calculateTrendingScore(filtered, likeCounts, profileMap.value)
       break
     case 'most-reviewed':
-      filtered.sort((a, b) => (b.totalReviews || 0) - (a.totalReviews || 0))
+      // Sort by review count (descending - most reviews first)
+      // First, ensure all listings have review counts by fetching from Firestore
+      await Promise.all(filtered.map(async (listing) => {
+        const listingId = listing.id || listing.listingId
+        if (listingId) {
+          // Always fetch the actual count to ensure accuracy
+          try {
+            const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
+            const countSnap = await getCountFromServer(reviewsRef)
+            listing.totalReviews = countSnap.data().count || 0
+          } catch (e) {
+            // Fallback to stored value if fetch fails
+            listing.totalReviews = Number(listing.totalReviews) || Number(listing.reviewCount) || 0
+          }
+        } else {
+          listing.totalReviews = Number(listing.totalReviews) || Number(listing.reviewCount) || 0
+        }
+      }))
+      
+      // Now sort by review count (descending - most reviews first)
+      filtered.sort((a, b) => {
+        // Get review counts (should be set from above)
+        const aReviews = Number(a.totalReviews) || 0
+        const bReviews = Number(b.totalReviews) || 0
+        
+        // Primary sort: descending by review count (most reviews first)
+        if (bReviews !== aReviews) {
+          return bReviews - aReviews
+        }
+        
+        // Secondary sort by average rating if reviews are equal (highest rating first)
+        const aRating = Number(a.averageRating) || Number(a.rating) || 0
+        const bRating = Number(b.averageRating) || Number(b.rating) || 0
+        return bRating - aRating
+      })
       break
     case 'oldest':
       filtered.sort((a, b) => {
@@ -381,11 +415,10 @@ async function reloadForFilters() {
   resetPaging()
   await fetchPage()
   // Apply sorting after data is loaded
-  setTimeout(() => {
-    if (sortBy.value && listings.value.length > 0) {
-      applySorting()
-    }
-  }, 500)
+  await nextTick()
+  if (sortBy.value && listings.value.length > 0) {
+    await applySorting()
+  }
 }
 
 /* watch: whenever categories or search changes, reload first page */
@@ -504,9 +537,31 @@ async function fetchPage () {
     // This dramatically improves performance by avoiding getDocs calls for every listing
     rows.forEach(r => {
       // Use the rating stored in the listing document, or default to 0
-      r.rating = r.averageRating || r.rating || 0
-      r.totalReviews = r.totalReviews || 0
+      r.rating = Number(r.averageRating) || Number(r.rating) || 0
+      // Ensure averageRating is also set as a number
+      r.averageRating = Number(r.averageRating) || r.rating || 0
+      // Fetch totalReviews - try multiple field names
+      r.totalReviews = Number(r.totalReviews) || Number(r.reviewCount) || Number(r.total_reviews) || 0
     })
+    
+    // If most-reviewed is selected, fetch actual review counts for listings that don't have it
+    if (sortBy.value === 'most-reviewed') {
+      await Promise.all(rows.map(async (r) => {
+        if (!r.totalReviews || r.totalReviews === 0) {
+          try {
+            const listingId = r.id || r.listingId
+            if (listingId) {
+              const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
+              const countSnap = await getCountFromServer(reviewsRef)
+              r.totalReviews = countSnap.data().count || 0
+            }
+          } catch (e) {
+            // Silently handle errors - console filter will suppress them
+            r.totalReviews = 0
+          }
+        }
+      }))
+    }
 
 
 
@@ -642,15 +697,20 @@ async function handleListingClick(listingId) {
   }
 }
 
+// Handler for sort option clicks
+async function handleSortChange(newSort) {
+  sortBy.value = newSort
+  await applySorting()
+}
+
 /* ---------- lifecycle ---------- */
 onMounted(async () => {
   await fetchPage()
-  // Apply trending sorting after initial load
-  setTimeout(() => {
-    if (sortBy.value === 'trending' && listings.value.length > 0) {
-      applySorting()
-    }
-  }, 500)
+  // Apply sorting after initial load
+  await nextTick()
+  if (sortBy.value && listings.value.length > 0) {
+    await applySorting()
+  }
   unsubAuth = onAuthStateChanged(auth, user => startLikesListener(user))
 })
 onBeforeUnmount(() => {
@@ -706,7 +766,7 @@ onBeforeUnmount(() => {
               v-if="searchFilters.business"
               class="sort-dropdown-item" 
               :class="{ active: sortBy === 'best-match' }"
-              @click="sortBy = 'best-match'; applySorting()"
+              @click="handleSortChange('best-match')"
             >
               <span class="radio-dot"></span>
               <span>Best Match</span>
@@ -714,7 +774,7 @@ onBeforeUnmount(() => {
             <div 
               class="sort-dropdown-item" 
               :class="{ active: sortBy === 'most-reviewed' }"
-              @click="sortBy = 'most-reviewed'; applySorting()"
+              @click="handleSortChange('most-reviewed')"
             >
               <span class="radio-dot"></span>
               <span>Most Reviewed</span>
@@ -722,7 +782,7 @@ onBeforeUnmount(() => {
             <div 
               class="sort-dropdown-item" 
               :class="{ active: sortBy === 'oldest' }"
-              @click="sortBy = 'oldest'; applySorting()"
+              @click="handleSortChange('oldest')"
             >
               <span class="radio-dot"></span>
               <span>Oldest First</span>
@@ -730,7 +790,7 @@ onBeforeUnmount(() => {
             <div 
               class="sort-dropdown-item" 
               :class="{ active: sortBy === 'cheapest' }"
-              @click="sortBy = 'cheapest'; applySorting()"
+              @click="handleSortChange('cheapest')"
             >
               <span class="radio-dot"></span>
               <span>Cheapest First</span>
@@ -738,7 +798,7 @@ onBeforeUnmount(() => {
             <div 
               class="sort-dropdown-item" 
               :class="{ active: sortBy === 'most-expensive' }"
-              @click="sortBy = 'most-expensive'; applySorting()"
+              @click="handleSortChange('most-expensive')"
             >
               <span class="radio-dot"></span>
               <span>Most Expensive First</span>
@@ -746,7 +806,7 @@ onBeforeUnmount(() => {
             <div 
               class="sort-dropdown-item" 
               :class="{ active: sortBy === 'nearby' }"
-              @click="sortBy = 'nearby'; applySorting()"
+              @click="handleSortChange('nearby')"
             >
               <span class="radio-dot"></span>
               <span>Nearest First</span>

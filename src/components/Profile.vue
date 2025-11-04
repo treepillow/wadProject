@@ -339,7 +339,7 @@ export default {
           }
         }
         myListings.value = verified
-        attachProfileListeners(verified)
+        // Don't attach profile listeners for own listings - we use username/avatarUrl directly
         // prepare batch reveal AFTER list is set
         prepMyBatch(verified)
         myLoading.value = false
@@ -1035,8 +1035,9 @@ export default {
                 class="col-12 col-sm-6 col-lg-4 d-flex flex-column">
                 <ListingCard class="w-100 flex-grow-1" :listing="l" :liked="likedSet?.has(l.listingId || l.id)"
                   :likesCount="likeCounts[l.listingId || l.id] || 0"
-                  :sellerNameOverride="profileMap[l.userId]?.displayName || ''"
-                  :sellerAvatarOverride="profileMap[l.userId]?.photoURL || ''"
+                  :sellerNameOverride="username"
+                  :sellerAvatarOverride="avatarUrl"
+                  :showAll="true"
                   :reveal="revealedMy.has(l.listingId || l.id)" @toggle-like="onToggleLike"
                   @image-loaded="handleMyImageLoaded" @open="openDrawer(l)" />
 
@@ -1595,5 +1596,48 @@ h4 {
   background: var(--color-bg-main);
   border-color: var(--color-border);
   color: var(--color-text-white);
+}
+
+/* Booking Request Card Styles */
+.booking-request-card {
+  background: var(--color-bg-white);
+  border-color: var(--color-border);
+  transition: box-shadow 0.2s ease;
+}
+
+.booking-request-card .card-body {
+  background: var(--color-bg-white);
+}
+
+.booking-request-card h6 {
+  color: var(--color-text-primary);
+}
+
+.booking-request-card strong {
+  color: var(--color-text-primary);
+}
+
+.booking-request-card p {
+  color: var(--color-text-primary);
+}
+
+.booking-request-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+/* Dark mode for booking request cards */
+:root.dark-mode .booking-request-card {
+  background: var(--color-bg-white);
+  border-color: var(--color-border);
+}
+
+:root.dark-mode .booking-request-card .card-body {
+  background: var(--color-bg-white);
+}
+
+:root.dark-mode .booking-request-card h6,
+:root.dark-mode .booking-request-card strong,
+:root.dark-mode .booking-request-card p {
+  color: var(--color-text-primary) !important;
 }
 </style>

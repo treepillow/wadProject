@@ -39,15 +39,13 @@ watch(() => props.sellerNameOverride, (newName) => {
   // Clear previous timer
   if (nameDebounceTimer) clearTimeout(nameDebounceTimer)
 
-  // Only cache non-empty, valid names after a longer delay
-  // This ensures we get the final value after all Firestore updates settle
+  // Only cache non-empty, valid names
   if (newName && newName.trim() && newName !== 'Loading...') {
-    nameDebounceTimer = setTimeout(() => {
-      cachedSellerName.value = newName
-      isNameStable.value = true // Mark as stable - no more updates
-      // Notify parent that this card is ready
-      emit('card-ready', props.listing.listingId || props.listing.id)
-    }, 600) // Increased to 600ms for better stability
+    // Set immediately without setTimeout - no delay needed
+    cachedSellerName.value = newName
+    isNameStable.value = true // Mark as stable - no more updates
+    // Notify parent that this card is ready
+    emit('card-ready', props.listing.listingId || props.listing.id)
   }
 }, { immediate: true })
 
@@ -59,10 +57,9 @@ watch(() => props.sellerAvatarOverride, (newAvatar) => {
   if (avatarDebounceTimer) clearTimeout(avatarDebounceTimer)
 
   if (newAvatar && newAvatar.trim()) {
-    avatarDebounceTimer = setTimeout(() => {
-      cachedSellerAvatar.value = newAvatar
-      isAvatarStable.value = true // Mark as stable - no more updates
-    }, 600) // Increased to 600ms for better stability
+    // Set immediately without setTimeout - no delay needed
+    cachedSellerAvatar.value = newAvatar
+    isAvatarStable.value = true // Mark as stable - no more updates
   }
 }, { immediate: true })
 

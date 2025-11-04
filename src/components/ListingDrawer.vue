@@ -143,6 +143,16 @@ async function submitBooking() {
     return
   }
 
+  // Check if selected date is in the past
+  const selectedDate = new Date(bookingDate.value)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset time to midnight for accurate comparison
+
+  if (selectedDate < today) {
+    toast.warning('Please select a future date')
+    return
+  }
+
   if (!bookingTime.value) {
     toast.warning('Please select a time')
     return
@@ -1268,7 +1278,7 @@ watch(() => props.open, (isOpen) => {
           <div class="mb-3">
             <label class="form-label fw-semibold">Preferred Date *</label>
             <input type="date" v-model="bookingDate" class="form-control"
-              :min="new Date().toISOString().split('T')[0]" />
+              :min="new Date().toISOString().split('T')[0]" required />
           </div>
 
           <div class="mb-3">

@@ -1195,7 +1195,12 @@ onBeforeUnmount(() => {
 }
 
 :root.dark-mode .map-banner {
-  background: linear-gradient(135deg, #5A43C5 0%, #4a148c 100%);
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+:root.dark-mode .map-banner:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7);
 }
 
 .map-banner:hover {

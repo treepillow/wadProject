@@ -1453,51 +1453,145 @@ h4 {
 /* Mobile responsive styles */
 @media (max-width: 767.98px) {
   .container {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
   }
 
   .card {
-    padding: 1.25rem;
+    padding: 1.15rem;
   }
 
   .nav-tabs .nav-link {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.85rem;
   }
 
   h2,
   h3 {
-    font-size: 1.5rem;
+    font-size: 1.45rem;
   }
 
   .btn {
-    font-size: 0.875rem;
+    font-size: 0.85rem;
   }
 
   .boost-section .btn {
-    height: 44px;
-    font-size: 0.875rem;
+    height: 42px;
+    font-size: 0.85rem;
   }
 }
 
 @media (max-width: 575.98px) {
   .card {
-    padding: 1rem;
+    padding: 0.9rem;
   }
 
   h2,
   h3 {
-    font-size: 1.25rem;
+    font-size: 1.2rem;
   }
 
   .form-control,
   .form-select {
-    font-size: 0.875rem;
+    font-size: 0.85rem;
+    padding: 0.5rem;
   }
 
   .stars-display .star {
-    font-size: 16px;
+    font-size: 15px;
+  }
+
+  .shadow-soft {
+    padding: 1rem !important;
+  }
+
+  .profile-avatar-img {
+    width: 80px;
+    height: 80px;
+  }
+
+  .nav-tabs {
+    gap: 0.4rem;
+  }
+}
+
+/* iPhone 15 Pro and similar narrow screens (393px) */
+@media (max-width: 400px) {
+  .container {
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+  }
+
+  .card {
+    padding: 0.75rem;
+  }
+
+  .shadow-soft {
+    padding: 0.85rem !important;
+  }
+
+  .nav-tabs .nav-link {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  h2,
+  h3 {
+    font-size: 1.1rem;
+  }
+
+  .btn {
+    font-size: 0.8rem;
+    padding: 0.45rem 0.85rem;
+  }
+
+  .btn-sm {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.7rem;
+  }
+
+  .boost-section .btn {
+    height: 40px;
+    font-size: 0.8rem;
+  }
+
+  .form-control,
+  .form-select {
+    font-size: 0.8rem;
+    padding: 0.45rem;
+  }
+
+  .form-label {
+    font-size: 0.85rem;
+  }
+
+  .profile-avatar-img {
+    width: 72px;
+    height: 72px;
+  }
+
+  .stars-display .star {
+    font-size: 14px;
+  }
+
+  .nav-tabs {
+    gap: 0.3rem;
+  }
+
+  .qr-code-image {
+    max-width: 220px !important;
+  }
+
+  .qr-modal-header {
+    padding: 16px 18px !important;
+  }
+
+  .qr-modal-title {
+    font-size: 18px !important;
+  }
+
+  .qr-modal-body {
+    padding: 18px !important;
   }
 }
 

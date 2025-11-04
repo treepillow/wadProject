@@ -690,13 +690,13 @@ onBeforeUnmount(() => {
       <h2 class="page-title mt-4 mb-3">{{ pageTitle }}</h2>
 
       <!-- Sort Dropdown -->
-      <div class="d-flex justify-content-end align-items-center my-3 gap-2">
-        <div class="sort-dropdown-wrapper position-relative">
-          <button 
-            class="btn btn-outline-primary d-flex align-items-center gap-2" 
+      <div class="d-flex flex-column flex-md-row justify-content-md-end align-items-stretch align-items-md-center my-3 gap-2">
+        <div class="sort-dropdown-wrapper position-relative w-100 w-md-auto">
+          <button
+            class="btn btn-outline-primary d-flex align-items-center justify-content-between w-100 w-md-auto gap-2"
             @click="sortDropdownOpen = !sortDropdownOpen"
           >
-            <span>Sort: <strong>{{ sortBy === 'trending' ? 'Trending' : sortBy === 'best-match' ? 'Best Match' : sortBy === 'most-reviewed' ? 'Most Reviewed' : sortBy === 'oldest' ? 'Oldest First' : sortBy === 'cheapest' ? 'Cheapest First' : sortBy === 'most-expensive' ? 'Most Expensive First' : sortBy === 'nearby' ? 'Nearest First' : 'Trending' }}</strong></span>
+            <span class="text-truncate">Sort: <strong>{{ sortBy === 'trending' ? 'Trending' : sortBy === 'best-match' ? 'Best Match' : sortBy === 'most-reviewed' ? 'Most Reviewed' : sortBy === 'oldest' ? 'Oldest First' : sortBy === 'cheapest' ? 'Cheapest First' : sortBy === 'most-expensive' ? 'Most Expensive First' : sortBy === 'nearby' ? 'Nearest First' : 'Trending' }}</strong></span>
             <i class="fas" :class="sortDropdownOpen ? 'fa-caret-up' : 'fa-caret-down'"></i>
           </button>
           
@@ -755,12 +755,12 @@ onBeforeUnmount(() => {
         </div>
         
         <!-- Price Range Filters -->
-        <div class="d-flex align-items-center gap-2">
-          <label class="small text-muted mb-0">Price:</label>
-          <input type="number" class="form-control form-control-sm" style="width: 80px;" v-model.number="minPrice" placeholder="Min" />
+        <div class="d-flex align-items-center gap-2 w-100 w-md-auto">
+          <label class="small text-muted mb-0 d-none d-md-inline">Price:</label>
+          <input type="number" class="form-control form-control-sm flex-grow-1" style="max-width: 80px;" v-model.number="minPrice" placeholder="Min" />
           <span class="text-muted">-</span>
-          <input type="number" class="form-control form-control-sm" style="width: 80px;" v-model.number="maxPrice" placeholder="Max" />
-          <button class="btn btn-sm btn-outline-secondary" @click="applySorting">Apply</button>
+          <input type="number" class="form-control form-control-sm flex-grow-1" style="max-width: 80px;" v-model.number="maxPrice" placeholder="Max" />
+          <button class="btn btn-sm btn-outline-secondary flex-shrink-0" @click="applySorting">Apply</button>
         </div>
       </div>
       
@@ -1044,48 +1044,148 @@ onBeforeUnmount(() => {
 @media (max-width: 575.98px) {
   /* Keep 2 cards per row, adjust gutter */
   .row.g-3 {
-    --bs-gutter-x: 0.6rem;
-    --bs-gutter-y: 0.85rem;
+    --bs-gutter-x: 0.5rem;
+    --bs-gutter-y: 0.75rem;
   }
 
   .card-sm :deep(.img-box) {
-    height: 200px !important;
+    height: 180px !important;
   }
 
   .btn {
-    font-size: 0.813rem;
-    padding: 0.4rem 0.75rem;
+    font-size: 0.7rem !important;
+    padding: 0.35rem 0.55rem !important;
+  }
+
+  .btn-sm {
+    font-size: 0.65rem !important;
+    padding: 0.25rem 0.45rem !important;
   }
 
   .py-3 {
-    padding-top: 0.65rem !important;
-    padding-bottom: 0.65rem !important;
+    padding-top: 0.6rem !important;
+    padding-bottom: 0.6rem !important;
   }
 
   /* Better spacing on mobile */
   .my-3 {
-    margin-top: 0.65rem !important;
-    margin-bottom: 0.65rem !important;
+    margin-top: 0.6rem !important;
+    margin-bottom: 0.6rem !important;
   }
 
   .mt-3 {
-    margin-top: 0.65rem !important;
+    margin-top: 0.6rem !important;
+  }
+
+  .mt-4 {
+    margin-top: 0.9rem !important;
+  }
+
+  .mb-3 {
+    margin-bottom: 0.65rem !important;
   }
 
   .pb-5 {
-    padding-bottom: 2rem !important;
+    padding-bottom: 1.8rem !important;
+  }
+
+  .page-title {
+    font-size: 1.3rem !important;
+  }
+
+  /* Sort dropdown mobile styles */
+  .sort-dropdown-menu {
+    width: 100vw;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 10px 10px 0 0;
+    max-width: 100%;
+  }
+
+  .sort-dropdown-item {
+    padding: 0.9rem 1.1rem;
+    font-size: 0.8rem;
+  }
+
+  /* Price filter inputs on mobile */
+  .form-control-sm {
+    font-size: 0.7rem;
+    padding: 0.28rem 0.38rem;
+  }
+
+  .content-container {
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
   }
 }
 
-/* Extra small devices */
-@media (max-width: 380px) {
+/* iPhone 15 Pro and similar narrow screens (393px) */
+@media (max-width: 400px) {
   .row.g-3 {
-    --bs-gutter-x: 0.4rem;
+    --bs-gutter-x: 0.35rem;
     --bs-gutter-y: 0.6rem;
   }
 
   .card-sm :deep(.img-box) {
     height: 160px !important;
+  }
+
+  .btn {
+    font-size: 0.65rem !important;
+    padding: 0.3rem 0.5rem !important;
+  }
+
+  .btn-sm {
+    font-size: 0.6rem !important;
+    padding: 0.22rem 0.4rem !important;
+  }
+
+  .page-title {
+    font-size: 1.2rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .sort-dropdown-item {
+    padding: 0.8rem 1rem;
+    font-size: 0.75rem;
+  }
+
+  .form-control-sm {
+    font-size: 0.65rem;
+    padding: 0.25rem 0.35rem;
+    max-width: 70px !important;
+  }
+
+  .content-container {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+
+  /* Tighter spacing for narrow screens */
+  .my-3 {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .mt-3 {
+    margin-top: 0.5rem !important;
+  }
+
+  .mt-4 {
+    margin-top: 0.8rem !important;
+  }
+
+  .mb-3 {
+    margin-bottom: 0.55rem !important;
+  }
+
+  .pb-5 {
+    padding-bottom: 1.5rem !important;
+  }
+
+  /* Adjust gap for sort/filter controls */
+  .d-flex.gap-2 {
+    gap: 0.4rem !important;
   }
 }
 

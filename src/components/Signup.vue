@@ -206,10 +206,10 @@
           <button
             type="submit"
             class="signup-btn"
-            :disabled="!emailVerified && !signup.isGoogle"
-            :title="!emailVerified && !signup.isGoogle ? 'Please verify your email first' : ''"
+            :disabled="emailVerificationSent && !emailVerified && !signup.isGoogle"
+            :title="emailVerificationSent && !emailVerified && !signup.isGoogle ? 'Please verify your email first' : ''"
           >
-            {{ emailVerified || signup.isGoogle ? 'Sign Up' : 'Create Account & Verify Email' }}
+            {{ emailVerified || signup.isGoogle ? 'Sign Up' : (currentUserUid ? 'Sign Up' : 'Create Account & Verify Email') }}
           </button>
         </form>
 
@@ -659,10 +659,27 @@ export default {
           // Check verification status
           await userCredential.user.reload();
           this.emailVerified = userCredential.user.emailVerified;
-          this.emailVerificationSent = false;
 
-          // Show notification to verify email
-          this.showNotification("Account created! Please verify your email before completing signup.", "success");
+          // Automatically send verification email after account creation
+          if (!this.emailVerified) {
+            try {
+              // Don't use actionCodeSettings - let Firebase handle it completely
+              await sendEmailVerification(userCredential.user);
+              this.emailVerificationSent = true;
+              this.showNotification("Account created! Verification email sent. Please check your inbox (and spam folder).", "success");
+
+              // Start checking for verification
+              this.startVerificationCheck();
+            } catch (error) {
+              console.error("Error sending verification email:", error);
+              this.emailVerificationSent = false;
+              this.showNotification("Account created, but failed to send verification email. Please click 'Send Verification Email'.", "warning");
+            }
+          } else {
+            this.emailVerificationSent = true;
+            this.showNotification("Account created and email is already verified!", "success");
+          }
+
           return;
         }
 
@@ -693,9 +710,16 @@ export default {
           return this.showNotification("Please provide a valid Singapore address.", "danger");
         }
 
-        // Check if email is verified
+        // CRITICAL: Check if email is verified before creating account
+        // Reload user data from Firebase to get latest verification status
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          await currentUser.reload();
+          this.emailVerified = currentUser.emailVerified;
+        }
+
         if (!this.emailVerified) {
-          return this.showNotification("Please verify your email before completing signup.", "danger");
+          return this.showNotification("You must verify your email before creating an account. Please check your inbox.", "danger");
         }
 
         const uid = this.currentUserUid;
@@ -914,14 +938,8 @@ export default {
           return;
         }
 
-        // Send verification email with custom action code settings
-        const actionCodeSettings = {
-          // URL you want to redirect back to after verification
-          url: window.location.origin + '/email-verified',
-          handleCodeInApp: false
-        };
-
-        await sendEmailVerification(user, actionCodeSettings);
+        // Send verification email without custom settings - let Firebase handle it
+        await sendEmailVerification(user);
 
         this.emailVerificationSent = true;
         this.emailVerified = false; // Explicitly set to false
@@ -1369,9 +1387,13 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
   width: 100%;
   margin-bottom: 10px;
   padding: 10px;
-  border-bottom: 2px solid black;
+  border-bottom: 2px solid var(--color-text-primary);
   background: transparent;
-  color: black;
+  color: var(--color-text-primary);
+}
+
+:root.dark-mode .address-container input {
+  border-bottom: 2px solid var(--color-text-secondary);
 }
 
 .address-label {

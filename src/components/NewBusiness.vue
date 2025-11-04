@@ -404,7 +404,7 @@ export default {
           v = digits ? `#${digits}` : ''
         }
       } else {
-        // Non-landed → #09-142
+        // Non-landed → #09-12 or #09-142 (2 or 3 digits after dash)
         const m = v.match(/^#?(\d{0,2})(-)?(\d{0,3})$/)
         if (m){
           const a=m[1]||'', b=m[3]||''
@@ -508,9 +508,9 @@ export default {
           return
         }
       } else {
-        if(!/^#?[0-9]{2}-[0-9]{3}$/.test(this.locationUnit.trim())){
+        if(!/^#?[0-9]{2}-[0-9]{2,3}$/.test(this.locationUnit.trim())){
           this.isCreatingListing = false
-          this.toast.warning('Unit No must look like #09-142 for non-landed properties.')
+          this.toast.warning('Unit No must look like #09-12 or #09-142 for non-landed properties.')
           return
         }
       }
@@ -887,9 +887,9 @@ export default {
                     Unit No
                   </label>
                   <input class="form-control" v-model.trim="locationUnit"
-                         :pattern="isLanded ? '#?[0-9]{2}' : '#?[0-9]{2}-[0-9]{3}'"
-                         :placeholder="isLanded ? '#01' : '#01-234'"
-                         :title="isLanded ? 'Format like #09' : 'Format like #09-142'"
+                         :pattern="isLanded ? '#?[0-9]{2}' : '#?[0-9]{2}-[0-9]{2,3}'"
+                         :placeholder="isLanded ? '#01' : '#01-23 or #01-234'"
+                         :title="isLanded ? 'Format like #09' : 'Format like #09-12 or #09-142'"
                          @input="handleDynamicUnitInput" />
                 </div>
               </div>

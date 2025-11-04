@@ -64,8 +64,8 @@
 
           <!-- Active Listing Popup -->
           <Transition name="popup">
-            <div v-if="activeListing" class="listing-popup">
-              <div class="popup-content">
+            <div v-if="activeListing" class="listing-popup" @click="activeListing = null">
+              <div class="popup-content" @click.stop>
                 <button class="popup-close" @click="activeListing = null">
                   <Icon icon="mdi:close" />
                 </button>
@@ -167,7 +167,7 @@ async function initMap() {
     map.value = new window.google.maps.Map(mapContainer.value, {
       center: singapore,
       zoom: 12,
-      styles: zenlyMapStyles,
+      styles: isDarkMode() ? darkModeMapStyles : zenlyMapStyles,
       disableDefaultUI: true,
       zoomControl: true,
       gestureHandling: 'greedy'
@@ -299,13 +299,15 @@ function createCustomOverlay(position, listing) {
       // Business name label
       const nameLabel = document.createElement('div')
       nameLabel.textContent = this.listing.businessName
-      nameLabel.style.backgroundColor = 'white'
+      // Use dark background with light text for better visibility on both light and dark maps
+      nameLabel.style.backgroundColor = '#1a1a1a'
+      nameLabel.style.color = 'white'
       nameLabel.style.padding = '4px 8px'
       nameLabel.style.borderRadius = '12px'
       nameLabel.style.fontSize = '11px'
       nameLabel.style.fontWeight = '600'
       nameLabel.style.whiteSpace = 'nowrap'
-      nameLabel.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)'
+      nameLabel.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)'
       nameLabel.style.maxWidth = '120px'
       nameLabel.style.overflow = 'hidden'
       nameLabel.style.textOverflow = 'ellipsis'
@@ -348,7 +350,10 @@ function createCustomOverlay(position, listing) {
   return new CustomOverlay(position, listing)
 }
 
-// Zenly-inspired map styles - vibrant, colorful, and playful
+// Check if dark mode is active
+const isDarkMode = () => document.documentElement.classList.contains('dark-mode')
+
+// Light mode map styles - vibrant, colorful, and playful
 const zenlyMapStyles = [
   {
     "featureType": "all",
@@ -429,6 +434,90 @@ const zenlyMapStyles = [
     "featureType": "administrative",
     "elementType": "geometry.stroke",
     "stylers": [{ "color": "#FFB4D4", "weight": 1 }]
+  }
+]
+
+// Dark mode map styles - darker, muted colors
+const darkModeMapStyles = [
+  {
+    "featureType": "all",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#242f3e" }]
+  },
+  {
+    "featureType": "all",
+    "elementType": "labels.text.fill",
+    "stylers": [{ "color": "#b0b0b0" }]
+  },
+  {
+    "featureType": "all",
+    "elementType": "labels.text.stroke",
+    "stylers": [{ "color": "#1a1a1a", "weight": 2 }]
+  },
+  {
+    "featureType": "water",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#17263c" }]
+  },
+  {
+    "featureType": "landscape",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#242f3e" }]
+  },
+  {
+    "featureType": "road",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#38414e" }]
+  },
+  {
+    "featureType": "road",
+    "elementType": "geometry.stroke",
+    "stylers": [{ "color": "#212a37" }]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#746855" }]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "geometry.stroke",
+    "stylers": [{ "color": "#1f2835" }]
+  },
+  {
+    "featureType": "road.arterial",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#38414e" }]
+  },
+  {
+    "featureType": "poi",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#283d54" }]
+  },
+  {
+    "featureType": "poi.park",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#263c3f" }]
+  },
+  {
+    "featureType": "poi.school",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#3d3d3d" }]
+  },
+  {
+    "featureType": "poi.business",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#2d3748" }]
+  },
+  {
+    "featureType": "transit",
+    "elementType": "geometry",
+    "stylers": [{ "color": "#2f3948" }]
+  },
+  {
+    "featureType": "administrative",
+    "elementType": "geometry.stroke",
+    "stylers": [{ "color": "#4b6878", "weight": 1 }]
   }
 ]
 
@@ -759,24 +848,35 @@ onBeforeUnmount(() => {
 /* Listing Popup */
 .listing-popup {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   z-index: 20;
-  width: 90%;
-  max-width: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+:root.dark-mode .listing-popup {
+  background: rgba(0, 0, 0, 0.7);
 }
 
 .popup-content {
   background: white;
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
   position: relative;
+  width: 100%;
+  max-width: 400px;
 }
 
 :root.dark-mode .popup-content {
-  background: var(--color-bg-secondary);
+  background: #1e1e2e;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
 }
 
 .popup-close {
@@ -828,6 +928,11 @@ onBeforeUnmount(() => {
   gap: 6px;
   font-size: 14px;
   margin-bottom: 15px;
+  color: #666;
+}
+
+:root.dark-mode .popup-rating {
+  color: #aaa;
 }
 
 .popup-view-btn {

@@ -71,7 +71,17 @@ onMounted(() => {
   })
 })
 
-onBeforeUnmount(() => {
+onBeforeUnmount(async () => {
+  // Before leaving, check if the current chat has zero messages and delete it
+  if (activeChat.value && messages.value.length === 0) {
+    try {
+      await deleteDoc(doc(db, 'chats', activeChat.value.id))
+      console.log('Deleted empty chat:', activeChat.value.id)
+    } catch (err) {
+      console.error('Failed to delete empty chat:', err)
+    }
+  }
+
   if (unsubscribeMsgs) unsubscribeMsgs()
 })
 
@@ -184,7 +194,17 @@ function openBadgeInfoModal() { badgeModalOpen.value = true }
 function closeBadgeInfoModal() { badgeModalOpen.value = false }
 
 /* ───────── Select chat ───────── */
-function selectChat(chat) {
+async function selectChat(chat) {
+  // Before switching, delete the previous chat if it had no messages
+  if (activeChat.value && messages.value.length === 0 && activeChat.value.id !== chat.id) {
+    try {
+      await deleteDoc(doc(db, 'chats', activeChat.value.id))
+      console.log('Deleted empty chat:', activeChat.value.id)
+    } catch (err) {
+      console.error('Failed to delete empty chat:', err)
+    }
+  }
+
   // Update active chat immediately for instant UI response
   activeChat.value = chat
   activeChatListing.value = null

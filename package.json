@@ -19,6 +19,7 @@
         "@iconify/vue": "^5.0.0",
         "@stripe/stripe-js": "^8.1.0",
         "bootstrap": "^5.3.8",
+        "chart.js": "^4.5.1",
         "cors": "^2.8.5",
         "dotenv": "^17.2.3",
         "express": "^5.1.0",

@@ -1,17 +1,21 @@
 <script>
-import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch, nextTick } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getAuth } from 'firebase/auth'
 import {
   getFirestore, doc, getDoc, updateDoc, serverTimestamp,
   collection, getDocs, query, orderBy, where,
-  onSnapshot, getCountFromServer, setDoc, deleteDoc, addDoc
+  onSnapshot, getCountFromServer, setDoc, deleteDoc, addDoc, Timestamp
 } from 'firebase/firestore'
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { useDarkMode } from '@/composables/useDarkMode'
 import { useToast } from '@/composables/useToast'
 import { generateQRCode, downloadQRCode } from '@/utils/reviewCode'
 import { Icon } from '@iconify/vue'
+import { Chart, registerables } from 'chart.js'
+
+// Register Chart.js components
+Chart.register(...registerables)
 
 import ListingCard from '@/components/ListingCard.vue'
 import ListingDrawer from '@/components/ListingDrawer.vue'  // <-- NEW
@@ -79,17 +83,118 @@ export default {
     const bookingsLoading = ref(false)
     const bookingsLoaded = ref(false)
 
+    /* ---------------- Analytics ---------------- */
+    const analyticsLoaded = ref(false)
+    const analyticsLoading = ref(false)
+    const analyticsTimeFrame = ref('week') // 'week' | 'month' | 'all'
+    const analyticsData = ref({}) // { listingId: { reviews: [], likes: [], views: [] } }
+    const chartInstances = ref({}) // { listingId_reviews: Chart, listingId_likes: Chart, listingId_views: Chart }
+
+    // Time frame options
+    const timeFrameOptions = [
+      { value: 'week', label: 'Last 7 Days' },
+      { value: 'month', label: 'Last Month' },
+      { value: 'all', label: 'All Time' }
+    ]
+
+    // Get date range based on time frame
+    function getDateRange(timeFrame) {
+      const now = new Date()
+      let start
+
+      switch (timeFrame) {
+        case 'week':
+          start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+          break
+        case 'month':
+          start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+          break
+        case 'all':
+          start = null // No start date = all time
+          break
+        default:
+          start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      }
+
+      return { start, end: now }
+    }
+
+    // Group data by time period
+    function groupDataByPeriod(data, timeFrame) {
+      const { start } = getDateRange(timeFrame)
+      const groups = {}
+      const periodMap = {
+        week: 'day',
+        month: 'week',
+        all: 'month'
+      }
+      const period = periodMap[timeFrame] || 'day'
+
+      data.forEach(item => {
+        let itemDate
+        if (item.timestamp) {
+          if (item.timestamp.toDate && typeof item.timestamp.toDate === 'function') {
+            itemDate = item.timestamp.toDate()
+          } else if (item.timestamp instanceof Timestamp) {
+            itemDate = item.timestamp.toDate()
+          } else if (item.timestamp.seconds) {
+            itemDate = new Date(item.timestamp.seconds * 1000)
+          } else {
+            itemDate = new Date(item.timestamp)
+          }
+        } else {
+          return // Skip items without timestamp
+        }
+
+        if (!itemDate || isNaN(itemDate.getTime())) return
+        if (start && itemDate < start) return
+
+        let key
+        if (period === 'hour') {
+          key = itemDate.toISOString().slice(0, 13) // YYYY-MM-DDTHH
+        } else if (period === 'day') {
+          // Use local date to avoid timezone issues
+          const year = itemDate.getFullYear()
+          const month = String(itemDate.getMonth() + 1).padStart(2, '0')
+          const day = String(itemDate.getDate()).padStart(2, '0')
+          key = `${year}-${month}-${day}` // YYYY-MM-DD in local timezone
+        } else if (period === 'week') {
+          // Get the Monday of the week for this date (in local timezone)
+          const dayOfWeek = itemDate.getDay()
+          const diff = itemDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) // Adjust when day is Sunday
+          const monday = new Date(itemDate)
+          monday.setDate(diff)
+          // Use local date
+          const year = monday.getFullYear()
+          const month = String(monday.getMonth() + 1).padStart(2, '0')
+          const day = String(monday.getDate()).padStart(2, '0')
+          key = `${year}-${month}-${day}` // YYYY-MM-DD (Monday of the week) in local timezone
+        } else if (period === 'month') {
+          // Use local date
+          const year = itemDate.getFullYear()
+          const month = String(itemDate.getMonth() + 1).padStart(2, '0')
+          key = `${year}-${month}` // YYYY-MM in local timezone
+        }
+
+        if (!groups[key]) groups[key] = 0
+        groups[key]++
+      })
+
+      return groups
+    }
+
     /* ---------------- Tabs (after state declarations) ---------------- */
-    const activeTab = ref('profile') // 'profile' | 'my' | 'liked' | 'bookings'
+    const activeTab = ref('profile') // 'profile' | 'my' | 'liked' | 'bookings' | 'analytics'
     const openTab = (t) => {
       activeTab.value = t
       if (t === 'liked' && !likedLoaded.value) loadLikedListings()
       if (t === 'bookings' && !bookingsLoaded.value) loadBookingRequests()
+      if (t === 'analytics' && !analyticsLoaded.value) loadAnalytics()
     }
 
     // Watch for route query changes and set active tab
     watch(() => route.query.tab, (newTab) => {
-      if (newTab === 'my' || newTab === 'liked' || newTab === 'profile' || newTab === 'bookings') {
+      if (newTab === 'my' || newTab === 'liked' || newTab === 'profile' || newTab === 'bookings' || newTab === 'analytics') {
         openTab(newTab)
       }
     }, { immediate: true })
@@ -756,6 +861,13 @@ export default {
       profileUnsubs.forEach(unsub => unsub && unsub())
       profileUnsubs.clear()
       if (countdownInterval) clearInterval(countdownInterval)
+      // Destroy all charts
+      Object.values(chartInstances.value).forEach(chart => {
+        if (chart && typeof chart.destroy === 'function') {
+          chart.destroy()
+        }
+      })
+      chartInstances.value = {}
     })
 
     /* ---------------- Edit Listing ---------------- */
@@ -843,6 +955,530 @@ export default {
       }
     }
 
+    // Load analytics data for all listings
+    async function loadAnalytics() {
+      if (!user.value || analyticsLoading.value) return
+      analyticsLoading.value = true
+
+      try {
+        const listings = myListings.value
+        const newAnalyticsData = {}
+
+        for (const listing of listings) {
+          const listingId = listing.listingId || listing.id
+          if (!listingId) continue
+
+          // Fetch reviews
+          const reviews = []
+          try {
+            const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
+            const reviewsQuery = query(reviewsRef, orderBy('timestamp', 'asc'))
+            const reviewsSnap = await getDocs(reviewsQuery)
+            reviewsSnap.forEach(docSnap => {
+              const data = docSnap.data()
+              if (data.timestamp) {
+                let timestamp
+                if (data.timestamp instanceof Timestamp) {
+                  timestamp = data.timestamp
+                } else if (data.timestamp.toDate && typeof data.timestamp.toDate === 'function') {
+                  timestamp = Timestamp.fromDate(data.timestamp.toDate())
+                } else if (data.timestamp.seconds) {
+                  timestamp = Timestamp.fromMillis(data.timestamp.seconds * 1000 + (data.timestamp.nanoseconds || 0) / 1000000)
+                } else {
+                  timestamp = Timestamp.fromDate(new Date(data.timestamp))
+                }
+                reviews.push({
+                  timestamp,
+                  rating: data.rating || 0
+                })
+              }
+            })
+          } catch (e) {
+            // Collection might not exist if listing has no reviews
+            console.warn('Error fetching reviews:', listingId, e)
+          }
+
+          // Fetch likes
+          const likes = []
+          try {
+            const likesRef = collection(db, 'listingLikes', listingId, 'users')
+            const likesSnap = await getDocs(likesRef)
+            likesSnap.forEach(docSnap => {
+              const data = docSnap.data()
+              if (data.at) {
+                let timestamp
+                if (data.at instanceof Timestamp) {
+                  timestamp = data.at
+                } else if (data.at.toDate && typeof data.at.toDate === 'function') {
+                  timestamp = Timestamp.fromDate(data.at.toDate())
+                } else if (data.at.seconds) {
+                  timestamp = Timestamp.fromMillis(data.at.seconds * 1000 + (data.at.nanoseconds || 0) / 1000000)
+                } else {
+                  timestamp = Timestamp.fromDate(new Date(data.at))
+                }
+                likes.push({ timestamp })
+              }
+            })
+          } catch (e) {
+            // Collection might not exist if listing has no likes
+            console.warn('Error fetching likes:', listingId, e)
+          }
+
+          // Fetch views (from viewCount and track historical views if available)
+          const views = []
+          try {
+            // Try to fetch historical view data
+            const viewsRef = collection(db, 'allListings', listingId, 'viewHistory')
+            const viewsSnap = await getDocs(query(viewsRef, orderBy('timestamp', 'asc')))
+            viewsSnap.forEach(docSnap => {
+              const data = docSnap.data()
+              if (data.timestamp) {
+                let timestamp
+                if (data.timestamp instanceof Timestamp) {
+                  timestamp = data.timestamp
+                } else if (data.timestamp.toDate && typeof data.timestamp.toDate === 'function') {
+                  timestamp = Timestamp.fromDate(data.timestamp.toDate())
+                } else if (data.timestamp.seconds) {
+                  timestamp = Timestamp.fromMillis(data.timestamp.seconds * 1000 + (data.timestamp.nanoseconds || 0) / 1000000)
+                } else {
+                  timestamp = Timestamp.fromDate(new Date(data.timestamp))
+                }
+                views.push({ timestamp })
+              }
+            })
+
+            // If no historical data, create a progression from creation to now
+            if (views.length === 0 && listing.viewCount > 0) {
+              let createdAt
+              if (listing.createdAt?.toDate && typeof listing.createdAt.toDate === 'function') {
+                createdAt = listing.createdAt.toDate()
+              } else if (listing.createdAt instanceof Timestamp) {
+                createdAt = listing.createdAt.toDate()
+              } else if (listing.createdAt?.seconds) {
+                createdAt = new Date(listing.createdAt.seconds * 1000)
+              } else {
+                createdAt = new Date(listing.createdAt || Date.now())
+              }
+              
+              // Create at least 2 points: one at creation (0 views) and one at now (total views)
+              // This allows the line chart to render
+              const now = new Date()
+              const timeDiff = now.getTime() - createdAt.getTime()
+              
+              // Always add starting point (0 views at creation)
+              views.push({
+                timestamp: Timestamp.fromDate(createdAt)
+              })
+              
+              // Add ending point (current view count at now)
+              views.push({
+                timestamp: Timestamp.fromDate(now)
+              })
+              
+              // If listing is older than 1 day, add intermediate points for better visualization
+              if (timeDiff > 24 * 60 * 60 * 1000) {
+                const daysSinceCreation = Math.floor(timeDiff / (24 * 60 * 60 * 1000))
+                const pointsToAdd = Math.min(daysSinceCreation, 10) // Max 10 intermediate points
+                
+                for (let i = 1; i < pointsToAdd; i++) {
+                  const intermediateDate = new Date(createdAt.getTime() + (timeDiff / pointsToAdd) * i)
+                  views.push({
+                    timestamp: Timestamp.fromDate(intermediateDate)
+                  })
+                }
+                
+                // Sort views by timestamp after adding intermediate points
+                views.sort((a, b) => {
+                  const aTime = a.timestamp.toDate ? a.timestamp.toDate().getTime() : 0
+                  const bTime = b.timestamp.toDate ? b.timestamp.toDate().getTime() : 0
+                  return aTime - bTime
+                })
+              }
+            }
+          } catch (e) {
+            // If viewHistory doesn't exist, create a progression from creation to now
+            if (listing.viewCount > 0) {
+              let createdAt
+              if (listing.createdAt?.toDate && typeof listing.createdAt.toDate === 'function') {
+                createdAt = listing.createdAt.toDate()
+              } else if (listing.createdAt instanceof Timestamp) {
+                createdAt = listing.createdAt.toDate()
+              } else if (listing.createdAt?.seconds) {
+                createdAt = new Date(listing.createdAt.seconds * 1000)
+              } else {
+                createdAt = new Date(listing.createdAt || Date.now())
+              }
+              
+              // Create at least 2 points: one at creation (0 views) and one at now (total views)
+              const now = new Date()
+              const timeDiff = now.getTime() - createdAt.getTime()
+              
+              // Always add starting point (0 views at creation)
+              views.push({
+                timestamp: Timestamp.fromDate(createdAt)
+              })
+              
+              // Add ending point (current view count at now)
+              views.push({
+                timestamp: Timestamp.fromDate(now)
+              })
+              
+              // If listing is older than 1 day, add intermediate points
+              if (timeDiff > 24 * 60 * 60 * 1000) {
+                const daysSinceCreation = Math.floor(timeDiff / (24 * 60 * 60 * 1000))
+                const pointsToAdd = Math.min(daysSinceCreation, 10) // Max 10 intermediate points
+                
+                for (let i = 1; i < pointsToAdd; i++) {
+                  const intermediateDate = new Date(createdAt.getTime() + (timeDiff / pointsToAdd) * i)
+                  views.push({
+                    timestamp: Timestamp.fromDate(intermediateDate)
+                  })
+                }
+                
+                // Sort views by timestamp after adding intermediate points
+                views.sort((a, b) => {
+                  const aTime = a.timestamp.toDate ? a.timestamp.toDate().getTime() : 0
+                  const bTime = b.timestamp.toDate ? b.timestamp.toDate().getTime() : 0
+                  return aTime - bTime
+                })
+              }
+            }
+          }
+
+          newAnalyticsData[listingId] = { reviews, likes, views }
+        }
+
+        analyticsData.value = newAnalyticsData
+
+        // Destroy old charts
+        Object.values(chartInstances.value).forEach(chart => {
+          if (chart && typeof chart.destroy === 'function') {
+            chart.destroy()
+          }
+        })
+        chartInstances.value = {}
+
+        // Render charts after DOM updates
+        await nextTick()
+        // Use a longer delay to ensure DOM is fully rendered
+        setTimeout(() => {
+          listings.forEach(listing => {
+            const listingId = listing.listingId || listing.id
+            if (listingId && newAnalyticsData[listingId]) {
+              renderChartsForListing(listingId, listing.businessName || 'Listing')
+            }
+          })
+          analyticsLoaded.value = true
+        }, 300)
+      } catch (error) {
+        console.error('Error loading analytics:', error)
+      } finally {
+        analyticsLoading.value = false
+      }
+    }
+
+    // Fill in missing intervals with 0
+    function fillMissingIntervals(groups, timeFrame) {
+      const { start } = getDateRange(timeFrame)
+      const end = new Date()
+      const allLabels = []
+      
+      const periodMap = {
+        week: 'day',
+        month: 'week',
+        all: 'month'
+      }
+      const period = periodMap[timeFrame] || 'day'
+      
+      const startDate = start || new Date(end.getTime() - 365 * 24 * 60 * 60 * 1000) // Default to 1 year ago for all time
+      
+      if (period === 'day') {
+        // Fill all 7 days for Last 7 Days (using local dates)
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000)
+          if (date <= end) {
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, '0')
+            const day = String(date.getDate()).padStart(2, '0')
+            const key = `${year}-${month}-${day}`
+            allLabels.push(key)
+          }
+        }
+      } else if (period === 'week') {
+        // Fill all weeks (7-day intervals) for Last Month (using local dates)
+        const currentDate = new Date(startDate)
+        while (currentDate < end) {
+          // Get Monday of the week for this date
+          const dayOfWeek = currentDate.getDay()
+          const diff = currentDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)
+          const monday = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
+          monday.setDate(diff)
+          
+          // Only include if Monday is within range
+          if (monday >= startDate && monday < end) {
+            const year = monday.getFullYear()
+            const month = String(monday.getMonth() + 1).padStart(2, '0')
+            const day = String(monday.getDate()).padStart(2, '0')
+            const key = `${year}-${month}-${day}`
+            if (!allLabels.includes(key)) {
+              allLabels.push(key)
+            }
+          }
+          
+          // Move to next week (7 days later)
+          currentDate.setDate(currentDate.getDate() + 7)
+        }
+        allLabels.sort()
+      } else if (period === 'month') {
+        // Fill all months for All Time (using local dates)
+        const currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+        while (currentDate <= end) {
+          const year = currentDate.getFullYear()
+          const month = String(currentDate.getMonth() + 1).padStart(2, '0')
+          const key = `${year}-${month}`
+          if (!allLabels.includes(key)) {
+            allLabels.push(key)
+          }
+          currentDate.setMonth(currentDate.getMonth() + 1)
+        }
+      }
+      
+      // Fill missing periods with 0
+      allLabels.forEach(label => {
+        if (!groups[label]) {
+          groups[label] = 0
+        }
+      })
+      
+      return groups
+    }
+
+    // Render charts for a specific listing
+    function renderChartsForListing(listingId, listingName) {
+      const data = analyticsData.value[listingId]
+      if (!data) return
+
+      const timeFrame = analyticsTimeFrame.value
+
+      // Prepare reviews data - fill missing intervals
+      const reviewsGroups = groupDataByPeriod(data.reviews || [], timeFrame)
+      fillMissingIntervals(reviewsGroups, timeFrame)
+      const reviewsLabels = Object.keys(reviewsGroups).sort()
+      const reviewsData = reviewsLabels.map(key => reviewsGroups[key])
+
+      // Prepare likes data - fill missing intervals
+      const likesGroups = groupDataByPeriod(data.likes || [], timeFrame)
+      fillMissingIntervals(likesGroups, timeFrame)
+      const likesLabels = Object.keys(likesGroups).sort()
+      const likesData = likesLabels.map(key => likesGroups[key])
+
+      // Prepare views data - fill missing intervals, show non-cumulative view count per interval
+      const viewsGroups = groupDataByPeriod(data.views || [], timeFrame)
+      fillMissingIntervals(viewsGroups, timeFrame)
+      const viewsLabels = Object.keys(viewsGroups).sort()
+      const viewsData = viewsLabels.map(key => viewsGroups[key])
+      
+      // No cumulative - each point shows views for that interval only
+
+      // Common chart options
+      const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              precision: 0
+            }
+          }
+        }
+      }
+
+      // Destroy existing charts for this listing
+      const reviewChartId = `${listingId}_reviews`
+      const likesChartId = `${listingId}_likes`
+      const viewsChartId = `${listingId}_views`
+
+      if (chartInstances.value[reviewChartId]) {
+        chartInstances.value[reviewChartId].destroy()
+      }
+      if (chartInstances.value[likesChartId]) {
+        chartInstances.value[likesChartId].destroy()
+      }
+      if (chartInstances.value[viewsChartId]) {
+        chartInstances.value[viewsChartId].destroy()
+      }
+
+      // Render Reviews Chart - bar chart to show individual interval counts
+      const reviewsCanvas = document.getElementById(reviewChartId)
+      if (reviewsCanvas) {
+        if (reviewsLabels.length > 0) {
+          const ctx = reviewsCanvas.getContext('2d')
+          chartInstances.value[reviewChartId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: reviewsLabels.map(formatLabel),
+              datasets: [{
+                label: 'Reviews',
+                data: reviewsData,
+                backgroundColor: 'rgba(75, 42, 166, 0.8)',
+                borderColor: 'rgb(75, 42, 166)',
+                borderWidth: 1
+              }]
+            },
+            options: chartOptions
+          })
+        } else {
+          // Show empty state
+          const ctx = reviewsCanvas.getContext('2d')
+          ctx.clearRect(0, 0, reviewsCanvas.width, reviewsCanvas.height)
+        }
+      }
+
+      // Render Likes Chart
+      const likesCanvas = document.getElementById(likesChartId)
+      if (likesCanvas) {
+        if (likesLabels.length > 0) {
+          const ctx = likesCanvas.getContext('2d')
+          chartInstances.value[likesChartId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: likesLabels.map(formatLabel),
+              datasets: [{
+                label: 'Likes',
+                data: likesData,
+                backgroundColor: 'rgba(75, 42, 166, 0.8)',
+                borderColor: 'rgb(75, 42, 166)',
+                borderWidth: 1
+              }]
+            },
+            options: chartOptions
+          })
+        } else {
+          // Show empty state
+          const ctx = likesCanvas.getContext('2d')
+          ctx.clearRect(0, 0, likesCanvas.width, likesCanvas.height)
+        }
+      }
+
+      // Render Views Chart - bar chart to show individual interval counts (non-cumulative)
+      const viewsCanvas = document.getElementById(viewsChartId)
+      if (viewsCanvas) {
+        if (viewsLabels.length > 0) {
+          const ctx = viewsCanvas.getContext('2d')
+          chartInstances.value[viewsChartId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: viewsLabels.map(formatLabel),
+              datasets: [{
+                label: 'Views',
+                data: viewsData,
+                backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                borderColor: 'rgb(34, 197, 94)',
+                borderWidth: 1
+              }]
+            },
+            options: chartOptions
+          })
+        } else {
+          // Show empty state
+          const ctx = viewsCanvas.getContext('2d')
+          ctx.clearRect(0, 0, viewsCanvas.width, viewsCanvas.height)
+        }
+      }
+    }
+
+    // Format label based on time frame
+    function formatLabel(label) {
+      if (label.includes('T')) {
+        // Hour format: YYYY-MM-DDTHH
+        const [date, hour] = label.split('T')
+        return `${date} ${hour}:00`
+      } else if (label.includes('-') && label.length === 10) {
+        // Day or Week format: YYYY-MM-DD
+        // For week intervals, this represents the Monday of the week
+        const date = new Date(label)
+        const periodMap = {
+          week: 'day',
+          month: 'week',
+          all: 'month'
+        }
+        const period = periodMap[analyticsTimeFrame.value] || 'day'
+        
+        if (period === 'week') {
+          // Show "Week of [date]"
+          return `Week of ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+        } else {
+          // Day format
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        }
+      } else if (label.includes('-') && label.length === 7) {
+        // Month format: YYYY-MM
+        return new Date(label + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      }
+      return label
+    }
+
+    // Watch time frame changes
+    watch(analyticsTimeFrame, () => {
+      if (analyticsLoaded.value) {
+        myListings.value.forEach(listing => {
+          const listingId = listing.listingId || listing.id
+          if (listingId) {
+            renderChartsForListing(listingId, listing.businessName || 'Listing')
+          }
+        })
+      }
+    })
+
+    // Watch myListings changes to reload analytics
+    watch(myListings, () => {
+      if (activeTab.value === 'analytics' && analyticsLoaded.value) {
+        analyticsLoaded.value = false
+        loadAnalytics()
+      }
+    })
+
+    // Get count for the selected time frame by summing grouped intervals (non-cumulative)
+    // This sums all individual interval counts to get the total for the period
+    function getViewsCountForTimeFrame(listingId) {
+      const data = analyticsData.value[listingId]
+      if (!data || !data.views || data.views.length === 0) return 0
+
+      const groups = groupDataByPeriod(data.views || [], analyticsTimeFrame.value)
+      fillMissingIntervals(groups, analyticsTimeFrame.value)
+      // Sum all interval values (each represents count for that individual interval only)
+      return Object.values(groups).reduce((sum, count) => sum + count, 0)
+    }
+
+    function getReviewsCountForTimeFrame(listingId) {
+      const data = analyticsData.value[listingId]
+      if (!data || !data.reviews || data.reviews.length === 0) return 0
+
+      const groups = groupDataByPeriod(data.reviews || [], analyticsTimeFrame.value)
+      fillMissingIntervals(groups, analyticsTimeFrame.value)
+      // Sum all interval values (each represents count for that individual interval only)
+      return Object.values(groups).reduce((sum, count) => sum + count, 0)
+    }
+
+    function getLikesCountForTimeFrame(listingId) {
+      const data = analyticsData.value[listingId]
+      if (!data || !data.likes || data.likes.length === 0) return 0
+
+      const groups = groupDataByPeriod(data.likes || [], analyticsTimeFrame.value)
+      fillMissingIntervals(groups, analyticsTimeFrame.value)
+      // Sum all interval values (each represents count for that individual interval only)
+      return Object.values(groups).reduce((sum, count) => sum + count, 0)
+    }
 
     return {
       /* tabs */
@@ -859,6 +1495,8 @@ export default {
       profileMap,
       /* bookings */
       bookingRequests, bookingsLoading, acceptBooking, rejectBooking,
+      /* analytics */
+      analyticsLoading, analyticsData,
       /* batch reveal bindings */
       revealedMy, revealedLiked,
       handleMyImageLoaded, handleLikedImageLoaded,
@@ -874,6 +1512,10 @@ export default {
       // Socials
       instagramId,
       telegramId,
+      // Analytics
+      analyticsLoading, analyticsTimeFrame, analyticsData,
+      timeFrameOptions, loadAnalytics, analyticsLoaded,
+      getViewsCountForTimeFrame, getReviewsCountForTimeFrame, getLikesCountForTimeFrame,
     }
   }
 }
@@ -904,6 +1546,10 @@ export default {
             <li class="nav-item">
               <button class="nav-link" :class="{ active: activeTab === 'liked' }"
                 @click="openTab('liked')">Liked</button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" :class="{ active: activeTab === 'analytics' }"
+                @click="openTab('analytics')">Analytics</button>
             </li>
           </ul>
 
@@ -1134,6 +1780,115 @@ export default {
               </div>
             </div>
           </div>
+
+          <!-- ANALYTICS -->
+          <div v-show="activeTab === 'analytics'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+              <h4 class="mb-0">Analytics</h4>
+              <div class="d-flex align-items-center gap-2">
+                <label class="mb-0 fw-semibold small">Time Frame:</label>
+                <select v-model="analyticsTimeFrame" class="form-select form-select-sm" style="width: auto;">
+                  <option v-for="option in timeFrameOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div v-if="analyticsLoading" class="text-center py-5">
+              <div class="spinner-border text-primary"></div>
+              <p class="text-muted mt-3">Loading analytics data...</p>
+            </div>
+
+            <div v-else-if="!myListings.length" class="text-muted text-center py-5">
+              You don't have any listings yet. Create a listing to see analytics.
+            </div>
+
+            <div v-else class="analytics-container">
+              <div v-for="listing in myListings" :key="listing.listingId || listing.id" class="analytics-listing-card mb-4">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                  <div 
+                    class="analytics-listing-photo"
+                    @click="openDrawer(listing)"
+                  >
+                    <img 
+                      v-if="listing.photoUrls && listing.photoUrls[0]" 
+                      :src="listing.photoUrls[0]" 
+                      :alt="listing.businessName"
+                      class="analytics-listing-photo-img"
+                    />
+                    <div v-else class="analytics-listing-photo-placeholder">
+                      {{ (listing.businessName || 'L').charAt(0).toUpperCase() }}
+                    </div>
+                  </div>
+                  <h5 class="mb-0 flex-grow-1 cursor-pointer" @click="openDrawer(listing)">
+                    {{ listing.businessName || 'Unnamed Listing' }}
+                  </h5>
+                </div>
+                
+                <div class="row g-4">
+                  <!-- Reviews Chart -->
+                  <div class="col-12 col-lg-4">
+                    <div class="chart-card">
+                      <h6 class="chart-title">
+                        <Icon icon="mdi:star" class="me-2" />
+                        Reviews
+                      </h6>
+                      <div class="chart-wrapper">
+                        <canvas :id="`${listing.listingId || listing.id}_reviews`"></canvas>
+                        <div v-if="analyticsLoaded && (!analyticsData[listing.listingId || listing.id]?.reviews || analyticsData[listing.listingId || listing.id].reviews.length === 0)" class="chart-empty-state">
+                          <p class="text-muted small mb-0">No reviews in this time period</p>
+                        </div>
+                      </div>
+                      <div class="chart-summary">
+                        <strong>{{ getReviewsCountForTimeFrame(listing.listingId || listing.id) }}</strong> reviews in this period
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Likes Chart -->
+                  <div class="col-12 col-lg-4">
+                    <div class="chart-card">
+                      <h6 class="chart-title">
+                        <Icon icon="mdi:heart" class="me-2" />
+                        Likes
+                      </h6>
+                      <div class="chart-wrapper">
+                        <canvas :id="`${listing.listingId || listing.id}_likes`"></canvas>
+                        <div v-if="analyticsLoaded && (!analyticsData[listing.listingId || listing.id]?.likes || analyticsData[listing.listingId || listing.id].likes.length === 0)" class="chart-empty-state">
+                          <p class="text-muted small mb-0">No likes in this time period</p>
+                        </div>
+                      </div>
+                      <div class="chart-summary">
+                        <strong>{{ getLikesCountForTimeFrame(listing.listingId || listing.id) }}</strong> likes in this period
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Views Chart -->
+                  <div class="col-12 col-lg-4">
+                    <div class="chart-card">
+                      <h6 class="chart-title">
+                        <Icon icon="mdi:eye" class="me-2" />
+                        Views
+                      </h6>
+                      <div class="chart-wrapper">
+                        <canvas :id="`${listing.listingId || listing.id}_views`"></canvas>
+                        <div v-if="analyticsLoaded && (!analyticsData[listing.listingId || listing.id]?.views || analyticsData[listing.listingId || listing.id].views.length === 0)" class="chart-empty-state">
+                          <p class="text-muted small mb-0">No view data available</p>
+                        </div>
+                      </div>
+                      <div class="chart-summary">
+                        <strong>{{ getViewsCountForTimeFrame(listing.listingId || listing.id) }}</strong> views in this period
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
 
         </div>
       </div>
@@ -1453,51 +2208,145 @@ h4 {
 /* Mobile responsive styles */
 @media (max-width: 767.98px) {
   .container {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
   }
 
   .card {
-    padding: 1.25rem;
+    padding: 1.15rem;
   }
 
   .nav-tabs .nav-link {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.85rem;
   }
 
   h2,
   h3 {
-    font-size: 1.5rem;
+    font-size: 1.45rem;
   }
 
   .btn {
-    font-size: 0.875rem;
+    font-size: 0.85rem;
   }
 
   .boost-section .btn {
-    height: 44px;
-    font-size: 0.875rem;
+    height: 42px;
+    font-size: 0.85rem;
   }
 }
 
 @media (max-width: 575.98px) {
   .card {
-    padding: 1rem;
+    padding: 0.9rem;
   }
 
   h2,
   h3 {
-    font-size: 1.25rem;
+    font-size: 1.2rem;
   }
 
   .form-control,
   .form-select {
-    font-size: 0.875rem;
+    font-size: 0.85rem;
+    padding: 0.5rem;
   }
 
   .stars-display .star {
-    font-size: 16px;
+    font-size: 15px;
+  }
+
+  .shadow-soft {
+    padding: 1rem !important;
+  }
+
+  .profile-avatar-img {
+    width: 80px;
+    height: 80px;
+  }
+
+  .nav-tabs {
+    gap: 0.4rem;
+  }
+}
+
+/* iPhone 15 Pro and similar narrow screens (393px) */
+@media (max-width: 400px) {
+  .container {
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+  }
+
+  .card {
+    padding: 0.75rem;
+  }
+
+  .shadow-soft {
+    padding: 0.85rem !important;
+  }
+
+  .nav-tabs .nav-link {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  h2,
+  h3 {
+    font-size: 1.1rem;
+  }
+
+  .btn {
+    font-size: 0.8rem;
+    padding: 0.45rem 0.85rem;
+  }
+
+  .btn-sm {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.7rem;
+  }
+
+  .boost-section .btn {
+    height: 40px;
+    font-size: 0.8rem;
+  }
+
+  .form-control,
+  .form-select {
+    font-size: 0.8rem;
+    padding: 0.45rem;
+  }
+
+  .form-label {
+    font-size: 0.85rem;
+  }
+
+  .profile-avatar-img {
+    width: 72px;
+    height: 72px;
+  }
+
+  .stars-display .star {
+    font-size: 14px;
+  }
+
+  .nav-tabs {
+    gap: 0.3rem;
+  }
+
+  .qr-code-image {
+    max-width: 220px !important;
+  }
+
+  .qr-modal-header {
+    padding: 16px 18px !important;
+  }
+
+  .qr-modal-title {
+    font-size: 18px !important;
+  }
+
+  .qr-modal-body {
+    padding: 18px !important;
   }
 }
 
@@ -1595,5 +2444,146 @@ h4 {
   background: var(--color-bg-main);
   border-color: var(--color-border);
   color: var(--color-text-white);
+}
+
+/* Analytics Styles */
+.analytics-container {
+  margin-top: 1rem;
+}
+
+.analytics-listing-card {
+  background: var(--color-bg-purple-tint);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+}
+
+.analytics-listing-card h5 {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.analytics-listing-photo {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 2px solid var(--color-border);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-white);
+}
+
+.analytics-listing-photo:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.analytics-listing-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.analytics-listing-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: white;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.cursor-pointer:hover {
+  color: var(--color-primary);
+}
+
+.chart-card {
+  background: var(--color-bg-white);
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-title {
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+}
+
+.chart-wrapper {
+  position: relative;
+  height: 250px;
+  flex-grow: 1;
+  min-height: 200px;
+}
+
+.chart-wrapper canvas {
+  position: relative;
+  z-index: 1;
+}
+
+.chart-empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  text-align: center;
+  width: 100%;
+}
+
+.chart-summary {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.chart-summary strong {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+}
+
+@media (max-width: 991.98px) {
+  .chart-wrapper {
+    height: 200px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .analytics-listing-card {
+    padding: 1rem;
+  }
+
+  .chart-card {
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .chart-wrapper {
+    height: 180px;
+  }
 }
 </style>

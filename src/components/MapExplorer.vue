@@ -3,31 +3,94 @@
     <Transition name="map-explorer">
       <div v-if="isOpen" class="map-explorer-overlay" @click="closeExplorer">
         <div class="map-explorer-container" @click.stop>
-          <!-- Header -->
-          <div class="map-header">
+          <!-- Navigation Bar -->
+          <div class="map-navbar">
             <button class="close-btn" @click="closeExplorer">
               <Icon icon="mdi:close" />
             </button>
+            
+            <!-- Search and Filters Bar -->
+            <div class="navbar-search-filters">
+              <!-- Search Bar -->
+              <div class="search-input-wrapper">
+                <Icon icon="mdi:magnify" class="search-icon" />
+                <input
+                  type="text"
+                  v-model="searchQuery"
+                  placeholder="Search businesses..."
+                  class="search-input"
+                  @input="handleSearch"
+                />
+                <button
+                  v-if="searchQuery"
+                  class="search-clear-btn"
+                  @click="clearSearch"
+                >
+                  <Icon icon="mdi:close-circle" />
+                </button>
+              </div>
 
-            <!-- Category Filter Pills -->
-            <div class="category-pills">
-              <button
-                :class="['category-pill', { active: selectedCategory === null }]"
-                @click="selectCategory(null)"
-              >
-                <Icon icon="mdi:view-grid" class="me-1" />
-                All
-              </button>
-              <button
-                v-for="cat in categories"
-                :key="cat"
-                :class="['category-pill', { active: selectedCategory === cat }]"
-                @click="selectCategory(cat)"
-              >
-                {{ cat }}
-              </button>
+              <!-- Categories Dropdown -->
+              <div class="filter-control">
+                <select
+                  v-model="selectedCategory"
+                  class="category-select"
+                  @change="updateMarkers"
+                >
+                  <option :value="null">All Categories</option>
+                  <option v-for="cat in categories" :key="cat" :value="cat">
+                    {{ cat }}
+                  </option>
+                </select>
+              </div>
+
+              <!-- Distance Filter -->
+              <div v-if="userLocation && mapLoaded" class="filter-control">
+                <select
+                  v-model.number="distanceFilter"
+                  class="distance-select"
+                  @change="updateDistanceRing"
+                  :disabled="!distanceFilterEnabled"
+                >
+                  <option :value="0.5">0.5 km</option>
+                  <option :value="1">1 km</option>
+                  <option :value="2">2 km</option>
+                  <option :value="5">5 km</option>
+                  <option :value="10">10 km</option>
+                  <option :value="20">20 km</option>
+                  <option :value="50">50 km</option>
+                </select>
+                <button
+                  class="distance-toggle-btn"
+                  @click="toggleDistanceFilter"
+                  :class="{ active: distanceFilterEnabled }"
+                  title="Toggle Distance Filter"
+                >
+                  <Icon icon="mdi:map-marker-radius" />
+                </button>
+              </div>
             </div>
           </div>
+
+          <!-- Location Permission Prompt -->
+          <Transition name="prompt">
+            <div v-if="showLocationPrompt" class="location-prompt">
+              <div class="location-prompt-content">
+                <Icon icon="mdi:map-marker-off" class="prompt-icon" />
+                <h3>Enable Location Services</h3>
+                <p>To see nearby businesses and use the distance filter, please enable location services.</p>
+                <div class="prompt-buttons">
+                  <button class="btn btn-primary" @click="requestLocation">
+                    Enable Location
+                  </button>
+                  <button class="btn btn-secondary" @click="dismissLocationPrompt">
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Transition>
+
 
           <!-- Map Container -->
           <div ref="mapContainer" class="map-container">
@@ -55,7 +118,15 @@
                   <h4 class="business-name">{{ listing.businessName }}</h4>
                   <div class="business-rating">
                     <Icon icon="mdi:star" class="star-icon" />
-                    <span>{{ listing.averageRating?.toFixed(1) || 'New' }}</span>
+                    <span>{{ (listingsReviews[listing.id || listing.listingId]?.avgRating || listing.averageRating || 0).toFixed(1) }}</span>
+                    <span class="review-count" v-if="listingsReviews[listing.id || listing.listingId]?.totalReviews">
+                      ({{ listingsReviews[listing.id || listing.listingId].totalReviews }})
+                    </span>
+                    <span v-else-if="listing.totalReviews">({{ listing.totalReviews }})</span>
+                  </div>
+                  <div v-if="listingsReviews[listing.id || listing.listingId]?.topReview" class="business-review-preview">
+                    <p class="review-text">{{ listingsReviews[listing.id || listing.listingId].topReview.text }}</p>
+                    <span class="review-author">— {{ listingsReviews[listing.id || listing.listingId].topReview.author }}</span>
                   </div>
                 </div>
               </div>
@@ -94,7 +165,8 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Icon } from '@iconify/vue'
 import { db } from '@/firebase'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, getDocs, query, orderBy, limit, getDoc, doc, onSnapshot } from 'firebase/firestore'
+import ListingDrawer from './ListingDrawer.vue'
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false }
@@ -108,7 +180,33 @@ const markers = ref([])
 const listings = ref([])
 const selectedCategory = ref(null)
 const activeListing = ref(null)
+const drawerOpen = ref(false)
+const drawerListing = ref(null)
+const drawerSellerName = ref('')
+const drawerSellerAvatar = ref('')
 const mapLoaded = ref(false)
+
+// Reviews data for listings
+const listingsReviews = ref({}) // { listingId: { avgRating, totalReviews, topReview } }
+
+// Seller profile map (for names and avatars)
+const profileMap = ref({})
+const profileUnsubs = new Map()
+
+// Location services
+const userLocation = ref(null)
+const locationPermissionDenied = ref(false)
+const showLocationPrompt = ref(false)
+const hasRequestedLocation = ref(false)
+
+// Distance filter - preset values
+const distanceFilter = ref(5) // Default 5km
+const distanceFilterEnabled = ref(false)
+const distancePresets = [0.5, 1, 2, 5, 10, 20, 50] // Preset distances in km
+
+// Search
+const searchQuery = ref('')
+
 
 const categories = computed(() => {
   const cats = new Set(listings.value.map(l => l.businessCategory))
@@ -116,9 +214,51 @@ const categories = computed(() => {
 })
 
 const filteredListings = computed(() => {
-  if (!selectedCategory.value) return listings.value
-  return listings.value.filter(l => l.businessCategory === selectedCategory.value)
+  let filtered = [...listings.value]
+  
+  // Category filter
+  if (selectedCategory.value) {
+    filtered = filtered.filter(l => l.businessCategory === selectedCategory.value)
+  }
+  
+  // Search filter
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase().trim()
+    filtered = filtered.filter(l => {
+      const name = (l.businessName || '').toLowerCase()
+      const desc = (l.businessDesc || '').toLowerCase()
+      const category = (l.businessCategory || '').toLowerCase()
+      return name.includes(query) || desc.includes(query) || category.includes(query)
+    })
+  }
+  
+  // Distance filter
+  if (distanceFilterEnabled.value && userLocation.value) {
+    filtered = filtered.filter(l => {
+      if (!l.location?.lat || !l.location?.lng) return false
+      const distance = calculateDistance(
+        userLocation.value.lat,
+        userLocation.value.lng,
+        Number(l.location.lat),
+        Number(l.location.lng)
+      )
+      return distance <= distanceFilter.value
+    })
+  }
+  
+  return filtered
 })
+
+// Watch for filtered listings changes to fetch reviews for new listings
+watch(filteredListings, (newListings) => {
+  // Fetch reviews for listings that don't have them yet
+  newListings.forEach(listing => {
+    const listingId = listing.id || listing.listingId
+    if (listingId && !listingsReviews.value[listingId]) {
+      fetchListingReviews(listingId)
+    }
+  })
+}, { immediate: true })
 
 // Load Google Maps API dynamically
 function loadGoogleMapsScript() {
@@ -153,6 +293,128 @@ function loadGoogleMapsScript() {
   })
 }
 
+// Calculate distance between two coordinates (Haversine formula)
+function calculateDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371 // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+// Request user location
+async function requestLocation() {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.')
+    return
+  }
+
+  hasRequestedLocation.value = true
+  showLocationPrompt.value = false
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      userLocation.value = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      }
+      locationPermissionDenied.value = false
+      
+      // Center map on user location
+      if (map.value) {
+        map.value.setCenter(userLocation.value)
+        map.value.setZoom(14)
+        
+        // Add user location marker
+        addUserLocationMarker()
+        
+        // Show distance ring if enabled
+        if (distanceFilterEnabled.value) {
+          updateDistanceRing()
+        }
+      }
+    },
+    (error) => {
+      console.error('Error getting location:', error)
+      locationPermissionDenied.value = true
+      showLocationPrompt.value = true
+      
+      if (error.code === 1) {
+        // Permission denied
+        alert('Location access denied. Please enable location services in your browser settings.')
+      } else {
+        alert('Unable to get your location. Please try again.')
+      }
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  )
+}
+
+// Add user location marker
+function addUserLocationMarker() {
+  if (!map.value || !userLocation.value) return
+  
+  // Remove existing marker if any
+  if (window.userLocationMarker) {
+    window.userLocationMarker.setMap(null)
+  }
+  
+  // Create user location marker
+  window.userLocationMarker = new window.google.maps.Marker({
+    position: userLocation.value,
+    map: map.value,
+    icon: {
+      path: window.google.maps.SymbolPath.CIRCLE,
+      scale: 8,
+      fillColor: '#4285F4',
+      fillOpacity: 1,
+      strokeColor: '#FFFFFF',
+      strokeWeight: 3
+    },
+    zIndex: 1000,
+    title: 'Your Location'
+  })
+}
+
+// Update distance filter (no visual ring, just filtering)
+function updateDistanceRing() {
+  // Just update markers based on distance filter
+  // No visual circles on the map
+  updateMarkers()
+}
+
+// Toggle distance filter
+function toggleDistanceFilter() {
+  distanceFilterEnabled.value = !distanceFilterEnabled.value
+  updateDistanceRing()
+}
+
+
+// Dismiss location prompt
+function dismissLocationPrompt() {
+  showLocationPrompt.value = false
+  hasRequestedLocation.value = true
+}
+
+// Handle search
+function handleSearch() {
+  updateMarkers()
+}
+
+// Clear search
+function clearSearch() {
+  searchQuery.value = ''
+  updateMarkers()
+}
+
 // Initialize map
 async function initMap() {
   try {
@@ -174,11 +436,60 @@ async function initMap() {
     })
 
     mapLoaded.value = true
+    
+    // Check if location services are available and request permission
+    if (navigator.geolocation && !hasRequestedLocation.value) {
+      // Try to get location silently first
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          userLocation.value = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          }
+          if (map.value) {
+            map.value.setCenter(userLocation.value)
+            map.value.setZoom(14)
+            addUserLocationMarker()
+          }
+        },
+        () => {
+          // Location denied or unavailable - show prompt
+          showLocationPrompt.value = true
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0
+        }
+      )
+    } else if (!navigator.geolocation) {
+      // Geolocation not supported
+      showLocationPrompt.value = true
+    }
+    
     await loadListings()
   } catch (error) {
     console.error('Error initializing map:', error)
     mapLoaded.value = false
   }
+}
+
+// Start profile listener for a user
+function startProfileListener(uid) {
+  if (!uid || profileUnsubs.has(uid)) return
+  const unsub = onSnapshot(doc(db, 'users', uid), snap => {
+    const data = snap.data() || {}
+    const displayName = data.username || data.displayName || ''
+    const photoURL = data.photoURL || data.profilePicture || data.avatarUrl || data.profilePhoto || ''
+    profileMap.value = { ...profileMap.value, [uid]: { displayName, photoURL } }
+  })
+  profileUnsubs.set(uid, unsub)
+}
+
+// Attach profile listeners for listings
+function attachProfileListeners(rows) {
+  const uids = new Set(rows.map(r => r.userId).filter(Boolean))
+  uids.forEach(startProfileListener)
 }
 
 // Load all listings
@@ -188,6 +499,13 @@ async function loadListings() {
     listings.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     console.log('Loaded listings:', listings.value.length)
     console.log('Sample listing:', listings.value[0])
+    
+    // Attach profile listeners
+    attachProfileListeners(listings.value)
+    
+    // Fetch reviews for all listings
+    await fetchAllReviews()
+    
     updateMarkers()
   } catch (error) {
     console.error('Error loading listings:', error)
@@ -241,7 +559,7 @@ function updateMarkers() {
     marker.overlay = overlay
 
     marker.addListener('click', () => {
-      activeListing.value = listing
+      openDrawer(listing)
       map.value.panTo(position)
       map.value.setZoom(15)
     })
@@ -315,11 +633,21 @@ function createCustomOverlay(position, listing) {
       div.appendChild(imageContainer)
       div.appendChild(nameLabel)
 
-      // Click handler
+      // Click handler - need to access Vue refs from closure
+      const listingData = this.listing
+      const listingPosition = this.position
       div.addEventListener('click', () => {
-        activeListing.value = this.listing
-        map.value.panTo(this.position)
-        map.value.setZoom(15)
+        // Access current profileMap value
+        const currentProfileMap = profileMap.value
+        const prof = listingData?.userId ? currentProfileMap[listingData.userId] : null
+        drawerListing.value = listingData
+        drawerSellerName.value = prof?.displayName || ''
+        drawerSellerAvatar.value = prof?.photoURL || ''
+        drawerOpen.value = true
+        if (map.value) {
+          map.value.panTo(listingPosition)
+          map.value.setZoom(15)
+        }
       })
 
       this.div = div
@@ -527,7 +855,7 @@ function selectCategory(category) {
 }
 
 function openListing(listing) {
-  activeListing.value = listing
+  openDrawer(listing)
   if (listing.location?.lat && listing.location?.lng) {
     map.value.panTo({
       lat: listing.location.lat,
@@ -537,9 +865,19 @@ function openListing(listing) {
   }
 }
 
-function viewListingDetails(listing) {
-  emit('openListing', listing)
-  closeExplorer()
+function openDrawer(listing) {
+  drawerListing.value = listing
+  // Get seller info from profile map if available
+  const prof = listing?.userId ? profileMap.value[listing.userId] : null
+  drawerSellerName.value = prof?.displayName || ''
+  drawerSellerAvatar.value = prof?.photoURL || ''
+  drawerOpen.value = true
+}
+
+function closeDrawer() {
+  drawerOpen.value = false
+  drawerListing.value = null
+  activeListing.value = null
 }
 
 function closeExplorer() {
@@ -561,6 +899,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   markers.value.forEach(marker => marker.setMap(null))
+  // Clean up profile listeners
+  profileUnsubs.forEach(unsub => unsub && unsub())
+  profileUnsubs.clear()
 })
 </script>
 
@@ -592,32 +933,283 @@ onBeforeUnmount(() => {
   background: var(--color-bg-main);
 }
 
-/* Header */
-.map-header {
+/* Navigation Bar */
+.map-navbar {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.90) 100%);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.95) 100%);
   backdrop-filter: blur(10px);
-  padding: 15px 70px 15px 20px;
-  z-index: 10;
+  padding: 12px 20px;
+  z-index: 100;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-:root.dark-mode .map-header {
-  background: linear-gradient(180deg, rgba(26,26,46,0.98) 0%, rgba(26,26,46,0.90) 100%);
+:root.dark-mode .map-navbar {
+  background: linear-gradient(180deg, rgba(26,26,46,0.98) 0%, rgba(26,26,46,0.95) 100%);
+}
+
+/* Search and Filters Bar - All in one line */
+.navbar-search-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-select {
+  padding: 8px 32px 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  min-width: 150px;
+  height: 40px;
+}
+
+:root.dark-mode .category-select {
+  background: var(--color-bg-secondary);
+  border-color: #2a2a3e;
+  color: var(--color-text-primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.category-select:hover {
+  border-color: var(--color-primary);
+}
+
+.category-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.distance-toggle-btn {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #666;
+  font-size: 20px;
+  padding: 0;
+}
+
+:root.dark-mode .distance-toggle-btn {
+  background: var(--color-bg-secondary);
+  border-color: #2a2a3e;
+  color: #aaa;
+}
+
+.distance-toggle-btn:hover {
+  background: var(--color-primary-pale);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.distance-toggle-btn.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+:root.dark-mode .distance-toggle-btn.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+.distance-select {
+  padding: 8px 32px 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  min-width: 110px;
+  height: 40px;
+}
+
+.distance-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+:root.dark-mode .distance-select {
+  background: var(--color-bg-secondary);
+  border-color: #2a2a3e;
+  color: var(--color-text-primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.distance-select:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.distance-select:focus:not(:disabled) {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.navbar-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.navbar-toggle-btn {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #666;
+  font-size: 20px;
+}
+
+:root.dark-mode .navbar-toggle-btn {
+  background: var(--color-bg-secondary);
+  border-color: #2a2a3e;
+  color: #aaa;
+}
+
+.navbar-toggle-btn:hover {
+  background: var(--color-primary-pale);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.navbar-toggle-btn.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+:root.dark-mode .navbar-toggle-btn.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
+  flex: 1;
+  min-width: 200px;
+}
+
+:root.dark-mode .search-input-wrapper {
+  background: var(--color-bg-secondary);
+  border-color: #2a2a3e;
+}
+
+.search-icon {
+  color: #666;
+  font-size: 20px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+:root.dark-mode .search-icon {
+  color: #aaa;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  padding: 4px 0;
+}
+
+.search-input::placeholder {
+  color: #999;
+}
+
+:root.dark-mode .search-input::placeholder {
+  color: #666;
+}
+
+.search-clear-btn {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  transition: color 0.2s ease;
+}
+
+.search-clear-btn:hover {
+  color: #666;
+}
+
+:root.dark-mode .search-clear-btn {
+  color: #666;
+}
+
+:root.dark-mode .search-clear-btn:hover {
+  color: #aaa;
 }
 
 .close-btn {
-  position: absolute;
-  top: 15px;
-  right: 20px;
   background: white;
-  border: none;
+  border: 1px solid #e0e0e0;
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -625,18 +1217,120 @@ onBeforeUnmount(() => {
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   transition: all 0.2s ease;
   font-size: 20px;
-  z-index: 11;
+  color: #666;
 }
 
 :root.dark-mode .close-btn {
   background: var(--color-bg-secondary);
+  border-color: #2a2a3e;
   color: var(--color-text-primary);
 }
 
 .close-btn:hover {
-  transform: scale(1.1);
+  background: var(--color-primary-pale);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
+
+/* Location Prompt */
+.location-prompt {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.6);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.location-prompt-content {
+  background: white;
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+:root.dark-mode .location-prompt-content {
+  background: var(--color-bg-secondary);
+}
+
+.prompt-icon {
+  font-size: 64px;
+  color: var(--color-primary);
+  margin-bottom: 16px;
+}
+
+.location-prompt-content h3 {
+  margin: 0 0 12px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.location-prompt-content p {
+  margin: 0 0 24px 0;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+:root.dark-mode .location-prompt-content p {
+  color: #aaa;
+}
+
+.prompt-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.prompt-buttons .btn {
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.prompt-buttons .btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.prompt-buttons .btn-primary:hover {
+  background: var(--color-primary-dark);
+  transform: scale(1.02);
+}
+
+.prompt-buttons .btn-secondary {
+  background: #e0e0e0;
+  color: #333;
+}
+
+:root.dark-mode .prompt-buttons .btn-secondary {
+  background: #2a2a3e;
+  color: var(--color-text-primary);
+}
+
+.prompt-buttons .btn-secondary:hover {
+  background: #d0d0d0;
+}
+
+:root.dark-mode .prompt-buttons .btn-secondary:hover {
+  background: #3a3a4e;
+}
+
 
 /* Category Pills */
 .category-pills {
@@ -693,6 +1387,8 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 0;
   left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 .map-loading {
@@ -744,7 +1440,7 @@ onBeforeUnmount(() => {
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
   max-height: 200px;
-  z-index: 10;
+  z-index: 99;
 }
 
 :root.dark-mode .business-cards-container {
@@ -770,12 +1466,15 @@ onBeforeUnmount(() => {
 .business-card {
   flex-shrink: 0;
   width: 200px;
+  min-height: 200px;
   background: white;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 :root.dark-mode .business-card {
@@ -814,6 +1513,9 @@ onBeforeUnmount(() => {
 
 .business-info {
   padding: 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .business-name {
@@ -864,9 +1566,15 @@ onBeforeUnmount(() => {
   background: rgba(0, 0, 0, 0.7);
 }
 
-.popup-content {
-  background: white;
-  border-radius: 20px;
+.review-text {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin: 0 0 4px 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
   box-shadow: 0 10px 40px rgba(0,0,0,0.3);
   position: relative;
@@ -963,24 +1671,115 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
-.popup-enter-active,
-.popup-leave-active {
+
+.prompt-enter-active,
+.prompt-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.prompt-enter-from,
+.prompt-leave-to {
+  opacity: 0;
+}
+
+/* Slide down animation for header */
+.slide-down-enter-active,
+.slide-down-leave-active {
   transition: all 0.3s ease;
 }
 
-.popup-enter-from,
-.popup-leave-to {
+.slide-down-enter-from {
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.8);
+  transform: translateY(-20px);
+}
+
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+/* Fade animation for search and categories */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 @media (max-width: 768px) {
-  .map-header {
-    padding: 15px 70px 15px 15px;
+  .map-navbar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .navbar-search-filters {
+    gap: 8px;
+  }
+
+  .search-input-wrapper {
+    min-width: 120px;
+    padding: 6px 10px;
+  }
+
+  .category-select {
+    min-width: 120px;
+    height: 36px;
+    font-size: 13px;
+    padding: 6px 28px 6px 10px;
+  }
+
+  .distance-select {
+    min-width: 90px;
+    height: 36px;
+    font-size: 13px;
+    padding: 6px 28px 6px 10px;
+  }
+
+  .distance-toggle-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .navbar-toggle-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .close-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
   }
 
   .business-card {
     width: 160px;
+  }
+
+  .location-prompt-content {
+    padding: 24px;
+    margin: 20px;
+  }
+
+  .prompt-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+
+  .location-prompt-content h3 {
+    font-size: 20px;
+  }
+
+  .prompt-buttons {
+    flex-direction: column;
+  }
+
+  .prompt-buttons .btn {
+    width: 100%;
   }
 }
 </style>

@@ -111,17 +111,17 @@ function handleLocationBlur() {
 
 <template>
   <div class="search mt-2">
-    <form class="d-flex align-items-center gap-3" role="search" @submit="handleSearch">
+    <form class="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 gap-md-3" role="search" @submit="handleSearch">
       <input
-        class="home-business form-control"
+        class="home-business form-control flex-grow-1"
         type="search"
         placeholder="🔍 Search for a home business"
         aria-label="Search"
         v-model="searchQuery"
       />
-      <div class="location-dropdown-wrapper">
+      <div class="location-dropdown-wrapper flex-grow-1 flex-md-grow-0">
         <input
-          class="location-search form-control"
+          class="location-search form-control w-100"
           type="search"
           placeholder="📍 Search location"
           aria-label="Search Location"
@@ -160,7 +160,7 @@ function handleLocationBlur() {
           </div>
         </div>
       </div>
-      <button class="btn btn-search" type="submit">Search</button>
+      <button class="btn btn-search w-100 w-md-auto flex-shrink-0" type="submit">Search</button>
     </form>
   </div>
 </template>
@@ -313,14 +313,14 @@ function handleLocationBlur() {
 @media (max-width: 768px) {
   .search form {
     flex-wrap: wrap;
-    gap: 0.75rem !important;
+    gap: 0.65rem !important;
   }
 
   .home-business {
     width: 100%;
     flex: 1 1 100%;
-    height: 48px;
-    padding: 12px;
+    height: 46px;
+    padding: 11px;
   }
 
   .location-dropdown-wrapper {
@@ -329,33 +329,99 @@ function handleLocationBlur() {
   }
 
   .location-search {
-    height: 48px;
-    padding: 12px;
+    height: 46px;
+    padding: 11px;
   }
 
   .btn-search {
     width: 100%;
     flex: 1 1 100%;
-    height: 48px;
-    padding: 0 20px;
+    height: 46px;
+    padding: 0 18px;
   }
 }
 
 @media (max-width: 575.98px) {
   .search form {
-    gap: 0.5rem !important;
+    gap: 0.45rem !important;
   }
 
   .home-business,
   .location-search {
-    height: 44px;
-    padding: 10px;
-    font-size: 0.875rem;
+    height: 42px;
+    padding: 9px;
+    font-size: 0.8rem;
   }
 
   .btn-search {
-    height: 44px;
-    font-size: 0.875rem;
+    height: 42px;
+    font-size: 0.8rem;
+  }
+
+  .location-dropdown {
+    max-height: 350px;
+  }
+
+  .dropdown-header {
+    padding: 7px 12px;
+    font-size: 0.8rem;
+  }
+
+  .location-item {
+    padding: 10px 12px;
+    padding-left: 22px;
+    font-size: 0.85rem;
+  }
+
+  .location-item:hover {
+    padding-left: 26px;
+  }
+}
+
+/* iPhone 15 Pro and similar narrow screens (393px) */
+@media (max-width: 400px) {
+  .search form {
+    gap: 0.4rem !important;
+  }
+
+  .home-business,
+  .location-search {
+    height: 40px;
+    padding: 8px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+  }
+
+  .home-business::placeholder,
+  .location-search::placeholder {
+    font-size: 0.75rem;
+  }
+
+  .btn-search {
+    height: 40px;
+    font-size: 0.75rem;
+    padding: 0 16px;
+    border-radius: 8px;
+  }
+
+  .location-dropdown {
+    max-height: 320px;
+    border-radius: 6px;
+  }
+
+  .dropdown-header {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+
+  .location-item {
+    padding: 9px 10px;
+    padding-left: 20px;
+    font-size: 0.8rem;
+  }
+
+  .location-item:hover {
+    padding-left: 24px;
   }
 }
 </style>

@@ -3,7 +3,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } 
 import {
   getFirestore, collection, query, orderBy, limit, getDoc, getDocs, startAfter,
   doc, setDoc, updateDoc, increment, deleteDoc, onSnapshot, where,
-  getCountFromServer
+  getCountFromServer, addDoc, serverTimestamp
 } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import { db, auth } from '@/firebase'
@@ -625,6 +625,18 @@ async function incrementViewCount(listingId) {
 
       // Increment viewCount by 1
       await updateDoc(listingDocRef, { viewCount: increment(1) });
+      
+      // Also record the view in viewHistory for analytics
+      try {
+        const viewHistoryRef = collection(db, 'allListings', listingId, 'viewHistory');
+        await addDoc(viewHistoryRef, {
+          timestamp: serverTimestamp()
+        });
+      } catch (historyError) {
+        // Silently fail if viewHistory can't be written (e.g., permissions)
+        // The viewCount increment is more important
+        console.warn('Could not record view history:', historyError);
+      }
     } else {
       console.warn("⚠️ Listing document does not exist.");
     }
@@ -690,13 +702,13 @@ onBeforeUnmount(() => {
       <h2 class="page-title mt-4 mb-3">{{ pageTitle }}</h2>
 
       <!-- Sort Dropdown -->
-      <div class="d-flex justify-content-end align-items-center my-3 gap-2 flex-wrap">
-        <div class="sort-dropdown-wrapper position-relative">
+      <div class="d-flex flex-column flex-md-row justify-content-md-end align-items-stretch align-items-md-center my-3 gap-2">
+        <div class="sort-dropdown-wrapper position-relative w-100 w-md-auto">
           <button
-            class="btn btn-outline-primary d-flex align-items-center gap-2 sort-btn"
+            class="btn btn-outline-primary d-flex align-items-center justify-content-between w-100 w-md-auto gap-2 sort-btn"
             @click="sortDropdownOpen = !sortDropdownOpen"
           >
-            <span class="sort-label">Sort: <strong>{{ sortBy === 'trending' ? 'Trending' : sortBy === 'best-match' ? 'Best Match' : sortBy === 'most-reviewed' ? 'Most Reviewed' : sortBy === 'oldest' ? 'Oldest First' : sortBy === 'cheapest' ? 'Cheapest First' : sortBy === 'most-expensive' ? 'Most Expensive First' : sortBy === 'nearby' ? 'Nearest First' : 'Trending' }}</strong></span>
+            <span class="sort-label text-truncate">Sort: <strong>{{ sortBy === 'trending' ? 'Trending' : sortBy === 'best-match' ? 'Best Match' : sortBy === 'most-reviewed' ? 'Most Reviewed' : sortBy === 'oldest' ? 'Oldest First' : sortBy === 'cheapest' ? 'Cheapest First' : sortBy === 'most-expensive' ? 'Most Expensive First' : sortBy === 'nearby' ? 'Nearest First' : 'Trending' }}</strong></span>
             <i class="fas" :class="sortDropdownOpen ? 'fa-caret-up' : 'fa-caret-down'"></i>
           </button>
 
@@ -755,12 +767,12 @@ onBeforeUnmount(() => {
         </div>
         
         <!-- Price Range Filters -->
-        <div class="d-flex align-items-center gap-2 price-filter-wrapper">
-          <label class="small text-muted mb-0 price-label">Price:</label>
-          <input type="number" class="form-control form-control-sm price-input" v-model.number="minPrice" placeholder="Min" />
+        <div class="d-flex align-items-center gap-2 price-filter-wrapper w-100 w-md-auto">
+          <label class="small text-muted mb-0 price-label d-none d-md-inline">Price:</label>
+          <input type="number" class="form-control form-control-sm price-input flex-grow-1" style="max-width: 80px;" v-model.number="minPrice" placeholder="Min" />
           <span class="text-muted">-</span>
-          <input type="number" class="form-control form-control-sm price-input" v-model.number="maxPrice" placeholder="Max" />
-          <button class="btn btn-sm btn-outline-secondary apply-btn" @click="applySorting">Apply</button>
+          <input type="number" class="form-control form-control-sm price-input flex-grow-1" style="max-width: 80px;" v-model.number="maxPrice" placeholder="Max" />
+          <button class="btn btn-sm btn-outline-secondary apply-btn flex-shrink-0" @click="applySorting">Apply</button>
         </div>
       </div>
       
@@ -1044,36 +1056,78 @@ onBeforeUnmount(() => {
 @media (max-width: 575.98px) {
   /* Keep 2 cards per row, adjust gutter */
   .row.g-3 {
-    --bs-gutter-x: 0.6rem;
-    --bs-gutter-y: 0.85rem;
+    --bs-gutter-x: 0.5rem;
+    --bs-gutter-y: 0.75rem;
   }
 
   .card-sm :deep(.img-box) {
-    height: 200px !important;
+    height: 180px !important;
   }
 
   .btn {
-    font-size: 0.813rem;
-    padding: 0.4rem 0.75rem;
+    font-size: 0.7rem !important;
+    padding: 0.35rem 0.55rem !important;
+  }
+
+  .btn-sm {
+    font-size: 0.65rem !important;
+    padding: 0.25rem 0.45rem !important;
   }
 
   .py-3 {
-    padding-top: 0.65rem !important;
-    padding-bottom: 0.65rem !important;
+    padding-top: 0.6rem !important;
+    padding-bottom: 0.6rem !important;
   }
 
   /* Better spacing on mobile */
   .my-3 {
-    margin-top: 0.65rem !important;
-    margin-bottom: 0.65rem !important;
+    margin-top: 0.6rem !important;
+    margin-bottom: 0.6rem !important;
   }
 
   .mt-3 {
-    margin-top: 0.65rem !important;
+    margin-top: 0.6rem !important;
+  }
+
+  .mt-4 {
+    margin-top: 0.9rem !important;
+  }
+
+  .mb-3 {
+    margin-bottom: 0.65rem !important;
   }
 
   .pb-5 {
-    padding-bottom: 2rem !important;
+    padding-bottom: 1.8rem !important;
+  }
+
+  .page-title {
+    font-size: 1.3rem !important;
+  }
+
+  /* Sort dropdown mobile styles */
+  .sort-dropdown-menu {
+    width: 100vw;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 10px 10px 0 0;
+    max-width: 100%;
+  }
+
+  .sort-dropdown-item {
+    padding: 0.9rem 1.1rem;
+    font-size: 0.8rem;
+  }
+
+  /* Price filter inputs on mobile */
+  .form-control-sm {
+    font-size: 0.7rem;
+    padding: 0.28rem 0.38rem;
+  }
+
+  .content-container {
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
   }
 
   /* Mobile sort and price filter fixes */
@@ -1157,15 +1211,73 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Extra small devices */
-@media (max-width: 380px) {
+/* iPhone 15 Pro and similar narrow screens (393px) */
+@media (max-width: 400px) {
   .row.g-3 {
-    --bs-gutter-x: 0.4rem;
+    --bs-gutter-x: 0.35rem;
     --bs-gutter-y: 0.6rem;
   }
 
   .card-sm :deep(.img-box) {
     height: 160px !important;
+  }
+
+  .btn {
+    font-size: 0.65rem !important;
+    padding: 0.3rem 0.5rem !important;
+  }
+
+  .btn-sm {
+    font-size: 0.6rem !important;
+    padding: 0.22rem 0.4rem !important;
+  }
+
+  .page-title {
+    font-size: 1.2rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .sort-dropdown-item {
+    padding: 0.8rem 1rem;
+    font-size: 0.75rem;
+  }
+
+  .form-control-sm {
+    font-size: 0.65rem;
+    padding: 0.25rem 0.35rem;
+    max-width: 70px !important;
+  }
+
+  .content-container {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+
+  /* Tighter spacing for narrow screens */
+  .my-3 {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .mt-3 {
+    margin-top: 0.5rem !important;
+  }
+
+  .mt-4 {
+    margin-top: 0.8rem !important;
+  }
+
+  .mb-3 {
+    margin-bottom: 0.55rem !important;
+  }
+
+  .pb-5 {
+    padding-bottom: 1.5rem !important;
+  }
+
+  /* Adjust gap for sort/filter controls */
+  .d-flex.gap-2 {
+    gap: 0.4rem !important;
   }
 }
 

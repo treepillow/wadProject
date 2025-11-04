@@ -705,13 +705,13 @@ onBeforeUnmount(() => {
       <div class="d-flex flex-column flex-md-row justify-content-md-end align-items-stretch align-items-md-center my-3 gap-2">
         <div class="sort-dropdown-wrapper position-relative w-100 w-md-auto">
           <button
-            class="btn btn-outline-primary d-flex align-items-center justify-content-between w-100 w-md-auto gap-2"
+            class="btn btn-outline-primary d-flex align-items-center justify-content-between w-100 w-md-auto gap-2 sort-btn"
             @click="sortDropdownOpen = !sortDropdownOpen"
           >
-            <span class="text-truncate">Sort: <strong>{{ sortBy === 'trending' ? 'Trending' : sortBy === 'best-match' ? 'Best Match' : sortBy === 'most-reviewed' ? 'Most Reviewed' : sortBy === 'oldest' ? 'Oldest First' : sortBy === 'cheapest' ? 'Cheapest First' : sortBy === 'most-expensive' ? 'Most Expensive First' : sortBy === 'nearby' ? 'Nearest First' : 'Trending' }}</strong></span>
+            <span class="sort-label text-truncate">Sort: <strong>{{ sortBy === 'trending' ? 'Trending' : sortBy === 'best-match' ? 'Best Match' : sortBy === 'most-reviewed' ? 'Most Reviewed' : sortBy === 'oldest' ? 'Oldest First' : sortBy === 'cheapest' ? 'Cheapest First' : sortBy === 'most-expensive' ? 'Most Expensive First' : sortBy === 'nearby' ? 'Nearest First' : 'Trending' }}</strong></span>
             <i class="fas" :class="sortDropdownOpen ? 'fa-caret-up' : 'fa-caret-down'"></i>
           </button>
-          
+
           <!-- Dropdown Menu -->
           <div v-if="sortDropdownOpen" class="sort-dropdown-menu">
             <div 
@@ -767,12 +767,12 @@ onBeforeUnmount(() => {
         </div>
         
         <!-- Price Range Filters -->
-        <div class="d-flex align-items-center gap-2 w-100 w-md-auto">
-          <label class="small text-muted mb-0 d-none d-md-inline">Price:</label>
-          <input type="number" class="form-control form-control-sm flex-grow-1" style="max-width: 80px;" v-model.number="minPrice" placeholder="Min" />
+        <div class="d-flex align-items-center gap-2 price-filter-wrapper w-100 w-md-auto">
+          <label class="small text-muted mb-0 price-label d-none d-md-inline">Price:</label>
+          <input type="number" class="form-control form-control-sm price-input flex-grow-1" style="max-width: 80px;" v-model.number="minPrice" placeholder="Min" />
           <span class="text-muted">-</span>
-          <input type="number" class="form-control form-control-sm flex-grow-1" style="max-width: 80px;" v-model.number="maxPrice" placeholder="Max" />
-          <button class="btn btn-sm btn-outline-secondary flex-shrink-0" @click="applySorting">Apply</button>
+          <input type="number" class="form-control form-control-sm price-input flex-grow-1" style="max-width: 80px;" v-model.number="maxPrice" placeholder="Max" />
+          <button class="btn btn-sm btn-outline-secondary apply-btn flex-shrink-0" @click="applySorting">Apply</button>
         </div>
       </div>
       
@@ -1128,6 +1128,86 @@ onBeforeUnmount(() => {
   .content-container {
     padding-left: 0.45rem;
     padding-right: 0.45rem;
+  }
+
+  /* Mobile sort and price filter fixes */
+  .sort-btn {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.65rem;
+    white-space: nowrap;
+  }
+
+  .sort-label {
+    font-size: 0.75rem;
+  }
+
+  .price-filter-wrapper {
+    gap: 0.35rem !important;
+  }
+
+  .price-label {
+    font-size: 0.7rem;
+  }
+
+  .price-input {
+    width: 65px !important;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .apply-btn {
+    font-size: 0.7rem;
+    padding: 0.35rem 0.55rem;
+  }
+}
+
+/* Narrow mobile screens (393px - 412px width) */
+@media (max-width: 420px) {
+  .sort-btn {
+    font-size: 0.7rem;
+    padding: 0.35rem 0.6rem;
+  }
+
+  .sort-label {
+    font-size: 0.7rem;
+  }
+
+  .price-filter-wrapper {
+    gap: 0.3rem !important;
+  }
+
+  .price-label {
+    font-size: 0.65rem;
+  }
+
+  .price-input {
+    width: 58px !important;
+    font-size: 0.7rem;
+    padding: 0.3rem 0.35rem;
+  }
+
+  .apply-btn {
+    font-size: 0.65rem;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  /* Reduce card spacing for less cramped feel */
+  .row.g-3 {
+    --bs-gutter-x: 0.35rem;
+    --bs-gutter-y: 0.6rem;
+  }
+
+  .card-sm :deep(.img-box) {
+    height: 120px !important;
+  }
+
+  .content-container {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
   }
 }
 

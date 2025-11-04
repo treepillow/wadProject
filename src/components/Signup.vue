@@ -149,7 +149,7 @@
                 @load="handleImageLoad"
               />
             </div>
-            <div v-else class="text-muted" style="margin: 10px 0;">
+            <div v-else class="text-muted no-profile-text">
               No profile picture set yet
             </div>
           </div>
@@ -354,7 +354,7 @@
                   @load="handleImageLoad"
                 />
               </div>
-              <div v-else class="text-muted" style="margin: 10px 0;">
+              <div v-else class="text-muted no-profile-text">
                 Google profile picture will be used
               </div>
             </div>
@@ -1932,6 +1932,15 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
   .notification-message {
     font-size: 0.875rem;
   }
+}
+
+/* Text muted and no-profile-text styles */
+.text-muted {
+  color: var(--color-text-secondary);
+}
+
+.no-profile-text {
+  margin: 10px 0;
 }
 
 </style>

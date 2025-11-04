@@ -623,7 +623,7 @@ function closeNavbar() {
     transition: left 0.15s ease-out !important;
     z-index: 1050;
     overflow-y: auto;
-    padding: 1.1rem 0.9rem 1.1rem 0.9rem;
+    padding: 1.25rem 1rem 1.25rem 1rem;
     display: block !important;
     visibility: hidden;
     border: none;
@@ -648,10 +648,10 @@ function closeNavbar() {
   }
 
   .navbar-nav {
-    padding-top: 0.9rem;
+    padding-top: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.85rem;
   }
 
   .navbar-nav .nav-item {
@@ -700,17 +700,17 @@ function closeNavbar() {
     display: flex;
     flex-direction: column; /* Changed to column for mobile */
     align-items: center;
-    padding: 0.9rem 0;
-    margin-bottom: 0.45rem;
+    padding: 1rem 0;
+    margin-bottom: 0.5rem;
   }
 
   .mobile-avatar {
-    width: 72px;
-    height: 72px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2.5px solid var(--color-primary);
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+    border: 3px solid var(--color-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     opacity: 0;
     transition: opacity 0.4s ease-in-out;
   }
@@ -726,21 +726,21 @@ function closeNavbar() {
     flex-direction: row;
     align-items: center;
     justify-content: flex-start;
-    gap: 0.65rem;
-    min-height: 44px;
-    padding: 0.65rem 0.9rem;
+    gap: 0.75rem;
+    min-height: 48px;
+    padding: 0.75rem 1rem;
     text-align: left;
   }
 
   .mobile-nav-btn .icon-24 {
-    width: 19px;
-    height: 19px;
+    width: 20px;
+    height: 20px;
     margin: 0;
     flex-shrink: 0;
   }
 
   .mobile-nav-btn .btn-text {
-    font-size: 0.825rem;
+    font-size: 0.875rem;
     margin: 0;
   }
 
@@ -822,69 +822,6 @@ function closeNavbar() {
   :root.dark-mode .navbar-nav .dropdown-item {
     background: rgba(255, 255, 255, 0.1);
     color: var(--color-text-white);
-  }
-}
-
-/* iPhone 15 Pro and similar narrow screens (393px) */
-@media (max-width: 400px) {
-  .navbar-collapse {
-    width: 260px !important;
-    left: -260px !important;
-    padding: 0.9rem 0.75rem !important;
-  }
-
-  .navbar-nav {
-    padding-top: 0.75rem !important;
-    gap: 0.6rem !important;
-  }
-
-  .mobile-profile-header {
-    padding: 0.75rem 0 !important;
-    margin-bottom: 0.35rem !important;
-  }
-
-  .mobile-avatar {
-    width: 64px !important;
-    height: 64px !important;
-    border: 2px solid var(--color-primary) !important;
-  }
-
-  .mobile-nav-btn {
-    min-height: 40px !important;
-    padding: 0.55rem 0.75rem !important;
-    gap: 0.55rem !important;
-  }
-
-  .mobile-nav-btn .icon-24 {
-    width: 18px !important;
-    height: 18px !important;
-  }
-
-  .mobile-nav-btn .btn-text {
-    font-size: 0.775rem !important;
-  }
-
-  .order-mobile-last {
-    margin-top: 0.4rem !important;
-    padding-top: 0.7rem !important;
-  }
-
-  .navbar-nav .dropdown-item {
-    padding: 0.6rem 0.85rem !important;
-    font-size: 0.8rem;
-  }
-
-  .badge-drawer {
-    width: 85% !important;
-    max-width: 100% !important;
-  }
-
-  .drawer-header {
-    padding: 1.2rem !important;
-  }
-
-  .drawer-title {
-    font-size: 1.3rem !important;
   }
 }
 

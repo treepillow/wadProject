@@ -553,207 +553,69 @@ function goToUserProfile(event) {
 
 @media (max-width: 575.98px) {
   .card {
-    border-radius: 10px;
-    max-width: 100%;
-    overflow: hidden;
+    border-radius: 12px;
   }
 
   .img-box {
-    height: 180px !important;
-    border-radius: 8px !important;
+    height: 200px !important;
+    border-radius: 10px !important;
   }
 
   .card-header {
-    padding: 0.5rem 0.65rem 0.3rem !important;
-    min-height: auto;
+    padding: 0.75rem 0.9rem 0.5rem !important;
   }
 
   .card-body {
-    padding: 0.5rem 0.65rem !important;
+    padding: 0.65rem 0.9rem !important;
   }
 
   .card-footer {
-    padding: 0.5rem 0.65rem !important;
+    padding: 0.65rem 0.9rem !important;
   }
 
   .card-title {
-    font-size: 0.8rem !important;
-    margin-bottom: 0.25rem !important;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-size: 0.9rem !important;
+    margin-bottom: 0.4rem !important;
   }
 
   .badge {
-    font-size: 0.55rem !important;
-    padding: 0.15rem 0.35rem !important;
-    white-space: nowrap;
+    font-size: 0.625rem !important;
+    padding: 0.25rem 0.5rem;
   }
 
   .btn-sm {
-    font-size: 0.65rem;
-    padding: 0.2rem 0.4rem;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
   }
 
   .small {
-    font-size: 0.65rem !important;
+    font-size: 0.7rem !important;
   }
 
   .avatar-box {
-    width: 24px !important;
-    height: 24px !important;
-    flex-shrink: 0;
+    width: 28px !important;
+    height: 28px !important;
   }
 
   .fw-bold {
-    font-size: 0.75rem;
+    font-size: 0.85rem;
   }
 
   .rating-display {
-    gap: 3px;
-    margin-bottom: 0.35rem !important;
+    gap: 4px;
+    margin-bottom: 0.5rem !important;
   }
 
   .rating-text {
-    font-size: 0.65rem;
-  }
-
-  .stars-small .star {
-    font-size: 10px;
-  }
-
-  .fw-semibold {
-    font-size: 0.65rem !important;
-  }
-
-  .seller-name-link {
-    max-width: 70px !important;
-    font-size: 0.65rem !important;
-  }
-
-  /* Prevent text overflow in all sections */
-  .text-truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
-  }
-
-  /* Disable hover transforms on mobile */
-  .selectable:hover {
-    transform: none !important;
-  }
-
-  .selectable:active {
-    transform: scale(0.98) !important;
-  }
-
-  /* Skeleton loaders on mobile */
-  .skeleton-avatar {
-    width: 24px !important;
-    height: 24px !important;
-  }
-
-  .skeleton-text {
-    width: 60px !important;
-    height: 14px !important;
-  }
-}
-
-/* iPhone 15 Pro and similar narrow screens (393px) */
-@media (max-width: 400px) {
-  .card {
-    border-radius: 8px;
-  }
-
-  .img-box {
-    height: 160px !important;
-    border-radius: 6px !important;
-  }
-
-  .card-header {
-    padding: 0.4rem 0.55rem 0.25rem !important;
-    gap: 0.25rem !important;
-  }
-
-  .card-body {
-    padding: 0.4rem 0.55rem !important;
-  }
-
-  .card-footer {
-    padding: 0.4rem 0.55rem !important;
-  }
-
-  .card-title {
-    font-size: 0.75rem !important;
-    margin-bottom: 0.2rem !important;
-  }
-
-  .badge {
-    font-size: 0.5rem !important;
-    padding: 0.12rem 0.3rem !important;
-  }
-
-  .btn-sm {
-    font-size: 0.6rem;
-    padding: 0.18rem 0.35rem;
-  }
-
-  .small {
-    font-size: 0.6rem !important;
-  }
-
-  .avatar-box {
-    width: 22px !important;
-    height: 22px !important;
-  }
-
-  .fw-bold {
     font-size: 0.7rem;
   }
 
-  .rating-display {
-    gap: 2px;
-    margin-bottom: 0.3rem !important;
-  }
-
-  .rating-text {
-    font-size: 0.6rem;
-  }
-
-  .stars-small {
-    gap: 0px;
-  }
-
   .stars-small .star {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .fw-semibold {
-    font-size: 0.6rem !important;
-  }
-
-  .seller-name-link {
-    max-width: 60px !important;
-    font-size: 0.6rem !important;
-  }
-
-  /* Adjust social icons */
-  .d-flex.gap-2 img {
-    width: 16px !important;
-    height: 16px !important;
-  }
-
-  /* Skeleton loaders on narrow screens */
-  .skeleton-avatar {
-    width: 22px !important;
-    height: 22px !important;
-  }
-
-  .skeleton-text {
-    width: 50px !important;
-    height: 12px !important;
+    font-size: 0.75rem !important;
   }
 }
 

@@ -23,6 +23,7 @@ const db = getFirestore()
 
 const user = ref(null)
 const avatarUrl = ref(userPng)
+const avatarLoaded = ref(false)
 const loggingOut = ref(false)
 const isAdmin = ref(false)
 let unsubAuth = null
@@ -43,13 +44,15 @@ onMounted(() => {
     user.value = u
     if (!u) {
       avatarUrl.value = userPng
+      avatarLoaded.value = true
       // Clean up user stats listener
       if (unsubUserStats) { unsubUserStats(); unsubUserStats = null }
       return
     }
 
-    // Start with default avatar
+    // Start with default avatar and show loading state
     avatarUrl.value = userPng
+    avatarLoaded.value = false
 
     // Set up real-time listener for user stats (including badge progress)
     if (unsubUserStats) { unsubUserStats(); unsubUserStats = null }
@@ -62,6 +65,10 @@ onMounted(() => {
         // Don't use Google profile picture (u.photoURL)
         const url = data.photoURL || data.profilePicture || userPng
         avatarUrl.value = url
+        // Delay to show loading animation
+        setTimeout(() => {
+          avatarLoaded.value = true
+        }, 100)
         // Check if user is admin
         isAdmin.value = data.isAdmin || false
       }
@@ -69,6 +76,7 @@ onMounted(() => {
       // Silently handle errors - console filter will suppress them
       // Keep default avatar on error
       avatarUrl.value = userPng
+      avatarLoaded.value = true
     })
   })
 })
@@ -185,7 +193,7 @@ function closeNavbar() {
               <!-- Profile picture at top (mobile only) -->
               <li class="nav-item order-mobile-0 d-lg-none">
                 <div class="mobile-profile-header">
-                  <img :src="avatarUrl" alt="User avatar" class="mobile-avatar" />
+                  <img :src="avatarUrl" alt="User avatar" class="mobile-avatar" :class="{ 'loaded': avatarLoaded }" />
                 </div>
               </li>
 
@@ -199,7 +207,7 @@ function closeNavbar() {
                 <!-- Desktop: Dropdown -->
                 <div class="dropdown d-none d-lg-block">
                   <button class="btn p-0 dropdown-toggle avatar-btn" data-bs-toggle="dropdown" aria-expanded="false">
-                    <img :src="avatarUrl" alt="User avatar" class="avatar-36" />
+                    <img :src="avatarUrl" alt="User avatar" class="avatar-36" :class="{ 'loaded': avatarLoaded }" />
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end">
                     <li><RouterLink to="/profile" class="dropdown-item">Profile</RouterLink></li>
@@ -395,13 +403,19 @@ function closeNavbar() {
 
 /* Avatar image styles */
 .avatar-36 {
-  width: 36px; 
-  height: 36px; 
+  width: 36px;
+  height: 36px;
   object-fit: cover;  /* Ensures the image covers the circular area */
   border-radius: 50%;
   border: 2px solid #fff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   background: #fff;
+  opacity: 0;
+  transition: opacity 0.4s ease-in-out;
+}
+
+.avatar-36.loaded {
+  opacity: 1;
 }
 
 .avatar-btn {
@@ -697,6 +711,12 @@ function closeNavbar() {
     object-fit: cover;
     border: 3px solid var(--color-primary);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transition: opacity 0.4s ease-in-out;
+  }
+
+  .mobile-avatar.loaded {
+    opacity: 1;
   }
 
   /* Mobile navigation buttons - horizontal layout with icon on left */

@@ -13,7 +13,7 @@ const progressText = computed(() => getSellerProgressText(props.points))
     <img :src="level.badge" :alt="level.display + ' badge'" class="badge-icon" :title="level.display" />
     <template v-if="props.progress">
       <div class="progress-container" style="flex:1; height: 18px; margin: 0 10px;">
-        <div class="progress" style="height: 18px; background:#eee; border-radius: 10px; overflow: hidden; position: relative;">
+        <div class="progress" style="height: 18px; border-radius: 10px; overflow: hidden; position: relative;">
           <div class="progress-bar" :style="{ width: (progress * 100) + '%', background: 'var(--color-primary)' }"></div>
           <div class="progress-text">{{ progressText }}</div>
         </div>
@@ -39,7 +39,13 @@ const progressText = computed(() => getSellerProgressText(props.points))
 .progress {
   min-width: 120px;
   position: relative;
+  background: var(--color-bg-purple-tint);
 }
+
+:root.dark-mode .progress {
+  background: rgba(122, 90, 248, 0.2);
+}
+
 .progress-bar {
   height: 100%;
   transition: width 0.3s;

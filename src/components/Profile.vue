@@ -44,6 +44,7 @@ export default {
 
     const avatarUrl = ref('')
     const avatarFile = ref(null)
+    const avatarLoaded = ref(false)
     const firstName = ref('')
     const lastName = ref('')
     const username = ref('')
@@ -51,6 +52,7 @@ export default {
     const phone = ref('')
     const dateOfBirth = ref('')   // ISO for <input type="date">
     const address = ref('')
+    const addressObj = ref(null)
     const averageRating = ref(0)
     const totalReviews = ref(0)
     const instagramId = ref('')
@@ -243,6 +245,7 @@ export default {
         startLikesListener(u.uid)
 
         // Set up real-time listener for user data (including stats for badge)
+        avatarLoaded.value = false
         unsubUserData = onSnapshot(doc(db, 'users', u.uid), (snap) => {
           if (snap.exists()) {
             const d = snap.data()
@@ -277,20 +280,29 @@ export default {
               address.value = ''
               addressObj.value = null
             }
-            avatarUrl.value = d.photoURL || d.profilePicture || u.photoURL || ''
+            // Only use Firestore photoURL - ignore Google profile picture
+            avatarUrl.value = d.photoURL || d.profilePicture || ''
+            // Delay to show loading animation
+            setTimeout(() => {
+              avatarLoaded.value = true
+            }, 100)
             averageRating.value = d.averageRating || 0
             totalReviews.value = d.totalReviews || 0
-            
+
             // Update user data with stats for badge calculation
             user.value = { ...user.value, stats: d.stats || { reviews: 0, boosts: 0 } }
 
+            console.log('[Profile] Avatar URL loaded:', avatarUrl.value)
+            console.log('[Profile] photoURL:', d.photoURL)
+            console.log('[Profile] profilePicture:', d.profilePicture)
             console.log('[Profile] User rating data:', {
               averageRating: averageRating.value,
               totalReviews: totalReviews.value
             })
           } else {
             email.value = u.email || ''
-            avatarUrl.value = u.photoURL || ''
+            avatarUrl.value = ''
+            avatarLoaded.value = true
           }
         })
 
@@ -499,6 +511,7 @@ export default {
       if (!f || !/^image\//.test(f.type)) return
       avatarFile.value = f
       avatarUrl.value = URL.createObjectURL(f)
+      avatarLoaded.value = true // Show the preview immediately
     }
 
     async function saveProfile() {
@@ -516,6 +529,9 @@ export default {
           const sref = storageRef(storage, path)
           await uploadBytes(sref, avatarFile.value, { contentType: avatarFile.value.type })
           photoURL = await getDownloadURL(sref)
+          // Clear the file input and update with the permanent URL
+          avatarFile.value = null
+          avatarUrl.value = photoURL
         }
         await updateDoc(doc(db, 'users', user.value.uid), {
           username: u,
@@ -526,6 +542,7 @@ export default {
           address: address.value.trim(),
           email: email.value || user.value.email || '',
           photoURL,
+          profilePicture: photoURL, // Keep both fields in sync
           instagram: instagramId.value.trim(),
           telegram: telegramId.value.trim(),
           updatedAt: serverTimestamp()
@@ -832,7 +849,7 @@ export default {
       activeTab, openTab,
       /* profile */
       loading, saving, err, ok,
-      avatarUrl, onPickAvatar,
+      avatarUrl, avatarLoaded, onPickAvatar,
       firstName, lastName, username, email, phone, dateOfBirth, address, displayName,
       averageRating, totalReviews,
       saveProfile,
@@ -896,7 +913,7 @@ export default {
               <!-- Avatar -->
               <div class="position-relative">
                 <img :src="avatarUrl || 'https://ui-avatars.com/api/?name=H&background=ECE8FF&color=5A43C5&size=128'"
-                  class="rounded-circle border object-fit-cover" style="width:96px;height:96px" alt="Avatar" />
+                  class="profile-avatar-img" :class="{ 'loaded': avatarLoaded }" alt="Avatar" />
                 <label class="btn btn-sm btn-light border position-absolute bottom-0 end-0 px-2 py-1">
                   Change <input type="file" accept="image/*" class="d-none" @change="onPickAvatar" />
                 </label>
@@ -972,8 +989,8 @@ export default {
               <!-- Social Media -->
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Instagram</label>
-                <div class="input-group">
-                  <span class="input-group-text">@</span>
+                <div class="input-group social-input-group">
+                  <span class="input-group-text social-prefix">@</span>
                   <input class="form-control" v-model="instagramId" placeholder="your_instagram_handle" />
                 </div>
                 <div class="form-text">Enter your Instagram username (no link, just the handle)</div>
@@ -981,8 +998,8 @@ export default {
 
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Telegram</label>
-                <div class="input-group">
-                  <span class="input-group-text">@</span>
+                <div class="input-group social-input-group">
+                  <span class="input-group-text social-prefix">@</span>
                   <input class="form-control" v-model="telegramId" placeholder="your_telegram_handle" />
                 </div>
                 <div class="form-text">Enter your Telegram username (no link, just the handle)</div>
@@ -1550,5 +1567,33 @@ h4 {
   .qr-code-image {
     max-width: 250px;
   }
+}
+
+/* Profile Avatar Fade-In Effect */
+.profile-avatar-img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  opacity: 0;
+  transition: opacity 0.4s ease-in-out;
+}
+
+.profile-avatar-img.loaded {
+  opacity: 1;
+}
+
+/* Social Media Input Groups Dark Mode */
+.social-input-group .input-group-text.social-prefix {
+  background: var(--color-bg-white);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+:root.dark-mode .social-input-group .input-group-text.social-prefix {
+  background: var(--color-bg-main);
+  border-color: var(--color-border);
+  color: var(--color-text-white);
 }
 </style>

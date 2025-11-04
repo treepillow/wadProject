@@ -190,7 +190,18 @@ export default {
         const userDocRef = doc(db, "users", user.uid);
         const userDoc = await getDoc(userDocRef);
 
-        if (!userDoc.exists() || !userDoc.data().profileComplete) {
+        if (!userDoc.exists()) {
+          // Account doesn't exist - sign them out and show error
+          await auth.signOut();
+          this.showNotification("Account not found. Please sign up first.", "danger");
+          setTimeout(() => {
+            this.$router.replace("/signup");
+          }, 2000);
+          this.googleLoading = false;
+          return;
+        }
+
+        if (!userDoc.data().profileComplete) {
           this.showNotification("Your profile setup is incomplete. Redirecting to complete your profile...", "warning");
           // Don't sign out - let them complete their profile
           setTimeout(() => {

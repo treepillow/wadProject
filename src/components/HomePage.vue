@@ -3,7 +3,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } 
 import {
   getFirestore, collection, query, orderBy, limit, getDoc, getDocs, startAfter,
   doc, setDoc, updateDoc, increment, deleteDoc, onSnapshot, where,
-  getCountFromServer
+  getCountFromServer, addDoc, serverTimestamp
 } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import { db, auth } from '@/firebase'
@@ -625,6 +625,18 @@ async function incrementViewCount(listingId) {
 
       // Increment viewCount by 1
       await updateDoc(listingDocRef, { viewCount: increment(1) });
+      
+      // Also record the view in viewHistory for analytics
+      try {
+        const viewHistoryRef = collection(db, 'allListings', listingId, 'viewHistory');
+        await addDoc(viewHistoryRef, {
+          timestamp: serverTimestamp()
+        });
+      } catch (historyError) {
+        // Silently fail if viewHistory can't be written (e.g., permissions)
+        // The viewCount increment is more important
+        console.warn('Could not record view history:', historyError);
+      }
     } else {
       console.warn("⚠️ Listing document does not exist.");
     }

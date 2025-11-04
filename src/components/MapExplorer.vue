@@ -1011,15 +1011,26 @@ watch(() => props.isOpen, (isOpen) => {
   }
 })
 
+// Listen for close event from NavBar home link
+function handleCloseEvent() {
+  if (props.isOpen) {
+    closeExplorer()
+  }
+}
+
 onMounted(() => {
   if (props.isOpen) {
     initMap()
   }
+  // Listen for close event from NavBar
+  window.addEventListener('close-map-explorer', handleCloseEvent)
 })
 
 onBeforeUnmount(() => {
   // Re-enable body scrolling
   document.body.classList.remove('map-explorer-open')
+  // Clean up event listener
+  window.removeEventListener('close-map-explorer', handleCloseEvent)
   markers.value.forEach(marker => marker.setMap(null))
   // Clean up profile listeners
   profileUnsubs.forEach(unsub => unsub && unsub())

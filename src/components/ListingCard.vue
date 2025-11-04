@@ -39,13 +39,16 @@ watch(() => props.sellerNameOverride, (newName) => {
   // Clear previous timer
   if (nameDebounceTimer) clearTimeout(nameDebounceTimer)
 
-  // Only cache non-empty, valid names
+  // Only cache non-empty, valid names (allow any truthy non-Loading value)
   if (newName && newName.trim() && newName !== 'Loading...') {
     // Set immediately without setTimeout - no delay needed
     cachedSellerName.value = newName
     isNameStable.value = true // Mark as stable - no more updates
     // Notify parent that this card is ready
     emit('card-ready', props.listing.listingId || props.listing.id)
+  } else if (newName === '') {
+    // If explicitly empty string, still mark as ready but don't cache
+    // This handles cases where profile hasn't loaded yet
   }
 }, { immediate: true })
 
@@ -132,9 +135,9 @@ const photo = computed(() =>
 const firstPrice = computed(() => props.listing.menu?.[0]?.price ?? null)
 
 const sellerName = computed(() => {
-  // Only show the name when all cards are ready (showAll prop is true)
-  if (props.showAll && cachedSellerName.value) {
-    return cachedSellerName.value
+  // If showAll is true, show either the cached name OR the override directly
+  if (props.showAll) {
+    return cachedSellerName.value || props.sellerNameOverride || ''
   }
 
   // Hide the name until all cards are ready (prevents any flickering)
@@ -142,9 +145,9 @@ const sellerName = computed(() => {
 })
 
 const sellerAvatar = computed(() => {
-  // Only show the avatar when all cards are ready (showAll prop is true)
-  if (props.showAll && cachedSellerAvatar.value) {
-    return cachedSellerAvatar.value
+  // If showAll is true, show either the cached avatar OR the override directly
+  if (props.showAll) {
+    return cachedSellerAvatar.value || props.sellerAvatarOverride || ''
   }
 
   // Hide the avatar until all cards are ready
@@ -619,70 +622,70 @@ function goToUserProfile(event) {
 /* Narrow mobile screens (393px - 420px width) - 2 column layout optimized */
 @media (max-width: 420px) {
   .card {
-    border-radius: 8px;
+    border-radius: 10px;
   }
 
   .img-box {
-    height: 120px !important;
-    border-radius: 6px !important;
+    height: 160px !important;
+    border-radius: 8px !important;
   }
 
   .card-header {
-    padding: 0.4rem 0.5rem 0.25rem !important;
+    padding: 0.6rem 0.75rem 0.4rem !important;
   }
 
   .card-body {
-    padding: 0.35rem 0.5rem !important;
+    padding: 0.5rem 0.75rem !important;
   }
 
   .card-footer {
-    padding: 0.35rem 0.5rem !important;
+    padding: 0.5rem 0.75rem !important;
   }
 
   .card-title {
-    font-size: 0.72rem !important;
-    margin-bottom: 0.2rem !important;
-    line-height: 1.1;
+    font-size: 0.85rem !important;
+    margin-bottom: 0.3rem !important;
+    line-height: 1.2;
   }
 
   .badge {
-    font-size: 0.48rem !important;
-    padding: 0.12rem 0.3rem;
+    font-size: 0.6rem !important;
+    padding: 0.2rem 0.4rem;
   }
 
   .btn-sm {
-    font-size: 0.52rem;
-    padding: 0.15rem 0.35rem;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
   }
 
   .small {
-    font-size: 0.52rem !important;
+    font-size: 0.65rem !important;
   }
 
   .fw-bold {
-    font-size: 0.68rem;
+    font-size: 0.8rem;
   }
 
   .rating-display {
-    gap: 2px;
-    margin-bottom: 0.25rem !important;
+    gap: 3px;
+    margin-bottom: 0.35rem !important;
   }
 
   .rating-text {
-    font-size: 0.52rem;
+    font-size: 0.65rem;
   }
 
   .stars-small .star {
-    font-size: 7px;
+    font-size: 10px;
   }
 
   .fw-semibold {
-    font-size: 0.58rem !important;
+    font-size: 0.7rem !important;
   }
 
   .avatar-box {
-    width: 20px !important;
-    height: 20px !important;
+    width: 24px !important;
+    height: 24px !important;
   }
 }
 

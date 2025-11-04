@@ -26,6 +26,17 @@ const avgRating = computed(() => {
   return totalRating.value / userReviews.value.length
 })
 
+// Computed values for seller info to ensure they're always valid
+const sellerName = computed(() => {
+  if (!userProfile.value) return 'User'
+  return userProfile.value.username || userProfile.value.displayName || 'User'
+})
+
+const sellerAvatar = computed(() => {
+  if (!userProfile.value) return ''
+  return userProfile.value.photoURL || userProfile.value.profilePicture || ''
+})
+
 async function fetchUserProfile() {
   try {
     loading.value = true
@@ -208,8 +219,9 @@ onMounted(() => {
               <div class="col" v-for="listing in userListings" :key="listing.id">
                 <ListingCard
                   :listing="listing"
-                  :sellerNameOverride="userProfile.username || userProfile.displayName"
-                  :sellerAvatarOverride="userProfile.photoURL || userProfile.profilePicture"
+                  :sellerNameOverride="sellerName"
+                  :sellerAvatarOverride="sellerAvatar"
+                  :showAll="true"
                   @open="() => {}"
                 />
               </div>

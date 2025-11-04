@@ -19,16 +19,27 @@ const statistics = ref({
 })
 const loadingStats = ref(true)
 
+// Typewriter effect
+const typewriterText = ref('')
+const fullText = 'Discover trusted home businesses near you'
+let typewriterIndex = 0
+
+function typewriterEffect() {
+  if (typewriterIndex < fullText.length) {
+    typewriterText.value += fullText.charAt(typewriterIndex)
+    typewriterIndex++
+    setTimeout(typewriterEffect, 80)
+  }
+}
+
 // fetch real reviews from database
 async function fetchRealReviews() {
   try {
-    // get all listings
     const listingsRef = collection(db, 'allListings')
     const listingsSnap = await getDocs(query(listingsRef, limit(50)))
 
     const allReviews = []
 
-    // fetch reviews from each listing
     for (const listingDoc of listingsSnap.docs) {
       const listingId = listingDoc.id
       const listingData = listingDoc.data()
@@ -40,10 +51,8 @@ async function fetchRealReviews() {
       for (const reviewDoc of reviewsSnap.docs) {
         const reviewData = reviewDoc.data()
 
-        // only include reviews with actual text and rating >= 4
         const reviewComment = reviewData.reviewText || reviewData.comment || ''
         if (reviewData.rating >= 4 && reviewComment && reviewComment.trim().length > 20) {
-          // fetch user data
           let userName = reviewData.userName || reviewData.username || 'Anonymous'
           let userLocation = 'Singapore'
 
@@ -53,17 +62,13 @@ async function fetchRealReviews() {
               if (userDoc.exists()) {
                 const userData = userDoc.data()
                 userName = userData.displayName || userData.username || userName
-                // Try to get location from address
                 if (userData.address?.street) {
                   const street = userData.address.street
-                  // Extract area name (usually after last space)
                   const parts = street.split(' ')
                   userLocation = parts[parts.length - 1] || 'Singapore'
                 }
               }
-            } catch (e) {
-              // fallback to review data
-            }
+            } catch (e) {}
           }
 
           allReviews.push({
@@ -76,15 +81,12 @@ async function fetchRealReviews() {
         }
       }
 
-      // stop once we have at least 6 reviews to have variety
       if (allReviews.length >= 6) break
     }
 
-    // shuffle and pick 3
     const shuffled = allReviews.sort(() => 0.5 - Math.random())
     testimonials.value = shuffled.slice(0, 3)
 
-    // fallback if no reviews found
     if (testimonials.value.length === 0) {
       testimonials.value = [
         {
@@ -110,7 +112,6 @@ async function fetchRealReviews() {
 
   } catch (error) {
     console.error('Failed to fetch reviews:', error)
-    // fallback to dummy data if fetch fails
     testimonials.value = [
       {
         text: "Found the most amazing homemade pastries right in my neighbourhood. The quality is incredible and the service is so personal!",
@@ -136,7 +137,6 @@ async function fetchRealReviews() {
   }
 }
 
-// fetch trending listings (sorted by viewCount)
 async function fetchTrendingListings() {
   try {
     const listingsRef = collection(db, 'allListings')
@@ -148,7 +148,6 @@ async function fetchTrendingListings() {
       const data = doc.data()
       const listingId = doc.id
 
-      // fetch rating
       let avgRating = 0
       let totalReviews = 0
       try {
@@ -163,7 +162,6 @@ async function fetchTrendingListings() {
         console.warn('Failed to fetch ratings for', listingId)
       }
 
-      // Try multiple possible image field names
       const imageUrl = data.imageUrl ||
                       data.businessImage ||
                       data.image ||
@@ -193,7 +191,6 @@ async function fetchTrendingListings() {
   }
 }
 
-// helper to get category background class
 function getCategoryClass(category) {
   const categoryMap = {
     'Fitness': 'fitness-bg',
@@ -207,26 +204,21 @@ function getCategoryClass(category) {
   return categoryMap[category] || 'fitness-bg'
 }
 
-// helper to generate star rating display
 function getStars(rating) {
   const roundedRating = Math.round(parseFloat(rating))
   return '★'.repeat(roundedRating) + '☆'.repeat(5 - roundedRating)
 }
 
-// fetch real statistics from database
 async function fetchStatistics() {
   try {
-    // Count total businesses
     const listingsRef = collection(db, 'allListings')
     const listingsSnap = await getDocs(listingsRef)
     statistics.value.businesses = listingsSnap.size
 
-    // Count total users
     const usersRef = collection(db, 'users')
     const usersSnap = await getDocs(usersRef)
     statistics.value.users = usersSnap.size
 
-    // Count unique categories
     const categories = new Set()
     listingsSnap.docs.forEach(doc => {
       const category = doc.data().businessCategory
@@ -236,7 +228,6 @@ async function fetchStatistics() {
 
   } catch (error) {
     console.error('Failed to fetch statistics:', error)
-    // Fallback to minimal values if fetch fails
     statistics.value = {
       businesses: 0,
       users: 0,
@@ -248,6 +239,9 @@ async function fetchStatistics() {
 }
 
 onMounted(() => {
+  // Start typewriter effect
+  setTimeout(typewriterEffect, 500)
+
   fetchRealReviews()
   fetchTrendingListings()
   fetchStatistics()
@@ -259,7 +253,7 @@ onMounted(() => {
     (entries) => {
       const entry = entries[0]
       if (entry.isIntersecting) {
-        section.classList.add('in-view')   // triggers the fade-in of images
+        section.classList.add('in-view')
         io && io.unobserve(section)
       }
     },
@@ -267,7 +261,7 @@ onMounted(() => {
   )
   io.observe(section)
 
-  const containers = document.querySelectorAll('.container-description, .container-description2')
+  const containers = document.querySelectorAll('.feature-card')
   descriptionIo = new IntersectionObserver(
     (entries) => entries.forEach((e) => e.isIntersecting && e.target.classList.add('fade-in')),
     { threshold: 0.15 }
@@ -282,39 +276,122 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <NavBar :auth-ctas-only="true" />
 
-  
-<NavBar :auth-ctas-only="true" />  <!-- shows Login / Sign up on About only -->
-
-
-
-
-  <!-- HERO -->
-  <div class="background-section position-relative d-flex align-items-center justify-content-center min-vh-100 w-100">
-    <div class="video-background position-absolute top-0 start-0 w-100 h-100">
-      <video class="w-100 h-100 video-darken" autoplay loop muted playsinline>
+  <!-- HERO with Typewriter -->
+  <div class="hero-section">
+    <div class="hero-video-bg">
+      <video autoplay loop muted playsinline>
         <source src="../assets/homes_video/homes_video.mp4" type="video/mp4">
       </video>
-      <div class="video-overlay"></div>
+      <div class="hero-overlay"></div>
     </div>
 
-
-    <div class="content container text-center position-relative px-3">
-      <h1 class="text-white fw-semibold" style="font-size: clamp(32px,6vw,70px)">
-        Discover trusted <br class="d-none d-md-block">home businesses
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="pulse-dot"></span>
+        Now serving all of Singapore
+      </div>
+      <h1 class="hero-title">
+        {{ typewriterText }}<span class="typewriter-cursor">|</span>
       </h1>
+      <p class="hero-subtitle">
+        Connect with talented entrepreneurs in your neighbourhood. From home-cooked meals to fitness classes,
+        find everything you need, locally.
+      </p>
+
+      <!-- Floating stats -->
+      <div class="hero-stats">
+        <div class="stat-pill">
+          <span class="stat-number">{{ statistics.businesses }}+</span>
+          <span class="stat-label">Businesses</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-number">{{ statistics.users }}+</span>
+          <span class="stat-label">Happy Users</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-number">{{ statistics.categories }}+</span>
+          <span class="stat-label">Categories</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scroll indicator -->
+    <div class="scroll-indicator">
+      <div class="mouse">
+        <div class="wheel"></div>
+      </div>
     </div>
   </div>
 
-  <!-- CENTERED GRID + TITLE -->
+  <!-- FEATURES SECTION -->
+  <section class="features-section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Everything you need</h2>
+        <p class="section-subtitle">Discover local talent, support small businesses, and find exactly what you're looking for</p>
+      </div>
+
+      <div class="features-grid">
+        <!-- Feature 1 -->
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+              <path d="M21 10C21 17 12 23 12 23C12 23 3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 13C13.6569 13 15 11.6569 15 10C15 8.34315 13.6569 7 12 7C10.3431 7 9 8.34315 9 10C9 11.6569 10.3431 13 12 13Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">Find Local Gems</h3>
+          <p class="feature-desc">Discover amazing home businesses right in your neighbourhood—from artisan bakers to skilled tutors.</p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-green">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+              <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">Support Real People</h3>
+          <p class="feature-desc">Every purchase supports passionate entrepreneurs and strengthens your local community.</p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-orange">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+              <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">Instant Connection</h3>
+          <p class="feature-desc">Message sellers directly, ask questions, customize orders, and book appointments—all in one place.</p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="feature-card">
+          <div class="feature-icon feature-icon-blue">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+              <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 12H22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 2C14.5013 4.73835 15.9228 8.29203 16 12C15.9228 15.708 14.5013 19.2616 12 22C9.49872 19.2616 8.07725 15.708 8 12C8.07725 8.29203 9.49872 4.73835 12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">Wide Variety</h3>
+          <p class="feature-desc">Explore diverse categories—from food and fitness to arts, education, and everything in between.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORIES SHOWCASE -->
   <section class="about-section">
     <div class="content text-center px-3 mb-5">
-      <h1 class="about-title fw-semibold" style="font-size: clamp(28px,5vw,55px)">
-        One app for <br class="d-none d-md-block">all you need
-      </h1>
+      <h2 class="about-title">Browse by category</h2>
+      <p class="section-subtitle">Find exactly what you're looking for</p>
     </div>
 
-    <!-- Clean, centered, responsive grid -->
     <div class="about-grid mb-4">
       <div class="category-item">
         <img src="../assets/category_images/fitness.png" alt="Fitness" />
@@ -333,363 +410,534 @@ onBeforeUnmount(() => {
         <p class="category-label">Food & Drinks</p>
       </div>
     </div>
-
-    <div class="mission px-3">
-      <div class="container">
-        <div class="row justify-content-center">
-          <div class="col-12 col-md-10 col-lg-8">
-            <h3 class="text-center mission-text fs-2 fw-semibold">
-              <span class="underline">Our mission</span><br>
-              Discover, support, and grow with<br>
-              <span class="green">trusted home businesses</span>
-            </h3>
-          </div>
-        </div>
-      </div>
-    </div>
   </section>
 
-  <!-- DESCRIPTION CARDS -->
-  <div class="description bg-page py-5">
+  <!-- TESTIMONIALS -->
+  <section class="testimonials-section">
     <div class="container">
-      <div class="row justify-content-start mb-4">
-        <div class="col-12 col-md-8 col-lg-6">
-          <div class="container-description p-4 rounded-4">
-            <h3 class="h3">Discover unique local services</h3>
-            <p>From homemade cakes to yoga classes, find authentic services right in your neighbourhood.</p>
-          </div>
-        </div>
+      <div class="section-header">
+        <h2 class="section-title">Loved by thousands</h2>
+        <p class="section-subtitle">See what our community has to say</p>
       </div>
 
-      <div class="row justify-content-end mb-4">
-        <div class="col-12 col-md-8 col-lg-6">
-          <div class="container-description2 p-4 rounded-4">
-            <h3 class="h3">Support real people</h3>
-            <p>Every booking supports a real person, not a big corporation.</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="row justify-content-start mb-4">
-        <div class="col-12 col-md-8 col-lg-6">
-          <div class="container-description p-4 rounded-4">
-            <h3 class="h3">Connect instantly</h3>
-            <p>Message providers directly, customise your order, and book easily—in one place.</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="row justify-content-end">
-        <div class="col-12 col-md-8 col-lg-6">
-          <div class="container-description2 p-4 rounded-4">
-            <h3 class="h3">Explore more</h3>
-            <p>From food to fitness, discover what's around you.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SOCIAL PROOF SECTION -->
-  <section class="social-proof-section py-5">
-    <div class="container">
-      <!-- Section Title -->
-      <div class="text-center mb-5 social-proof-header">
-        <h2 class="display-5 fw-bold mb-3">Loved by our community</h2>
-        <p class="lead text-muted">Join thousands discovering amazing home businesses</p>
-      </div>
-
-      <!-- Testimonials Grid -->
       <div v-if="loadingReviews" class="text-center py-5">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">Loading reviews...</span>
         </div>
       </div>
 
-      <div v-else class="row g-4 mb-5">
-        <div v-for="(testimonial, index) in testimonials" :key="index" class="col-12 col-md-6 col-lg-4">
-          <div class="testimonial-card">
-            <div class="stars mb-2">★★★★★</div>
-            <p class="testimonial-text">"{{ testimonial.text }}"</p>
-            <div class="testimonial-author">
-              <div class="author-avatar">{{ testimonial.userName.charAt(0).toUpperCase() }}</div>
-              <div>
-                <div class="author-name">{{ testimonial.userName }}</div>
-                <div class="author-location">{{ testimonial.userLocation }}</div>
-              </div>
+      <div v-else class="testimonials-grid">
+        <div v-for="(testimonial, index) in testimonials" :key="index" class="testimonial-card">
+          <div class="testimonial-header">
+            <div class="stars">★★★★★</div>
+            <div class="quote-icon">"</div>
+          </div>
+          <p class="testimonial-text">{{ testimonial.text }}</p>
+          <div class="testimonial-author">
+            <div class="author-avatar">{{ testimonial.userName.charAt(0).toUpperCase() }}</div>
+            <div>
+              <div class="author-name">{{ testimonial.userName }}</div>
+              <div class="author-location">{{ testimonial.userLocation }}</div>
             </div>
           </div>
         </div>
       </div>
+    </div>
+  </section>
 
-      <!-- Featured Listings Preview -->
-      <div class="featured-preview-section">
-        <h3 class="text-center mb-4 fw-semibold">Popular right now</h3>
+  <!-- TRENDING LISTINGS -->
+  <section class="trending-section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Trending now</h2>
+        <p class="section-subtitle">Popular businesses in your area</p>
+      </div>
 
-        <div v-if="loadingTrending" class="text-center py-4">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading trending listings...</span>
-          </div>
-        </div>
-
-        <div v-else class="row g-4 mb-4">
-          <div v-for="listing in trendingListings" :key="listing.id" class="col-12 col-sm-6 col-lg-3">
-            <div class="preview-card">
-              <div
-                class="preview-image"
-                :class="{ 'has-image': listing.imageUrl, [getCategoryClass(listing.businessCategory)]: !listing.imageUrl }"
-                :style="listing.imageUrl ? `background-image: url('${listing.imageUrl}')` : ''"
-              >
-              </div>
-              <div class="preview-content">
-                <h6 class="preview-title">{{ listing.businessName }}</h6>
-                <div class="preview-rating">
-                  <span class="stars-small">{{ getStars(listing.avgRating) }}</span>
-                  <span class="rating-count">{{ listing.avgRating }} ({{ listing.totalReviews }})</span>
-                </div>
-                <div class="preview-price" v-if="listing.price">From S${{ listing.price }}</div>
-                <div class="preview-price text-muted" v-else>Price varies</div>
-              </div>
-            </div>
-          </div>
+      <div v-if="loadingTrending" class="text-center py-4">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
         </div>
       </div>
 
-      <!-- CTA Section -->
-      <div class="cta-section">
-        <div class="cta-card">
-          <div class="cta-content">
-            <h3 class="cta-title">Ready to get started?</h3>
-            <p class="cta-subtitle">Join our community and discover amazing local businesses today</p>
-            <div v-if="loadingStats" class="cta-stats">
-              <div class="spinner-border text-light" role="status">
-                <span class="visually-hidden">Loading statistics...</span>
-              </div>
+      <div v-else class="trending-grid">
+        <div v-for="listing in trendingListings" :key="listing.id" class="trending-card">
+          <div
+            class="trending-image"
+            :class="{ 'has-image': listing.imageUrl, [getCategoryClass(listing.businessCategory)]: !listing.imageUrl }"
+            :style="listing.imageUrl ? `background-image: url('${listing.imageUrl}')` : ''"
+          >
+            <div class="trending-badge">Trending</div>
+          </div>
+          <div class="trending-content">
+            <h6 class="trending-title">{{ listing.businessName }}</h6>
+            <div class="trending-rating">
+              <span class="stars-small">{{ getStars(listing.avgRating) }}</span>
+              <span class="rating-text">{{ listing.avgRating }} ({{ listing.totalReviews }})</span>
             </div>
-            <div v-else class="cta-stats">
-              <div class="stat-item">
-                <div class="stat-number">{{ statistics.businesses }}+</div>
-                <div class="stat-label">Businesses</div>
-              </div>
-              <div class="stat-divider"></div>
-              <div class="stat-item">
-                <div class="stat-number">{{ statistics.users }}+</div>
-                <div class="stat-label">Users</div>
-              </div>
-              <div class="stat-divider"></div>
-              <div class="stat-item">
-                <div class="stat-number">{{ statistics.categories }}+</div>
-                <div class="stat-label">Categories</div>
-              </div>
-            </div>
-            <RouterLink to="/signup" class="btn btn-primary btn-lg cta-button">
-              Sign Up Free
-            </RouterLink>
+            <div class="trending-price" v-if="listing.price">From S${{ listing.price }}</div>
+            <div class="trending-price text-muted" v-else>Price varies</div>
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="final-cta-section">
+    <div class="container">
+      <div class="final-cta-card">
+        <div class="cta-glow"></div>
+        <h2 class="final-cta-title">Ready to discover?</h2>
+        <p class="final-cta-subtitle">Join thousands of Singaporeans supporting local businesses</p>
+        <RouterLink to="/signup" class="btn-final-cta">
+          Start Exploring
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </RouterLink>
       </div>
     </div>
   </section>
 </template>
 
 <style scoped>
-/* Let your global page bg show */
-.background-section { background-color: transparent; }
-
-/* Video darken */
-.video-background { position: absolute; inset: 0; z-index: 0; }
-.video-darken {
-  width: 100%; height: 100%;
-  object-fit: cover;
-  filter: brightness(0.5) contrast(1.05);
-}
-.video-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.32); pointer-events: none;  }
-
-/* -------- Minimal, centered grid -------- */
-.about-section {
+/* ========== HERO SECTION ========== */
+.hero-section {
   position: relative;
-  padding: 6vh 6% 10vh;
-  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-.about-section::before { content: none; } /* no colored gradient */
-.about-section .content { position: relative; z-index: 1; }
+.hero-video-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
 
-/* The grid itself */
+.hero-video-bg video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.4);
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.6) 100%);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  max-width: 900px;
+  padding: 2rem;
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  padding: 0.5rem 1.25rem;
+  border-radius: 50px;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  animation: fadeIn 0.8s ease-out 0.3s both;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.hero-title {
+  font-size: clamp(2rem, 6vw, 4rem);
+  font-weight: 800;
+  color: white;
+  margin-bottom: 1.5rem;
+  line-height: 1.2;
+  min-height: 1.5em;
+  animation: fadeIn 0.8s ease-out 0.5s both;
+}
+
+.typewriter-cursor {
+  display: inline-block;
+  animation: blink 1s steps(1) infinite;
+  color: var(--color-primary);
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.hero-subtitle {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 2.5rem;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+  animation: fadeIn 0.8s ease-out 0.7s both;
+}
+
+.hero-cta {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 3rem;
+  animation: fadeIn 0.8s ease-out 0.9s both;
+}
+
+.btn-hero-primary,
+.btn-hero-secondary {
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1.0625rem;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-hero-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  color: white;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.35);
+}
+
+.btn-hero-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.45);
+}
+
+.btn-hero-secondary {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-hero-secondary:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.hero-stats {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  animation: fadeIn 0.8s ease-out 1.1s both;
+}
+
+.stat-pill {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  padding: 0.75rem 1.5rem;
+  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stat-number {
+  color: white;
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.stat-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+}
+
+.scroll-indicator {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: fadeIn 0.8s ease-out 1.3s both;
+}
+
+.mouse {
+  width: 26px;
+  height: 40px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 15px;
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+}
+
+.wheel {
+  width: 3px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 2px;
+  animation: scroll 2s infinite;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+
+/* ========== FEATURES SECTION ========== */
+.features-section {
+  padding: 6rem 0;
+  background: var(--color-bg-page);
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.section-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin-bottom: 1rem;
+}
+
+.section-subtitle {
+  font-size: 1.125rem;
+  color: var(--color-text-secondary);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.feature-card {
+  background: var(--color-bg-white);
+  padding: 2.5rem 2rem;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border: 1px solid var(--color-border);
+  opacity: 0;
+  transform: translateY(20px);
+  cursor: default;
+}
+
+.feature-card.fade-in {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.feature-card:nth-child(1) { animation-delay: 0.1s; }
+.feature-card:nth-child(2) { animation-delay: 0.2s; }
+.feature-card:nth-child(3) { animation-delay: 0.3s; }
+.feature-card:nth-child(4) { animation-delay: 0.4s; }
+
+.feature-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 40px rgba(102, 126, 234, 0.15);
+}
+
+.feature-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  color: white;
+}
+
+.feature-icon-green {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.feature-icon-orange {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.feature-icon-blue {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.feature-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.feature-desc {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ========== CATEGORIES ========== */
+.about-section {
+  padding: 6rem 0;
+  background: var(--color-bg-white);
+}
+
+.about-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin-bottom: 0.5rem;
+}
+
 .about-grid {
   margin: 0 auto;
   max-width: 1100px;
   display: grid;
-  grid-template-columns: repeat( auto-fit, minmax(220px, 1fr) );
-  gap: 30px;
-  place-items: center;   /* centers items in their cells */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2.5rem;
+  place-items: center;
+  padding: 0 1.5rem;
 }
 
 .category-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 1rem;
   width: 100%;
 }
 
 .category-label {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.125rem;
   font-weight: 600;
   color: var(--color-text-primary);
-  text-align: center;
 }
 
-/* Image cards */
 .about-grid img {
   width: 100%;
-  max-width: 320px;      /* prevents over-stretch on large screens */
-  aspect-ratio: 4 / 3;   /* consistent shape */
+  max-width: 280px;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
   border-radius: 20px;
-  box-shadow: 0 8px 22px rgba(0,0,0,.12);
-  opacity: 0;            /* start hidden */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  opacity: 0;
   transform: translateY(10px);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
-  cursor: default;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* Invert logos in dark mode so they're visible */
 :root.dark-mode .about-grid img {
   filter: invert(1) brightness(1.2);
 }
 
 .about-grid img:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
 }
 
-:root.dark-mode .about-grid img:hover {
-  filter: invert(1) brightness(1);
-}
-
-/* Simple fade-in on scroll (once) */
 .about-section.in-view .about-grid .category-item img {
-  animation: fadeIn .5s ease-out forwards;
-}
-.about-section.in-view .about-grid .category-item:nth-child(1) img { animation-delay: .00s; }
-.about-section.in-view .about-grid .category-item:nth-child(2) img { animation-delay: .05s; }
-.about-section.in-view .about-grid .category-item:nth-child(3) img { animation-delay: .10s; }
-.about-section.in-view .about-grid .category-item:nth-child(4) img { animation-delay: .15s; }
-.about-section.in-view .about-grid .category-item:nth-child(5) img { animation-delay: .20s; }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* About title */
-.about-title {
-  color: var(--color-text-primary);
-}
-
-/* Mission (static) */
-.mission {
-  margin-top: 36px;
-  display: flex;
-  justify-content: center;
-}
-.mission h3 { font-family: "Figtree", sans-serif; }
-.mission-text {
-  color: var(--color-text-primary);
-}
-.mission .green { color: #198754; }
-.underline {
-  border-bottom: 3px solid var(--color-text-primary);
-  padding-bottom: 3px;
-  display: inline-block;
-}
-
-/* Description cards fade-in (minimal) */
-.container-description,
-.container-description2{
-  font-family: "Figtree", sans-serif;
-  opacity: 0;
-  transform: translateY(12px);
-  transition: opacity .5s ease-out, transform .5s ease-out, background-color .25s ease;
-  background: var(--color-bg-white);
-  color: var(--color-text-primary);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  cursor: default;
-}
-.container-description.fade-in,
-.container-description2.fade-in{ opacity: 1; transform: translateY(0); }
-
-.container-description:hover,
-.container-description2:hover {
-  transform: translateY(-6px);
-  background: var(--color-bg-purple-tint);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-  transition: transform 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
-}
-
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .about-grid img,
-  .container-description,
-  .container-description2 {
-    animation: none !important;
-    transition: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-}
-
-/* Navbar text */
-.navbar .nav-link{ color:#fff; font-size:17px; }
-
-/* -------- SOCIAL PROOF SECTION -------- */
-.social-proof-section {
-  background: var(--color-bg-page);
-  position: relative;
-}
-
-.social-proof-header {
-  opacity: 0;
-  transform: translateY(20px);
   animation: fadeInUp 0.6s ease-out forwards;
-  animation-delay: 0.2s;
 }
 
-/* Testimonial Cards */
+.about-section.in-view .about-grid .category-item:nth-child(1) img { animation-delay: 0.1s; }
+.about-section.in-view .about-grid .category-item:nth-child(2) img { animation-delay: 0.2s; }
+.about-section.in-view .about-grid .category-item:nth-child(3) img { animation-delay: 0.3s; }
+.about-section.in-view .about-grid .category-item:nth-child(4) img { animation-delay: 0.4s; }
+
+/* ========== TESTIMONIALS ========== */
+.testimonials-section {
+  padding: 6rem 0;
+  background: var(--color-bg-page);
+}
+
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
 .testimonial-card {
   background: var(--color-bg-white);
   padding: 2rem;
-  border-radius: 1rem;
-  box-shadow: 0 4px 16px rgba(75, 42, 166, 0.08);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  height: 100%;
-  opacity: 0;
-  transform: translateY(20px);
-  animation: fadeInUp 0.6s ease-out forwards;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
   border: 1px solid var(--color-border);
 }
 
-.testimonial-card:nth-child(1) { animation-delay: 0.3s; }
-.testimonial-card:nth-child(2) { animation-delay: 0.4s; }
-.testimonial-card:nth-child(3) { animation-delay: 0.5s; }
-
 .testimonial-card:hover {
   transform: translateY(-8px);
-  box-shadow: 0 12px 32px rgba(75, 42, 166, 0.15);
+  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.15);
 }
 
-.testimonial-card .stars {
+.testimonial-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.stars {
   color: #ffc107;
   font-size: 1.25rem;
   letter-spacing: 2px;
 }
 
+.quote-icon {
+  font-size: 3rem;
+  color: var(--color-primary);
+  opacity: 0.2;
+  line-height: 1;
+}
+
 .testimonial-text {
   font-size: 1rem;
-  line-height: 1.6;
+  line-height: 1.7;
   color: var(--color-text-primary);
   margin-bottom: 1.5rem;
   font-style: italic;
@@ -702,70 +950,70 @@ onBeforeUnmount(() => {
 }
 
 .author-avatar {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-lighter));
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 1.1rem;
+  font-weight: 700;
+  font-size: 1.125rem;
 }
 
 .author-name {
   font-weight: 600;
   color: var(--color-text-primary);
-  font-size: 0.95rem;
 }
 
 .author-location {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
 }
 
-/* Featured Preview Cards */
-.featured-preview-section {
-  margin-top: 3rem;
-  opacity: 0;
-  transform: translateY(20px);
-  animation: fadeInUp 0.6s ease-out forwards;
-  animation-delay: 0.6s;
-}
-
-.featured-preview-section h3 {
-  color: var(--color-text-primary);
-}
-
-.preview-card {
+/* ========== TRENDING ========== */
+.trending-section {
+  padding: 6rem 0;
   background: var(--color-bg-white);
-  border-radius: 1rem;
+}
+
+.trending-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.trending-card {
+  background: var(--color-bg-white);
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(75, 42, 166, 0.08);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: default;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
   border: 1px solid var(--color-border);
-  height: 100%;
+  cursor: default;
 }
 
-.preview-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 32px rgba(75, 42, 166, 0.15);
+.trending-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 12px 40px rgba(102, 126, 234, 0.15);
 }
 
-.preview-image {
-  height: 180px;
+.trending-image {
+  height: 200px;
   position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 1rem;
 }
 
-.preview-image.has-image {
+.trending-image.has-image {
   background-size: cover !important;
   background-position: center !important;
-  background-repeat: no-repeat !important;
 }
 
 .fitness-bg {
@@ -784,183 +1032,157 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
 }
 
-.preview-badge {
+.trending-badge {
   background: rgba(255, 255, 255, 0.95);
-  padding: 0.4rem 0.9rem;
+  backdrop-filter: blur(10px);
+  padding: 0.4rem 1rem;
   border-radius: 50px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #333;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.preview-content {
+.trending-content {
   padding: 1.25rem;
 }
 
-.preview-title {
-  font-weight: 600;
+.trending-title {
+  font-weight: 700;
   margin-bottom: 0.5rem;
   color: var(--color-text-primary);
+  font-size: 1.125rem;
 }
 
-.preview-rating {
+.trending-rating {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
-.preview-rating .stars-small {
+.stars-small {
   color: #ffc107;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
-.preview-rating .rating-count {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
+.rating-text {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
   font-weight: 500;
 }
 
-.preview-price {
+.trending-price {
   font-weight: 700;
   color: var(--color-primary);
-  font-size: 1.1rem;
+  font-size: 1.125rem;
 }
 
-/* CTA Section */
-.cta-section {
-  margin-top: 4rem;
-  opacity: 0;
-  transform: translateY(20px);
-  animation: fadeInUp 0.6s ease-out forwards;
-  animation-delay: 0.7s;
+/* ========== FINAL CTA ========== */
+.final-cta-section {
+  padding: 6rem 0;
+  background: var(--color-bg-page);
 }
 
-.cta-card {
+.final-cta-card {
   background: linear-gradient(135deg, #4b2aa6 0%, #6d3cc4 100%);
-  border-radius: 1.5rem;
-  padding: 3rem 2rem;
+  border-radius: 24px;
+  padding: 4rem 2rem;
   text-align: center;
-  box-shadow: 0 12px 32px rgba(75, 42, 166, 0.25);
   position: relative;
   overflow: hidden;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
-/* Dark mode: use dark background instead of purple */
-:root.dark-mode .cta-card {
-  background: var(--color-bg-white);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+:root.dark-mode .final-cta-card {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
   border: 1px solid var(--color-border);
 }
 
-/* Ensure text is always white in light mode, adapt in dark mode */
-.cta-card * {
-  color: white !important;
-}
-
-:root.dark-mode .cta-card * {
-  color: var(--color-text-primary) !important;
-}
-
-.cta-card::before {
-  content: '';
+.cta-glow {
   position: absolute;
   top: -50%;
-  right: -50%;
+  left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  animation: rotate 20s linear infinite;
 }
 
-.cta-content {
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.final-cta-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  color: white;
+  margin-bottom: 1rem;
   position: relative;
   z-index: 1;
 }
 
-.cta-title {
-  color: white;
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 0.75rem;
-}
-
-.cta-subtitle {
+.final-cta-subtitle {
+  font-size: 1.25rem;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 1.1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
+  position: relative;
+  z-index: 1;
 }
 
-.cta-stats {
-  display: flex;
-  justify-content: center;
+.btn-final-cta {
+  display: inline-flex;
   align-items: center;
-  gap: 2rem;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-}
-
-.stat-item {
-  text-align: center;
-}
-
-.stat-number {
-  font-size: 2rem;
+  gap: 0.5rem;
+  background: white;
+  color: var(--color-primary);
+  padding: 1.125rem 2.5rem;
+  border-radius: 12px;
   font-weight: 700;
-  color: white;
-  line-height: 1;
-  margin-bottom: 0.25rem;
-}
-
-.stat-label {
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.stat-divider {
-  width: 1px;
-  height: 40px;
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.cta-button {
-  background: white !important;
-  color: #4b2aa6 !important;
-  font-weight: 600;
-  padding: 0.875rem 3rem;
-  border: none !important;
-  font-size: 1.1rem;
+  font-size: 1.125rem;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   text-decoration: none;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
-.cta-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  background: rgba(255, 255, 255, 0.95) !important;
-  color: #4b2aa6 !important;
+.btn-final-cta:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  color: var(--color-primary);
 }
 
-/* Dark mode button styling */
-:root.dark-mode .cta-button {
-  background: var(--color-primary) !important;
-  color: white !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+:root.dark-mode .btn-final-cta {
+  background: var(--color-primary);
+  color: white;
 }
 
-:root.dark-mode .cta-button:hover {
-  background: var(--color-primary-hover) !important;
-  color: white !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+:root.dark-mode .btn-final-cta:hover {
+  background: var(--color-primary-hover);
+  color: white;
 }
 
-/* Animations */
+/* ========== ANIMATIONS ========== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -968,75 +1190,46 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Mobile Responsive */
-@media (max-width: 991.98px) {
-  .stat-divider {
-    display: none;
+/* ========== RESPONSIVE ========== */
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2rem;
   }
 
-  .cta-stats {
+  .hero-subtitle {
+    font-size: 1rem;
+  }
+
+  .hero-cta {
+    flex-direction: column;
+  }
+
+  .btn-hero-primary,
+  .btn-hero-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .features-grid,
+  .testimonials-grid,
+  .trending-grid {
+    grid-template-columns: 1fr;
     gap: 1.5rem;
   }
 
-  .preview-image {
-    height: 160px;
+  .section-title {
+    font-size: 2rem;
+  }
+
+  .final-cta-card {
+    padding: 3rem 1.5rem;
   }
 }
 
-@media (max-width: 767.98px) {
-  .testimonial-card {
-    padding: 1.5rem;
-  }
-
-  .testimonial-text {
-    font-size: 0.95rem;
-  }
-
-  .cta-card {
-    padding: 2rem 1.5rem;
-  }
-
-  .cta-title {
-    font-size: 1.5rem;
-  }
-
-  .cta-subtitle {
-    font-size: 1rem;
-  }
-
-  .stat-number {
-    font-size: 1.5rem;
-  }
-
-  .stat-label {
-    font-size: 0.8rem;
-  }
-
-  .cta-button {
-    padding: 0.75rem 2rem;
-    font-size: 1rem;
-  }
-
-  .preview-image {
-    height: 140px;
-  }
-
-  .preview-content {
-    padding: 1rem;
-  }
-}
-
-@media (max-width: 575.98px) {
-  .social-proof-header h2 {
-    font-size: 1.75rem;
-  }
-
-  .social-proof-header p {
-    font-size: 1rem;
-  }
-
-  .featured-preview-section h3 {
-    font-size: 1.25rem;
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
   }
 }
 </style>

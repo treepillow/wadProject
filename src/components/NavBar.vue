@@ -36,10 +36,23 @@ const badgeModalOpen = ref(false)
 function openBadgeInfoModal() { badgeModalOpen.value = true }
 function closeBadgeInfoModal() { badgeModalOpen.value = false }
 
+// Check if menu is open
+const isMenuOpen = ref(false)
+
 onMounted(() => {
   // Start listening to message notifications
   startListening()
-  
+
+  // Set up menu state observer
+  const navbarCollapse = document.getElementById('mainNav')
+  if (navbarCollapse) {
+    // Use MutationObserver to detect when 'show' class is added/removed
+    const observer = new MutationObserver(() => {
+      isMenuOpen.value = navbarCollapse.classList.contains('show')
+    })
+    observer.observe(navbarCollapse, { attributes: true, attributeFilter: ['class'] })
+  }
+
   unsubAuth = onAuthStateChanged(auth, async (u) => {
     user.value = u
     if (!u) {
@@ -149,6 +162,11 @@ function closeNavbar() {
       navbarToggler.setAttribute('aria-expanded', 'false')
     }
   }
+}
+
+// Close menu when backdrop is clicked
+function closeMenuFromBackdrop() {
+  closeNavbar()
 }
 </script>
 
@@ -298,6 +316,10 @@ function closeNavbar() {
             </template>
           </ul>
         </div>
+
+        <!-- Backdrop overlay for mobile menu -->
+        <div v-if="isMenuOpen" class="navbar-backdrop" @click="closeMenuFromBackdrop"></div>
+
         <!-- Drawer for badge info -->
         <Teleport to="body">
           <div v-if="badgeModalOpen" class="badge-drawer-overlay" @click="closeBadgeInfoModal">
@@ -803,7 +825,26 @@ function closeNavbar() {
     background: var(--color-bg-purple-tint);
   }
 
-  /* Backdrop overlay - removed to fix animation */
+  /* Backdrop overlay for mobile menu */
+  .navbar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1049;
+    animation: fadeIn 0.15s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 
   /* Dark mode support for mobile menu */
   :root.dark-mode .navbar-collapse {

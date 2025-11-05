@@ -851,9 +851,22 @@ async function submitReview() {
     await updateSellerRating(listingUserId, userRating.value)
 
     // Increment review count for seller for badge system
-    await updateDoc(doc(db, 'users', listingUserId), {
-      'stats.reviews': increment(1)
-    })
+    try {
+      const sellerRef = doc(db, 'users', listingUserId)
+      const sellerDoc = await getDoc(sellerRef)
+
+      if (sellerDoc.exists()) {
+        const currentStats = sellerDoc.data().stats || {}
+        await updateDoc(sellerRef, {
+          stats: {
+            ...currentStats,
+            reviews: (currentStats.reviews || 0) + 1
+          }
+        })
+      }
+    } catch (statsError) {
+      console.warn('Could not update seller stats:', statsError)
+    }
 
     reviewSuccess.value = 'Review submitted successfully!'
     userRating.value = 0
@@ -1251,10 +1264,13 @@ watch(() => props.open, (isOpen) => {
                               review.reviewerName }}</span>
                             <!-- Verification Badges -->
                             <span v-if="review.qrVerified" class="badge bg-success-subtle text-success xsmall px-2 py-1" title="Verified Purchase via QR Code">
-                              <Icon icon="mdi:check-decagram" class="me-1" style="font-size: 12px;" />Verified Purchase
+                              <Icon icon="mdi:check-decagram" class="me-1" style="font-size: 12px;" />Verified
                             </span>
                             <span v-else-if="review.bookingVerified" class="badge bg-primary-subtle text-primary xsmall px-2 py-1" title="Verified Booking">
-                              <Icon icon="mdi:calendar-check" class="me-1" style="font-size: 12px;" />Verified Booking
+                              <Icon icon="mdi:calendar-check" class="me-1" style="font-size: 12px;" />Verified
+                            </span>
+                            <span v-else class="badge bg-secondary-subtle text-secondary xsmall px-2 py-1" title="Not Verified">
+                              <Icon icon="mdi:alert-circle-outline" class="me-1" style="font-size: 12px;" />Not Verified
                             </span>
                           </div>
                           <div class="stars-display-small">

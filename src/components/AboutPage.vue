@@ -52,8 +52,8 @@ async function fetchRealReviews() {
         const reviewData = reviewDoc.data()
 
         const reviewComment = reviewData.reviewText || reviewData.comment || ''
-        // Only show verified reviews (QR scan or booking verification)
-        if (reviewData.isVerified && reviewData.rating >= 4 && reviewComment && reviewComment.trim().length > 20) {
+        // Only show verified reviews (QR scan or booking verification) that are 4+ stars and have a comment
+        if (reviewData.isVerified && reviewData.rating >= 4 && reviewComment && reviewComment.trim().length > 0) {
           let userName = reviewData.userName || reviewData.username || 'Anonymous'
           let userLocation = 'Singapore'
 

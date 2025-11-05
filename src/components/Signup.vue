@@ -48,7 +48,7 @@
               @input="validateUsername"
               required
             />
-            <small v-if="usernameError" class="error-text">{{ usernameError }}</small>
+            <small v-if="usernameError" :class="usernameError.includes('✓') ? 'success-text' : 'error-text'">{{ usernameError }}</small>
           </div>
 
           <!-- DOB -->
@@ -253,7 +253,7 @@
                 @input="validateUsername"
                 required
               />
-              <small v-if="usernameError" class="error-text">{{ usernameError }}</small>
+              <small v-if="usernameError" :class="usernameError.includes('✓') ? 'success-text' : 'error-text'">{{ usernameError }}</small>
             </div>
 
             <!-- DOB -->
@@ -377,7 +377,7 @@
 import AuthLayout from "./AuthLayout.vue";
 import { auth, db } from "../firebase";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendEmailVerification, updatePassword } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp, collection, query, where, getDocs } from "firebase/firestore";
 import { useDarkMode } from "@/composables/useDarkMode";
 
 export default {
@@ -507,6 +507,7 @@ export default {
 
       // Username validation
       usernameError: "",
+      usernameCheckTimeout: null,
 
       // Image modal
       showImageModal: false,
@@ -545,22 +546,55 @@ export default {
       this.notification.show = false;
     },
 
-    // Username validation
+    // Username validation with debouncing
     validateUsername() {
       const username = this.signup.username.trim();
+
+      // Clear previous timeout
+      if (this.usernameCheckTimeout) {
+        clearTimeout(this.usernameCheckTimeout);
+      }
 
       // Check for spaces
       if (/\s/.test(username)) {
         this.usernameError = "Username cannot contain spaces";
         // Remove spaces automatically
         this.signup.username = username.replace(/\s/g, '');
-      } else if (username.length > 0 && username.length < 3) {
-        this.usernameError = "Username must be at least 3 characters";
-      } else if (username.length > 20) {
-        this.usernameError = "Username must be less than 20 characters";
-      } else {
-        this.usernameError = "";
+        return;
       }
+
+      if (username.length === 0) {
+        this.usernameError = "";
+        return;
+      }
+
+      if (username.length < 3) {
+        this.usernameError = "Username must be at least 3 characters";
+        return;
+      }
+
+      if (username.length > 20) {
+        this.usernameError = "Username must be less than 20 characters";
+        return;
+      }
+
+      // Debounce the Firestore check (500ms delay)
+      this.usernameCheckTimeout = setTimeout(async () => {
+        try {
+          const usersRef = collection(db, "users");
+          const q = query(usersRef, where("username", "==", username));
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            this.usernameError = "❌ Username is already taken";
+          } else {
+            this.usernameError = "✓ Username is available";
+          }
+        } catch (error) {
+          console.error("Error checking username:", error);
+          this.usernameError = "";
+        }
+      }, 500);
     },
 
     // Signup Methods
@@ -697,6 +731,20 @@ export default {
         }
         if (username.length < 3) {
           return this.showNotification("Username must be at least 3 characters.", "danger");
+        }
+
+        // Check if username is already taken
+        try {
+          const usersRef = collection(db, "users");
+          const q = query(usersRef, where("username", "==", username));
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            return this.showNotification("Username is already taken. Please choose a different username.", "danger");
+          }
+        } catch (error) {
+          console.error("Error checking username:", error);
+          return this.showNotification("Failed to validate username. Please try again.", "danger");
         }
 
         // Validate address if not already validated
@@ -1455,10 +1503,21 @@ input::placeholder { color: var(--color-text-light); opacity: 1; }
 }
 
 .username-container .error-text {
-  color: var(--color-error);
   font-size: 0.75rem;
   margin-top: 4px;
   margin-left: 2px;
+  font-weight: 500;
+  display: block;
+}
+
+/* Default error state */
+.error-text {
+  color: var(--color-error);
+}
+
+/* Success state - when text contains checkmark */
+.success-text {
+  color: #28a745 !important;
 }
 
 .google-btn {

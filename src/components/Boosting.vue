@@ -278,9 +278,22 @@
       
       // Update seller badge progress: increment boosts
       if (sellerId) {
-        await updateDoc(doc(db, "users", sellerId), {
-          "stats.boosts": increment(1)
-        });
+        try {
+          const sellerRef = doc(db, "users", sellerId);
+          const sellerDoc = await getDoc(sellerRef);
+
+          if (sellerDoc.exists()) {
+            const currentStats = sellerDoc.data().stats || {};
+            await updateDoc(sellerRef, {
+              stats: {
+                ...currentStats,
+                boosts: (currentStats.boosts || 0) + 1
+              }
+            });
+          }
+        } catch (statsError) {
+          console.warn('Could not update seller boost stats:', statsError);
+        }
       }
   
       // Success is already handled in onMounted when status === "success"

@@ -52,7 +52,8 @@ async function fetchRealReviews() {
         const reviewData = reviewDoc.data()
 
         const reviewComment = reviewData.reviewText || reviewData.comment || ''
-        if (reviewData.rating >= 4 && reviewComment && reviewComment.trim().length > 20) {
+        // Only show verified reviews (QR scan or booking verification)
+        if (reviewData.isVerified && reviewData.rating >= 4 && reviewComment && reviewComment.trim().length > 20) {
           let userName = reviewData.userName || reviewData.username || 'Anonymous'
           let userLocation = 'Singapore'
 
@@ -1076,6 +1077,29 @@ onBeforeUnmount(() => {
   font-weight: 700;
   color: var(--color-primary);
   font-size: 1.125rem;
+}
+
+/* Dark mode styles for trending section */
+:root.dark-mode .trending-section {
+  background: var(--color-bg-secondary);
+}
+
+:root.dark-mode .trending-card {
+  background: var(--color-bg-primary);
+  border-color: #2a2a3e;
+}
+
+:root.dark-mode .trending-badge {
+  background: rgba(50, 50, 70, 0.95);
+  color: #ffffff;
+}
+
+:root.dark-mode .trending-title {
+  color: var(--color-text-primary);
+}
+
+:root.dark-mode .rating-text {
+  color: var(--color-text-secondary);
 }
 
 /* ========== FINAL CTA ========== */

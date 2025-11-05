@@ -118,6 +118,18 @@ function closeReportModal() {
 
 /* Booking Modal Functions */
 function openBookingModal() {
+  const user = auth.currentUser
+  if (!user) {
+    toast.error('Please log in to book an appointment')
+    return
+  }
+
+  // Prevent booking your own listing
+  if (user.uid === active.value?.userId) {
+    toast.warning('You cannot book your own listing')
+    return
+  }
+
   bookingDate.value = ''
   bookingTime.value = ''
   bookingMessage.value = ''
@@ -644,6 +656,7 @@ const reviews = ref([])
 const loadingReviews = ref(false)
 const avgRating = ref(0)
 const totalReviews = ref(0)
+const verifiedReviews = ref(0)
 
 // Review form state
 const userRating = ref(0)
@@ -653,24 +666,50 @@ const submittingReview = ref(false)
 const reviewError = ref('')
 const reviewSuccess = ref('')
 
-// Check if user has unlocked the review by scanning QR code
-async function checkReviewUnlocked(userId, listingId) {
+// Check if user has verification via QR code scan
+async function checkQRVerification(userId, listingId) {
   try {
-    // Check if user has used a review code for this listing
     const usedCodesQuery = query(
       collection(db, 'usedReviewCodes'),
       where('userId', '==', userId),
       where('listingId', '==', listingId)
     )
-
     const usedCodesSnapshot = await getDocs(usedCodesQuery)
-
-    // If user has scanned the QR code, they can review
     return !usedCodesSnapshot.empty
   } catch (error) {
-    console.error('Error checking review unlock status:', error)
-    // In case of error, block review (fail closed for security)
+    console.error('Error checking QR verification:', error)
     return false
+  }
+}
+
+// Check if user has a verified booking for this listing
+async function checkBookingVerification(userId, listingId) {
+  try {
+    const bookingsQuery = query(
+      collection(db, 'bookings'),
+      where('buyerId', '==', userId),
+      where('listingId', '==', listingId),
+      where('status', '==', 'accepted')
+    )
+    const bookingsSnapshot = await getDocs(bookingsQuery)
+    return !bookingsSnapshot.empty
+  } catch (error) {
+    console.error('Error checking booking verification:', error)
+    return false
+  }
+}
+
+// Get all verification statuses for a user
+async function getUserVerificationStatus(userId, listingId) {
+  const [hasQRScan, hasBooking] = await Promise.all([
+    checkQRVerification(userId, listingId),
+    checkBookingVerification(userId, listingId)
+  ])
+
+  return {
+    qrVerified: hasQRScan,
+    bookingVerified: hasBooking,
+    isVerified: hasQRScan || hasBooking
   }
 }
 
@@ -680,6 +719,7 @@ async function fetchReviews() {
     reviews.value = []
     avgRating.value = 0
     totalReviews.value = 0
+    verifiedReviews.value = 0
     return
   }
 
@@ -696,6 +736,8 @@ async function fetchReviews() {
 
     const reviewsList = []
     let totalRating = 0
+    let totalWeight = 0
+    let verifiedCount = 0
 
     for (const docSnap of snapshot.docs) {
       const reviewData = docSnap.data()
@@ -724,12 +766,22 @@ async function fetchReviews() {
         reviewerAvatar
       })
 
-      totalRating += (reviewData.rating || 0)
+      // Weighted rating: verified reviews count 2x, unverified count 1x
+      const rating = reviewData.rating || 0
+      const weight = reviewData.isVerified ? 2 : 1
+      totalRating += rating * weight
+      totalWeight += weight
+
+      if (reviewData.isVerified) {
+        verifiedCount++
+      }
     }
 
     reviews.value = reviewsList
     totalReviews.value = reviewsList.length
-    avgRating.value = totalReviews.value > 0 ? totalRating / totalReviews.value : 0
+    verifiedReviews.value = verifiedCount
+    // Calculate weighted average (verified reviews count more)
+    avgRating.value = totalWeight > 0 ? totalRating / totalWeight : 0
 
   } catch (e) {
     console.error('Failed to fetch reviews:', e)
@@ -771,20 +823,14 @@ async function submitReview() {
     return
   }
 
-  // Check if user has unlocked review via QR code
-  const listingId = props.listing.listingId || props.listing.id
-  const hasUnlockedReview = await checkReviewUnlocked(user.uid, listingId)
-
-  if (!hasUnlockedReview) {
-    toast.warning('Please scan the QR code at this business to unlock the review feature.')
-    reviewError.value = 'You must scan this business\'s QR code to leave a review.'
-    return
-  }
-
   submittingReview.value = true
 
   try {
     const listingId = props.listing.listingId || props.listing.id
+
+    // Get user's verification status (QR scan or booking)
+    const verificationStatus = await getUserVerificationStatus(user.uid, listingId)
+
     // console.log('[Reviews] Submitting review for listing:', listingId)
     const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
 
@@ -792,7 +838,11 @@ async function submitReview() {
       userId: user.uid,
       rating: userRating.value,
       reviewText: userReviewText.value.trim(),
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      // Verification badges
+      qrVerified: verificationStatus.qrVerified,
+      bookingVerified: verificationStatus.bookingVerified,
+      isVerified: verificationStatus.isVerified
     })
 
     // console.log('[Reviews] Review submitted successfully')
@@ -922,6 +972,7 @@ watch(() => props.open, (isOpen) => {
     reviews.value = []
     avgRating.value = 0
     totalReviews.value = 0
+    verifiedReviews.value = 0
     userRating.value = 0
     userReviewText.value = ''
     reviewError.value = ''
@@ -955,8 +1006,6 @@ watch(() => props.open, (isOpen) => {
 
         <!-- Seller Info -->
         <div class="flex-grow-1">
-          <div class="fw-semibold small text-muted">Seller</div>
-
           <!-- Name + socials + badge -->
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <span class="fw-semibold seller-name-clickable" @click="goToSellerProfile">
@@ -998,9 +1047,6 @@ watch(() => props.open, (isOpen) => {
       <div class="title-row">
         <h3 class="mb-0 truncate listing-title">{{ active?.businessName || listing?.businessName }}</h3>
         <div class="d-flex gap-2">
-          <a class="btn btn-outline-primary" :href="gmapsLink" target="_blank" rel="noopener">
-            <i class="fas fa-map-marker-alt me-2"></i>View in Maps
-          </a>
           <button class="btn btn-outline-danger" @click="openReportModal">
             <i class="fas fa-flag me-2"></i>Report
           </button>
@@ -1127,8 +1173,9 @@ watch(() => props.open, (isOpen) => {
                   <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(avgRating) }">★</span>
                 </div>
                 <span class="fw-semibold">{{ avgRating.toFixed(1) }}</span>
-                <span class="text-muted small">({{ totalReviews }} {{ totalReviews === 1 ? 'review' : 'reviews'
-                  }})</span>
+                <span class="text-muted small">
+                  ({{ totalReviews }} {{ totalReviews === 1 ? 'review' : 'reviews' }}<template v-if="verifiedReviews > 0">, {{ verifiedReviews }} verified</template>)
+                </span>
               </div>
             </div>
 
@@ -1198,9 +1245,18 @@ watch(() => props.open, (isOpen) => {
 
                       <div class="flex-grow-1">
                         <div class="d-flex align-items-center justify-content-between mb-1">
-                          <span class="fw-semibold small" :class="{ 'reviewer-name-clickable': review.userId }"
-                            @click="review.userId ? goToReviewerProfile(review.userId, $event) : null">{{
-                            review.reviewerName }}</span>
+                          <div class="d-flex align-items-center gap-2">
+                            <span class="fw-semibold small" :class="{ 'reviewer-name-clickable': review.userId }"
+                              @click="review.userId ? goToReviewerProfile(review.userId, $event) : null">{{
+                              review.reviewerName }}</span>
+                            <!-- Verification Badges -->
+                            <span v-if="review.qrVerified" class="badge bg-success-subtle text-success xsmall px-2 py-1" title="Verified Purchase via QR Code">
+                              <Icon icon="mdi:check-decagram" class="me-1" style="font-size: 12px;" />Verified Purchase
+                            </span>
+                            <span v-else-if="review.bookingVerified" class="badge bg-primary-subtle text-primary xsmall px-2 py-1" title="Verified Booking">
+                              <Icon icon="mdi:calendar-check" class="me-1" style="font-size: 12px;" />Verified Booking
+                            </span>
+                          </div>
                           <div class="stars-display-small">
                             <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= review.rating }">★</span>
                           </div>
@@ -1743,6 +1799,23 @@ watch(() => props.open, (isOpen) => {
 
 .review-item:hover {
   box-shadow: var(--shadow-sm);
+}
+
+/* Verification badge dark mode styles */
+:root.dark-mode .bg-success-subtle {
+  background-color: rgba(25, 135, 84, 0.2) !important;
+}
+
+:root.dark-mode .text-success {
+  color: #4ade80 !important;
+}
+
+:root.dark-mode .bg-primary-subtle {
+  background-color: rgba(102, 126, 234, 0.2) !important;
+}
+
+:root.dark-mode .text-primary {
+  color: var(--color-primary) !important;
 }
 
 .reviewer-avatar {

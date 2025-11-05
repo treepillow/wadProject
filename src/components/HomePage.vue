@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import { db, auth } from '@/firebase'
+import { useRoute, useRouter } from 'vue-router'
 
 import SearchBar from './SearchBar.vue'
 import Categories from './Categories.vue'
@@ -14,6 +15,9 @@ import ListingCard from './ListingCard.vue'
 import ListingDrawer from './ListingDrawer.vue'
 import MapExplorer from './MapExplorer.vue'
 import { Icon } from '@iconify/vue'
+
+const route = useRoute()
+const router = useRouter()
 
 const listings     = ref([])
 const loading      = ref(true)
@@ -481,9 +485,11 @@ async function fetchPage () {
     const parts = []
 
     // Apply category filter if any (Firestore 'in' supports up to 10 items)
-    if (selectedCats.value.length > 0) {
+    // Exclude "Trending" from category filter as it's a special sort-only category
+    const regularCategories = selectedCats.value.filter(cat => cat !== 'Trending')
+    if (regularCategories.length > 0) {
       // Filter by selected categories (max 10 for Firestore `in` clause)
-      parts.push(where('businessCategory', 'in', selectedCats.value.slice(0, 10)))
+      parts.push(where('businessCategory', 'in', regularCategories.slice(0, 10)))
     }
     parts.push(orderBy('createdAt','desc'))
     if (lastDoc.value) parts.push(startAfter(lastDoc.value))
@@ -630,7 +636,19 @@ async function onToggleLike(listing) {
 
 /* UI actions */
 function toggleCategory(name) {
-  // Allow only one category at a time
+  // Handle "Trending" category specially
+  if (name === 'Trending') {
+    if (selectedCats.value.length === 1 && selectedCats.value[0] === 'Trending') {
+      selectedCats.value = [] // Deselect if already selected
+      sortBy.value = 'trending' // Reset to default trending sort
+    } else {
+      selectedCats.value = ['Trending'] // Select Trending
+      sortBy.value = 'trending' // Set to trending sort
+    }
+    return
+  }
+
+  // Allow only one category at a time for regular categories
   if (selectedCats.value.length === 1 && selectedCats.value[0] === name) {
     selectedCats.value = [] // Deselect if already selected
   } else {
@@ -730,6 +748,24 @@ onMounted(async () => {
     await applySorting()
   }
   unsubAuth = onAuthStateChanged(auth, user => startLikesListener(user))
+
+  // Check if there's a listing query parameter (from new listing creation)
+  if (route.query.listing) {
+    const listingId = route.query.listing
+    try {
+      const listingDoc = await getDoc(doc(db, 'allListings', listingId))
+      if (listingDoc.exists()) {
+        const listingData = { id: listingId, listingId, ...listingDoc.data() }
+        // Wait a bit to ensure drawer is ready
+        await nextTick()
+        openDrawer(listingData)
+        // Clear the query parameter
+        router.replace({ query: {} })
+      }
+    } catch (error) {
+      console.error('Error loading listing from query:', error)
+    }
+  }
 })
 onBeforeUnmount(() => {
   if (unsubLikes) unsubLikes()

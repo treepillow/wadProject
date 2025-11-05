@@ -62,14 +62,14 @@
                   class="distance-select"
                   @change="handleDistanceFilterChange"
                 >
-                  <option value="singapore">Singapore</option>
-                  <option value="0.5">0.5 km</option>
-                  <option value="1">1 km</option>
-                  <option value="2">2 km</option>
-                  <option value="5">5 km</option>
-                  <option value="10">10 km</option>
-                  <option value="20">20 km</option>
-                  <option value="50">50 km</option>
+                  <option value="singapore">All of Singapore</option>
+                  <option value="0.5">Within 0.5 km</option>
+                  <option value="1">Within 1 km</option>
+                  <option value="2">Within 2 km</option>
+                  <option value="5">Within 5 km</option>
+                  <option value="10">Within 10 km</option>
+                  <option value="20">Within 20 km</option>
+                  <option value="50">Within 50 km</option>
                 </select>
               </div>
               
@@ -681,6 +681,15 @@ function updateMarkers() {
   // Fit bounds to show all markers, or show Singapore if no markers
   if (markers.value.length > 0) {
     map.value.fitBounds(bounds)
+
+    // Prevent zooming in too much after fitBounds
+    // Add a listener to check and limit zoom after bounds are fitted
+    const boundsListener = window.google.maps.event.addListenerOnce(map.value, 'bounds_changed', () => {
+      const currentZoom = map.value.getZoom()
+      if (currentZoom > 13) {
+        map.value.setZoom(13) // Max zoom level to prevent being too close
+      }
+    })
   } else {
     // Default to Singapore center if no markers
     map.value.setCenter({ lat: 1.3521, lng: 103.8198 })
@@ -1135,7 +1144,7 @@ body.map-explorer-open {
   background: white;
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: #333;
   cursor: pointer;
   outline: none;
   transition: all 0.2s ease;
@@ -1145,15 +1154,22 @@ body.map-explorer-open {
   background-position: right 12px center;
   min-width: 150px;
   height: 40px;
+  color-scheme: light;
 }
 
 :root.dark-mode .category-select {
-  background: var(--color-bg-secondary);
-  border-color: #2a2a3e;
-  color: var(--color-text-primary);
+  background: #2a2a3e;
+  border-color: #3a3a4e;
+  color: #e0e0e0;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
+  color-scheme: dark;
+}
+
+:root.dark-mode .category-select option {
+  background-color: #2a2a3e;
+  color: #e0e0e0;
 }
 
 .category-select:hover {
@@ -1172,7 +1188,7 @@ body.map-explorer-open {
   background: white;
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: #333;
   cursor: pointer;
   outline: none;
   transition: all 0.2s ease;
@@ -1184,15 +1200,22 @@ body.map-explorer-open {
   height: 40px;
   z-index: 1;
   pointer-events: auto;
+  color-scheme: light;
 }
 
 :root.dark-mode .distance-select {
-  background: var(--color-bg-secondary);
-  border-color: #2a2a3e;
-  color: var(--color-text-primary);
+  background: #2a2a3e;
+  border-color: #3a3a4e;
+  color: #e0e0e0;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
+  color-scheme: dark;
+}
+
+:root.dark-mode .distance-select option {
+  background-color: #2a2a3e;
+  color: #e0e0e0;
 }
 
 .distance-select:hover {

@@ -1,6 +1,9 @@
 <script>
+import { Icon } from '@iconify/vue'
+
 export default {
   name: 'Categories',
+  components: { Icon },
   props: {
     selected: { type: Array, default: () => [] }
   },
@@ -9,6 +12,7 @@ export default {
     const src = (file) => new URL(`../assets/category_images/${file}`, import.meta.url).href
     return {
       options: [
+        'Trending',
         'Food and Drinks',
         'Beauty',
         'Fitness',
@@ -30,7 +34,8 @@ export default {
   },
   methods: {
     isActive(name) { return this.selected?.includes(name) },
-    toggle(name) { this.$emit('toggle', name) }
+    toggle(name) { this.$emit('toggle', name) },
+    hasImage(name) { return !!this.images[name] }
   }
 }
 </script>
@@ -46,10 +51,11 @@ export default {
         <button
           type="button"
           class="navbar-brand category btn-reset"
-          :class="{ active: isActive(opt) }"
+          :class="{ active: isActive(opt), 'trending-category': opt === 'Trending' }"
           @click="toggle(opt)"
         >
-          <img :src="images[opt]" alt="category image" width="50" height="50" />
+          <img v-if="hasImage(opt)" :src="images[opt]" alt="category image" width="50" height="50" />
+          <Icon v-else icon="mdi:fire" class="trending-icon" />
         </button>
         <div class="category-text text-center fs-5">{{ opt }}</div>
       </div>
@@ -66,10 +72,11 @@ export default {
             <button
               type="button"
               class="category btn-reset"
-              :class="{ active: isActive(opt) }"
+              :class="{ active: isActive(opt), 'trending-category': opt === 'Trending' }"
               @click="toggle(opt)"
             >
-              <img :src="images[opt]" alt="category image" width="50" height="50" />
+              <img v-if="hasImage(opt)" :src="images[opt]" alt="category image" width="50" height="50" />
+              <Icon v-else icon="mdi:fire" class="trending-icon" />
             </button>
             <div class="category-text text-center">{{ opt }}</div>
           </div>
@@ -155,6 +162,16 @@ hr { border: 1; opacity: 0.25; }
 .category-text {
   color: var(--color-text-primary);
   margin-top: 8px;
+}
+
+.trending-icon {
+  font-size: 50px;
+  color: #333333;
+  transition: all var(--transition-fast);
+}
+
+:root.dark-mode .trending-icon {
+  color: #ffffff;
 }
 
 /* Mobile specific adjustments - 2 rows of 4 */

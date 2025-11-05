@@ -16,6 +16,7 @@ import AdminDashboard from '../components/AdminDashboard.vue'
 import Feedback from '@/components/Feedback.vue';
 import ManageReport from '@/components/ManageReports.vue';
 import ReviewUnlock from '@/components/ReviewUnlock.vue';
+import NotFound from '@/components/NotFound.vue';
 
 import { auth, db } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -108,12 +109,19 @@ const router = createRouter({
     {
       path: '/manageReport',
       name: 'ManageReport',
-      component: ManageReport
+      component: ManageReport,
+      meta: { requiresAuth: true, requiresAdmin: true }
     },
     {
       path: '/review/:listingId',
       name: 'reviewUnlock',
       component: ReviewUnlock
+    },
+    // Catch-all route for 404 Not Found
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'notFound',
+      component: NotFound
     }
   ],
 })
@@ -159,6 +167,11 @@ async function getUserData(uid) {
 
 router.beforeEach(async (to, _from, next) => {
   const user = await getCurrentUser();
+
+  // Special handling for root path - redirect to about if not logged in
+  if (to.path === '/' && !user) {
+    return next({ name: "about" });
+  }
 
   if (to.meta.requiresAuth && !user) {
     // Redirect to login (not signup) when not authenticated

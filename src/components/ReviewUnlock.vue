@@ -335,11 +335,19 @@ export default {
   background-color: var(--color-primary) !important;
   border-color: var(--color-primary) !important;
   color: white !important;
+  transition: all 0.2s ease;
 }
 
-.btn-primary:hover {
-  background-color: var(--color-primary-dark) !important;
-  border-color: var(--color-primary-dark) !important;
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+  color: white !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .btn-primary:disabled {
@@ -351,11 +359,67 @@ export default {
   background-color: #6c757d !important;
   border-color: #6c757d !important;
   color: white !important;
+  transition: all 0.2s ease;
 }
 
 .btn-secondary:hover {
   background-color: #5a6268 !important;
   border-color: #545b62 !important;
+  color: white !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+/* Ensure buttons never turn white - force specificity */
+.btn-primary:focus,
+.btn-primary:focus-visible {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: white !important;
+  box-shadow: 0 0 0 0.25rem rgba(106, 90, 248, 0.25) !important;
+}
+
+/* Dark mode button overrides */
+:root.dark-mode .btn-primary {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: white !important;
+}
+
+:root.dark-mode .btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+  color: white !important;
+}
+
+:root.dark-mode .btn-primary:focus,
+:root.dark-mode .btn-primary:focus-visible {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: white !important;
+}
+
+:root.dark-mode .btn-secondary {
+  background-color: #6c757d !important;
+  border-color: #6c757d !important;
+  color: white !important;
+}
+
+:root.dark-mode .btn-secondary:hover {
+  background-color: #5a6268 !important;
+  border-color: #545b62 !important;
+  color: white !important;
+}
+
+:root.dark-mode .btn-secondary:focus,
+:root.dark-mode .btn-secondary:focus-visible {
+  background-color: #6c757d !important;
+  border-color: #6c757d !important;
+  color: white !important;
 }
 
 .success-icon, .error-icon {

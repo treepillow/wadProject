@@ -12,6 +12,7 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObjec
 import { useDarkMode } from '@/composables/useDarkMode'
 import { useToast } from '@/composables/useToast'
 import { generateQRCode, downloadQRCode } from '@/utils/reviewCode'
+import { startChatWithUser } from '@/helpers/chatHelper'
 import { Icon } from '@iconify/vue'
 import { Chart, registerables } from 'chart.js'
 import { nextTick } from 'vue'
@@ -83,6 +84,9 @@ export default {
     const bookingRequests = ref([])
     const bookingsLoading = ref(false)
     const bookingsLoaded = ref(false)
+    const bookingStatusFilter = ref('all') // 'all', 'pending', 'accepted', 'rejected'
+    const bookingListingFilter = ref('all') // 'all' or listingId
+    const bookingDateSort = ref('newest') // 'newest' or 'oldest'
 
     /* ---------------- Analytics ---------------- */
     const analyticsLoaded = ref(false)
@@ -445,6 +449,41 @@ export default {
       }
     }
 
+    // Computed property for filtered and sorted booking requests
+    const filteredBookingRequests = computed(() => {
+      let filtered = bookingRequests.value
+
+      // Filter by status
+      if (bookingStatusFilter.value !== 'all') {
+        filtered = filtered.filter(b => b.status === bookingStatusFilter.value)
+      }
+
+      // Filter by listing
+      if (bookingListingFilter.value !== 'all') {
+        filtered = filtered.filter(b => b.listingId === bookingListingFilter.value)
+      }
+
+      // Sort by date
+      filtered = [...filtered].sort((a, b) => {
+        const dateA = new Date(a.date)
+        const dateB = new Date(b.date)
+        return bookingDateSort.value === 'newest' ? dateB - dateA : dateA - dateB
+      })
+
+      return filtered
+    })
+
+    // Get unique listings from booking requests for filtering
+    const bookingListings = computed(() => {
+      const uniqueListings = new Map()
+      bookingRequests.value.forEach(b => {
+        if (b.listingId && b.listingName) {
+          uniqueListings.set(b.listingId, b.listingName)
+        }
+      })
+      return Array.from(uniqueListings.entries()).map(([id, name]) => ({ id, name }))
+    })
+
     async function acceptBooking(bookingId) {
       try {
         await updateDoc(doc(db, 'bookingRequests', bookingId), {
@@ -522,6 +561,16 @@ export default {
       } catch (error) {
         console.error('Error rejecting booking:', error)
         toast.error('Failed to reject booking. Please try again.')
+      }
+    }
+
+    async function startChatWithBuyer(buyerId, listingId) {
+      try {
+        const chatId = await startChatWithUser(user.value.uid, buyerId, listingId)
+        router.push(`/chat?id=${chatId}`)
+      } catch (error) {
+        console.error('Error starting chat:', error)
+        toast.error('Failed to start chat. Please try again.')
       }
     }
 
@@ -1411,7 +1460,9 @@ export default {
       likedSet, likeCounts, onToggleLike,
       profileMap,
       /* bookings */
-      bookingRequests, bookingsLoading, acceptBooking, rejectBooking,
+      bookingRequests, bookingsLoading, acceptBooking, rejectBooking, startChatWithBuyer,
+      bookingStatusFilter, bookingListingFilter, bookingDateSort,
+      filteredBookingRequests, bookingListings,
       /* batch reveal bindings */
       revealedMy, revealedLiked,
       handleMyImageLoaded, handleLikedImageLoaded,
@@ -1633,12 +1684,58 @@ export default {
           <!-- BOOKING REQUESTS -->
           <div v-show="activeTab === 'bookings'" class="shadow-soft rounded-4 p-4 p-md-5 bg-white border">
             <h4 class="mb-4">Booking Requests</h4>
+
+            <!-- Filters -->
+            <div v-if="bookingRequests.length > 0" class="booking-filters mb-4">
+              <div class="filters-header mb-3">
+                <Icon icon="mdi:filter-variant" class="me-2" />
+                <span class="fw-semibold">Filter Booking Requests</span>
+              </div>
+              <div class="row g-3">
+                <div class="col-12 col-md-4">
+                  <label class="filter-label">
+                    <Icon icon="mdi:check-circle" class="me-1" />
+                    Status
+                  </label>
+                  <select v-model="bookingStatusFilter" class="booking-filter-select">
+                    <option value="all">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="accepted">Accepted</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="filter-label">
+                    <Icon icon="mdi:store" class="me-1" />
+                    Business Listing
+                  </label>
+                  <select v-model="bookingListingFilter" class="booking-filter-select">
+                    <option value="all">All Listings</option>
+                    <option v-for="listing in bookingListings" :key="listing.id" :value="listing.id">
+                      {{ listing.name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="filter-label">
+                    <Icon icon="mdi:sort-calendar-descending" class="me-1" />
+                    Sort by Date
+                  </label>
+                  <select v-model="bookingDateSort" class="booking-filter-select">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <div v-if="bookingsLoading" class="text-center py-4">
               <div class="spinner-border"></div>
             </div>
             <div v-else-if="!bookingRequests.length" class="text-muted">No booking requests yet.</div>
+            <div v-else-if="!filteredBookingRequests.length" class="text-muted">No booking requests match the selected filters.</div>
             <div v-else>
-              <div v-for="booking in bookingRequests" :key="booking.id" class="booking-request-card card mb-3">
+              <div v-for="booking in filteredBookingRequests" :key="booking.id" class="booking-request-card card mb-3">
                 <div class="card-body">
                   <div class="d-flex justify-content-between align-items-start mb-3">
                     <div>
@@ -1664,13 +1761,18 @@ export default {
                     <p class="mb-0 mt-1">{{ booking.message }}</p>
                   </div>
 
-                  <div v-if="booking.status === 'pending'" class="d-flex gap-2">
-                    <button class="btn btn-success btn-sm" @click="acceptBooking(booking.id)">
-                      <i class="fas fa-check me-1"></i>Accept
+                  <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-outline-primary btn-sm" @click="startChatWithBuyer(booking.buyerId, booking.listingId)" title="Chat with buyer">
+                      <Icon icon="mdi:message-text" class="me-1" />Chat
                     </button>
-                    <button class="btn btn-danger btn-sm" @click="rejectBooking(booking.id)">
-                      <i class="fas fa-times me-1"></i>Reject
-                    </button>
+                    <div v-if="booking.status === 'pending'" class="d-flex gap-2">
+                      <button class="btn btn-success btn-sm" @click="acceptBooking(booking.id)">
+                        <i class="fas fa-check me-1"></i>Accept
+                      </button>
+                      <button class="btn btn-danger btn-sm" @click="rejectBooking(booking.id)">
+                        <i class="fas fa-times me-1"></i>Reject
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2402,5 +2504,87 @@ h4 {
 :root.dark-mode .booking-request-card strong,
 :root.dark-mode .booking-request-card p {
   color: var(--color-text-primary) !important;
+}
+
+/* Booking Filters Styling */
+.booking-filters {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.filters-header {
+  display: flex;
+  align-items: center;
+  color: var(--color-primary);
+  font-size: 1rem;
+}
+
+.filter-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.booking-filter-select {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border-radius: 8px;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg-white);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  color-scheme: light;
+}
+
+.booking-filter-select:hover {
+  border-color: var(--color-primary);
+}
+
+.booking-filter-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Dark mode for booking filters */
+:root.dark-mode .booking-filters {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+  border-color: #2a2a3e;
+}
+
+:root.dark-mode .filters-header {
+  color: var(--color-primary);
+}
+
+:root.dark-mode .filter-label {
+  color: var(--color-text-primary);
+}
+
+:root.dark-mode .booking-filter-select {
+  background: #2a2a3e;
+  border-color: #3a3a4e;
+  color: #e0e0e0;
+  color-scheme: dark;
+}
+
+:root.dark-mode .booking-filter-select option {
+  background-color: #2a2a3e;
+  color: #e0e0e0;
+}
+
+:root.dark-mode .booking-filter-select:hover {
+  border-color: var(--color-primary);
+}
+
+:root.dark-mode .booking-filter-select:focus {
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
 }
 </style>

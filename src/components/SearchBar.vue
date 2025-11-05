@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { Icon } from '@iconify/vue'
 
 const emit = defineEmits(['search'])
 
@@ -112,24 +113,30 @@ function handleLocationBlur() {
 <template>
   <div class="search mt-2">
     <form class="d-flex align-items-center gap-3" role="search" @submit="handleSearch">
-      <input
-        class="home-business form-control"
-        type="search"
-        placeholder="🔍 Search for a home business"
-        aria-label="Search"
-        v-model="searchQuery"
-      />
-      <div class="location-dropdown-wrapper">
+      <div class="input-with-icon">
+        <Icon icon="mdi:magnify" class="input-icon" />
         <input
-          class="location-search form-control"
+          class="home-business form-control"
           type="search"
-          placeholder="📍 Search location"
-          aria-label="Search Location"
-          v-model="locationQuery"
-          @focus="handleLocationFocus"
-          @blur="handleLocationBlur"
-          autocomplete="off"
+          placeholder="Search for a home business"
+          aria-label="Search"
+          v-model="searchQuery"
         />
+      </div>
+      <div class="location-dropdown-wrapper">
+        <div class="input-with-icon">
+          <Icon icon="mdi:map-marker" class="input-icon" />
+          <input
+            class="location-search form-control"
+            type="search"
+            placeholder="Search location"
+            aria-label="Search Location"
+            v-model="locationQuery"
+            @focus="handleLocationFocus"
+            @blur="handleLocationBlur"
+            autocomplete="off"
+          />
+        </div>
         <div v-if="showLocationDropdown" class="location-dropdown">
           <!-- Show API suggestions if available and user typed something -->
           <div v-if="locationQuery && locationSuggestions.length > 0">
@@ -140,7 +147,7 @@ function handleLocationBlur() {
               class="location-item"
               @click="selectLocation(location)"
             >
-              📍 {{ location }}
+              <Icon icon="mdi:map-marker" class="location-icon" /> {{ location }}
             </div>
           </div>
 
@@ -154,7 +161,7 @@ function handleLocationBlur() {
                 class="location-item"
                 @click="selectLocation(area)"
               >
-                {{ area }}
+                <Icon icon="mdi:map-marker" class="location-icon" /> {{ area }}
               </div>
             </div>
           </div>
@@ -172,10 +179,26 @@ function handleLocationBlur() {
   width: 100%;
 }
 
-.home-business {
+.input-with-icon {
+  position: relative;
   flex: 1;
   min-width: 0;
-  padding: 15px;
+}
+
+.input-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.home-business {
+  width: 100%;
+  padding: 15px 15px 15px 45px;
   border-radius: 8px;
   border: 2px solid var(--color-border);
   background: var(--color-bg-white);
@@ -193,6 +216,11 @@ function handleLocationBlur() {
   outline: none;
 }
 
+.home-business:focus ~ .input-icon,
+.location-search:focus ~ .input-icon {
+  color: var(--color-primary);
+}
+
 .location-dropdown-wrapper {
   position: relative;
   flex: 0 0 auto;
@@ -201,7 +229,7 @@ function handleLocationBlur() {
 
 .location-search {
   width: 100%;
-  padding: 15px;
+  padding: 15px 15px 15px 45px;
   border-radius: 8px;
   border: 2px solid var(--color-border);
   background: var(--color-bg-white);
@@ -257,8 +285,11 @@ function handleLocationBlur() {
   padding-left: 25px;
   cursor: pointer;
   color: var(--color-text-primary);
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .location-item:last-child {
@@ -269,6 +300,11 @@ function handleLocationBlur() {
   background-color: var(--color-bg-purple-tint);
   color: var(--color-primary);
   padding-left: 30px;
+}
+
+.location-icon {
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .btn-search {
@@ -316,11 +352,14 @@ function handleLocationBlur() {
     gap: 0.75rem !important;
   }
 
-  .home-business {
+  .input-with-icon {
     width: 100%;
     flex: 1 1 100%;
+  }
+
+  .home-business {
     height: 48px;
-    padding: 12px;
+    padding: 12px 12px 12px 42px;
   }
 
   .location-dropdown-wrapper {
@@ -330,7 +369,12 @@ function handleLocationBlur() {
 
   .location-search {
     height: 48px;
-    padding: 12px;
+    padding: 12px 12px 12px 42px;
+  }
+
+  .input-icon {
+    left: 12px;
+    font-size: 18px;
   }
 
   .btn-search {
@@ -349,8 +393,13 @@ function handleLocationBlur() {
   .home-business,
   .location-search {
     height: 44px;
-    padding: 10px;
+    padding: 10px 10px 10px 38px;
     font-size: 0.875rem;
+  }
+
+  .input-icon {
+    left: 10px;
+    font-size: 16px;
   }
 
   .btn-search {

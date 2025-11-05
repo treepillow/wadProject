@@ -14,6 +14,7 @@
                 :liked="false"
                 :likesCount="0"
                 :reveal="true"
+                :showAll="true"
                 :sellerNameOverride="seller.displayName"
                 :sellerAvatarOverride="seller.photoURL"
               />
@@ -21,7 +22,7 @@
   
             <!-- RIGHT: Boost panel -->
             <div class="col-12 col-lg-8">
-              <div class="boost-card shadow-soft rounded-4 p-4 bg-white">
+              <div class="boost-card shadow-soft rounded-4 p-4">
                 <h4 class="mb-3 d-flex justify-content-between align-items-center">
                   🚀 Boost Listing
                   <small class="text-muted">Stripe secure checkout 🔒</small>
@@ -102,8 +103,10 @@
   import { useRoute, useRouter } from "vue-router";
   import ListingCard from "@/components/ListingCard.vue";
   import { getFirestore, doc, getDoc, updateDoc, Timestamp, increment } from "firebase/firestore";
-  
+  import { useToast } from "@/composables/useToast";
+
   const db = getFirestore();
+  const toast = useToast();
   const route = useRoute();
   const router = useRouter();
   
@@ -135,12 +138,12 @@
     // ✅ Handle success redirect from Stripe
     if (status === "success" && listingId && plan) {
       await applyBoost(listingId, plan);
-      
-      // Show success alert
+
+      // Show success toast
       const planNames = { "1day": "1 Day", "7days": "7 Days", "1month": "1 Month" };
       const planName = planNames[plan] || plan;
-      alert(`🎉 Success! Your listing has been boosted for ${planName}. It will receive increased visibility on Explore & Trending pages!`);
-      
+      toast.success(`Success! Your listing has been boosted for ${planName}. It will receive increased visibility on Explore & Trending pages!`);
+
       router.replace("/profile#my");
       return;
     }
@@ -234,7 +237,7 @@
         errorMessage = err.message;
       }
       
-      alert(errorMessage);
+      toast.error(errorMessage);
       checkingOut.value = false; // Reset button state on error
     }
     // Note: We don't reset checkingOut.value in finally anymore since we do it on error
@@ -285,19 +288,27 @@
       // to avoid double alerts
     } catch (e) {
       console.error("❌ Failed to update boostedUntil:", e);
-      alert("❌ Boost payment succeeded, but failed to update listing. Please contact support or refresh the page.");
+      toast.error("Boost payment succeeded, but failed to update listing. Please contact support or refresh the page.");
     }
   }
   </script>
   
   <style scoped>
-  .bg-page { background: var(--page-bg, rgb(245,239,239)); }
+  .bg-page {
+    background: var(--page-bg, rgb(245,239,239));
+  }
   .shadow-soft { box-shadow: 0 8px 28px rgba(0,0,0,.06); }
-  
+
+  .boost-card {
+    background: var(--color-bg-white, white);
+    color: var(--color-text-primary);
+  }
+
   .plan-option {
     transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
     cursor: pointer;
-    background: #fff;
+    background: var(--color-bg-white, #fff);
+    color: var(--color-text-primary);
   }
   .plan-option:hover {
     border-color: #cfc3ff;
@@ -305,7 +316,66 @@
   }
   .plan-option.selected {
     border-color: #7a5af8;
-    background: #f7f4ff;
+    background: var(--color-bg-purple-tint, #f7f4ff);
+  }
+
+  /* Dark mode styles */
+  :root.dark-mode .bg-page {
+    background: var(--color-bg-secondary);
+  }
+
+  :root.dark-mode .boost-card {
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+  }
+
+  :root.dark-mode .plan-option {
+    background: var(--color-bg-secondary);
+    border-color: #2a2a3e;
+    color: var(--color-text-primary);
+  }
+
+  :root.dark-mode .plan-option:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 8px 22px rgba(102, 126, 234, 0.1);
+  }
+
+  :root.dark-mode .plan-option.selected {
+    border-color: var(--color-primary);
+    background: rgba(102, 126, 234, 0.1);
+  }
+
+  :root.dark-mode .text-muted {
+    color: var(--color-text-secondary) !important;
+  }
+
+  :root.dark-mode .bg-light {
+    background: #2a2a3e !important;
+  }
+
+  :root.dark-mode .bg-primary-subtle {
+    background: rgba(102, 126, 234, 0.2) !important;
+  }
+
+  :root.dark-mode .text-primary {
+    color: var(--color-primary) !important;
+  }
+
+  :root.dark-mode small,
+  :root.dark-mode .small {
+    color: var(--color-text-secondary);
+  }
+
+  :root.dark-mode h4,
+  :root.dark-mode .fw-semibold,
+  :root.dark-mode .fw-bold,
+  :root.dark-mode .fs-5 {
+    color: var(--color-text-primary);
+  }
+
+  :root.dark-mode code {
+    background: rgba(102, 126, 234, 0.1);
+    color: var(--color-primary);
   }
   </style>
   

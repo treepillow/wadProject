@@ -924,9 +924,13 @@ onBeforeUnmount(() => {
 }
 
 .stars {
-  color: #ffc107;
+  color: #ffc107 !important;
   font-size: 1.25rem;
   letter-spacing: 2px;
+}
+
+:root.dark-mode .stars {
+  color: #ffc107 !important;
 }
 
 .quote-icon {

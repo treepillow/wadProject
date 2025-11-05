@@ -40,11 +40,16 @@ const { isDark, toggleDarkMode } = useDarkMode()
   height: 40px;
   border-radius: 50%;
   background: transparent;
-  border: 2px solid var(--color-border);
+  border: 2px solid #000000;
   color: var(--color-text-primary);
   cursor: pointer;
   transition: all var(--transition-fast);
   padding: 0;
+}
+
+/* Dark mode gets the default border color */
+:root.dark-mode .dark-mode-toggle {
+  border-color: var(--color-border);
 }
 
 .dark-mode-toggle:hover {

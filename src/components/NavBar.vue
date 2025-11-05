@@ -209,13 +209,13 @@ function handleHomeClick() {
 
             <template v-if="showAuthCtas">
               <li class="nav-item">
-                <RouterLink to="/login" class="btn btn-outline-primary me-2">Login</RouterLink>
+                <DarkModeToggle />
+              </li>
+              <li class="nav-item">
+                <RouterLink to="/login" class="btn btn-primary me-2">Login</RouterLink>
               </li>
               <li class="nav-item">
                 <RouterLink to="/signup" class="btn btn-primary">Sign up</RouterLink>
-              </li>
-              <li class="nav-item">
-                <DarkModeToggle />
               </li>
             </template>
 

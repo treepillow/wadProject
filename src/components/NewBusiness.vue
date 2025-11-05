@@ -10,7 +10,7 @@ import { generateReviewCode } from '@/utils/reviewCode'
 
 export default {
   name: 'CreateListing',
-  components: { },
+  components: {},
 
   setup() {
     // Initialize dark mode
@@ -259,68 +259,68 @@ export default {
     },
 
     /* ---------- Address utils & OneMap (strict) ---------- */
-    normalizeStr(s){ return (s||'').toString().trim().toUpperCase().replace(/\s+/g,' ').replace(/[.,']/g,'') },
-    expandAbbrev(road){
-      const A=[[' AVE ',' AVENUE '],[' RD ',' ROAD '],[' ST ',' STREET '],[' DR ',' DRIVE '],
-               [' CRES ',' CRESCENT '],[' CTRL ',' CENTRAL '],[' PK ',' PARK '],[' PKWY ',' PARKWAY '],
-               [' TER ',' TERRACE '],[' HTS ',' HEIGHTS '],[' HWY ',' HIGHWAY '],
-               [' GDN ',' GARDEN '],[' GDNS ',' GARDENS '],[' CTR ',' CENTRE '],[' PL ',' PLACE '],[' CL ',' CLOSE ']]
-      let out=` ${this.normalizeStr(road)} `; A.forEach(([a,b])=>out=out.replaceAll(a,b)); return out.trim()
+    normalizeStr(s) { return (s || '').toString().trim().toUpperCase().replace(/\s+/g, ' ').replace(/[.,']/g, '') },
+    expandAbbrev(road) {
+      const A = [[' AVE ', ' AVENUE '], [' RD ', ' ROAD '], [' ST ', ' STREET '], [' DR ', ' DRIVE '],
+      [' CRES ', ' CRESCENT '], [' CTRL ', ' CENTRAL '], [' PK ', ' PARK '], [' PKWY ', ' PARKWAY '],
+      [' TER ', ' TERRACE '], [' HTS ', ' HEIGHTS '], [' HWY ', ' HIGHWAY '],
+      [' GDN ', ' GARDEN '], [' GDNS ', ' GARDENS '], [' CTR ', ' CENTRE '], [' PL ', ' PLACE '], [' CL ', ' CLOSE ']]
+      let out = ` ${this.normalizeStr(road)} `; A.forEach(([a, b]) => out = out.replaceAll(a, b)); return out.trim()
     },
-    levDist(a,b){
-      const m=a.length,n=b.length;if(!m)return n;if(!n)return m;const d=Array.from({length:m+1},()=>Array(n+1).fill(0))
-      for(let i=0;i<=m;i++)d[i][0]=i;for(let j=0;j<=n;j++)d[0][j]=j
-      for(let i=1;i<=m;i++)for(let j=1;j<=n;j++){const c=a[i-1]===b[j-1]?0:1;d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+c)}
+    levDist(a, b) {
+      const m = a.length, n = b.length; if (!m) return n; if (!n) return m; const d = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0))
+      for (let i = 0; i <= m; i++)d[i][0] = i; for (let j = 0; j <= n; j++)d[0][j] = j
+      for (let i = 1; i <= m; i++)for (let j = 1; j <= n; j++) { const c = a[i - 1] === b[j - 1] ? 0 : 1; d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + c) }
       return d[m][n]
     },
-    similarity(a,b){
-      const A=this.expandAbbrev(a),B=this.expandAbbrev(b);const dist=this.levDist(A,B);const L=Math.max(A.length,B.length)||1;return 1-dist/L
+    similarity(a, b) {
+      const A = this.expandAbbrev(a), B = this.expandAbbrev(b); const dist = this.levDist(A, B); const L = Math.max(A.length, B.length) || 1; return 1 - dist / L
     },
 
-    async fetchJSON(url,{timeoutMs=6000}={}) {
-      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),timeoutMs)
-      try{
-        const res=await fetch(url,{signal:ctrl.signal,headers:{Accept:'application/json'},mode:'cors'})
-        if(!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+    async fetchJSON(url, { timeoutMs = 6000 } = {}) {
+      const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), timeoutMs)
+      try {
+        const res = await fetch(url, { signal: ctrl.signal, headers: { Accept: 'application/json' }, mode: 'cors' })
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
         return await res.json()
       } finally { clearTimeout(t) }
     },
-    async oneMapSearchByPostal(postal){
-      const q=`searchVal=${encodeURIComponent(postal)}&returnGeom=N&getAddrDetails=Y&pageNum=1`
-      const urls=[
+    async oneMapSearchByPostal(postal) {
+      const q = `searchVal=${encodeURIComponent(postal)}&returnGeom=N&getAddrDetails=Y&pageNum=1`
+      const urls = [
         `https://www.onemap.gov.sg/api/common/elastic/search?${q}`,
         `https://developers.onemap.sg/commonapi/search?${q}`,
       ]
       let lastErr
-      for(const u of urls){ try{ return await this.fetchJSON(u) } catch(e){ lastErr=e } }
-      throw lastErr||new Error('All OneMap endpoints failed')
+      for (const u of urls) { try { return await this.fetchJSON(u) } catch (e) { lastErr = e } }
+      throw lastErr || new Error('All OneMap endpoints failed')
     },
 
-    async validateAddressWithOneMap({ blk, street, postal, isLanded }, threshold=0.80) {
-      if(!/^[0-9]{6}$/.test(postal)) return { ok:false, reason:'Postal Code must be 6 digits.' }
+    async validateAddressWithOneMap({ blk, street, postal, isLanded }, threshold = 0.80) {
+      if (!/^[0-9]{6}$/.test(postal)) return { ok: false, reason: 'Postal Code must be 6 digits.' }
 
       let json
       try { json = await this.oneMapSearchByPostal(postal) }
       catch (err) {
         console.error('OneMap error:', err)
-        return { ok:false, reason:'Address service not reachable. (Check network/DNS or try again.)' }
+        return { ok: false, reason: 'Address service not reachable. (Check network/DNS or try again.)' }
       }
 
       const results = Array.isArray(json?.results) ? json.results : []
       const exact = results.filter(r => r.POSTAL === postal)
       const candidates = exact.length ? exact : results
-      if (!candidates.length) return { ok:false, reason:'Address not found. Please check your street name and postal code.' }
+      if (!candidates.length) return { ok: false, reason: 'Address not found. Please check your street name and postal code.' }
 
       const userStreet = this.expandAbbrev(street || '')
-      let best=null,score=-1
-      for(const r of candidates){ const s=this.similarity(userStreet,r.ROAD_NAME||''); if(s>score){best=r;score=s} }
+      let best = null, score = -1
+      for (const r of candidates) { const s = this.similarity(userStreet, r.ROAD_NAME || ''); if (s > score) { best = r; score = s } }
 
-      const omBlk=this.normalizeStr(best?.BLK_NO||''), omRoad=this.expandAbbrev(best?.ROAD_NAME||'')
-      const omBldg=this.normalizeStr(best?.BUILDING||''), userBlk=this.normalizeStr(blk||'')
+      const omBlk = this.normalizeStr(best?.BLK_NO || ''), omRoad = this.expandAbbrev(best?.ROAD_NAME || '')
+      const omBldg = this.normalizeStr(best?.BUILDING || ''), userBlk = this.normalizeStr(blk || '')
 
       // Only validate block for non-landed properties
       if (!isLanded && userBlk && omBlk && userBlk !== omBlk)
-        return { ok:false, reason:'Address not found. Please check your block, street name, and postal code.' }
+        return { ok: false, reason: 'Address not found. Please check your block, street name, and postal code.' }
 
       // Extract and compare street numbers (must match exactly)
       const extractStreetNumber = (str) => {
@@ -332,22 +332,22 @@ export default {
       const omNumber = extractStreetNumber(omRoad)
 
       if (userNumber && omNumber && userNumber !== omNumber)
-        return { ok:false, reason:'Address not found. Please check your street name and postal code.' }
+        return { ok: false, reason: 'Address not found. Please check your street name and postal code.' }
 
       const streetOk = score >= threshold
-      const buildingOk = omBldg && this.similarity(this.normalizeStr(street||''), omBldg) >= threshold
+      const buildingOk = omBldg && this.similarity(this.normalizeStr(street || ''), omBldg) >= threshold
       if (!streetOk && !buildingOk)
-        return { ok:false, reason:'Address not found. Please check your street name and postal code.' }
+        return { ok: false, reason: 'Address not found. Please check your street name and postal code.' }
 
       return {
-        ok:true,
-        data:{
-          blk: omBlk||userBlk,
-          road: omRoad||userStreet,
+        ok: true,
+        data: {
+          blk: omBlk || userBlk,
+          road: omRoad || userStreet,
           postal,
-          building: best?.BUILDING||'',
-          address: best?.ADDRESS||'',
-          confidence: Math.max(score, buildingOk?1:0),
+          building: best?.BUILDING || '',
+          address: best?.ADDRESS || '',
+          confidence: Math.max(score, buildingOk ? 1 : 0),
           lat: best?.LATITUDE ? parseFloat(best.LATITUDE) : null,
           lng: best?.LONGITUDE ? parseFloat(best.LONGITUDE) : null
         }
@@ -389,13 +389,13 @@ export default {
     },
 
     /* ---------- Input formatters ---------- */
-    handlePostalInput(e){
-      this.locationPostal = e.target.value.replace(/\D/g,'').slice(0,6)
+    handlePostalInput(e) {
+      this.locationPostal = e.target.value.replace(/\D/g, '').slice(0, 6)
       this.triggerValidation()
     },
     // UPDATED: dynamically formats Unit No depending on Landed toggle
-    handleDynamicUnitInput(e){
-      let v = e.target.value.toUpperCase().replace(/\s+/g,'')
+    handleDynamicUnitInput(e) {
+      let v = e.target.value.toUpperCase().replace(/\s+/g, '')
       if (this.isLanded) {
         // Landed → #09 (2 digits)
         const m = v.match(/^#?(\d{0,2})$/)
@@ -406,14 +406,14 @@ export default {
       } else {
         // Non-landed → #09-12 or #09-142 (2 or 3 digits after dash)
         const m = v.match(/^#?(\d{0,2})(-)?(\d{0,3})$/)
-        if (m){
-          const a=m[1]||'', b=m[3]||''
-          if(a.length>=2&&b.length>0)v=`#${a.slice(0,2)}-${b.slice(0,3)}`
-          else if(a.length>=2)v=`#${a.slice(0,2)}-`
-          else v=`#${a}`
+        if (m) {
+          const a = m[1] || '', b = m[3] || ''
+          if (a.length >= 2 && b.length > 0) v = `#${a.slice(0, 2)}-${b.slice(0, 3)}`
+          else if (a.length >= 2) v = `#${a.slice(0, 2)}-`
+          else v = `#${a}`
         }
       }
-      this.locationUnit=v
+      this.locationUnit = v
     },
     triggerValidation() {
       if (this.validationTimeout) clearTimeout(this.validationTimeout)
@@ -423,16 +423,16 @@ export default {
     },
 
     /* ---------- Upload ---------- */
-    async uploadAllPhotos(uid, listingId){
+    async uploadAllPhotos(uid, listingId) {
       if (!this.photos.length) return []
-      const uploads = this.photos.map((p,idx)=>{
-        const file=p.file
-        const ext = file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg'
+      const uploads = this.photos.map((p, idx) => {
+        const file = p.file
+        const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
         const path = `listings/${uid}/${listingId}/${Date.now()}-${idx}.${ext}`
         const sref = storageRef(storage, path)
-        return new Promise((resolve,reject)=>{
-          const task=uploadBytesResumable(sref,file,{contentType:file.type})
-          task.on('state_changed', null, reject, async ()=>{
+        return new Promise((resolve, reject) => {
+          const task = uploadBytesResumable(sref, file, { contentType: file.type })
+          task.on('state_changed', null, reject, async () => {
             try { const url = await getDownloadURL(task.snapshot.ref); resolve({ url, path }) }
             catch (e) { reject(e) }
           })
@@ -469,14 +469,14 @@ export default {
     },
 
     /* ---------- Submit (STRICT) ---------- */
-    async handleSubmit(){
+    async handleSubmit() {
       const user = auth.currentUser
-      if(!user){ this.toast.error('You must be logged in to publish a listing.'); return }
+      if (!user) { this.toast.error('You must be logged in to publish a listing.'); return }
 
       // Set loading state
       this.isCreatingListing = true
 
-      if(!this.businessName.trim() || !this.businessDesc.trim() || !this.businessCategory.trim()){
+      if (!this.businessName.trim() || !this.businessDesc.trim() || !this.businessCategory.trim()) {
         this.isCreatingListing = false
         this.toast.warning('Please fill in Service Name, Description, and Category.')
         return
@@ -489,12 +489,12 @@ export default {
         return
       }
 
-      if(!this.locationStreet.trim() || !this.locationPostal.trim() || !this.locationUnit.trim()){
+      if (!this.locationStreet.trim() || !this.locationPostal.trim() || !this.locationUnit.trim()) {
         this.isCreatingListing = false
         this.toast.warning('Please fill in Street Address, Postal Code, and Unit No.')
         return
       }
-      if(!/^[0-9]{6}$/.test(this.locationPostal.trim())){
+      if (!/^[0-9]{6}$/.test(this.locationPostal.trim())) {
         this.isCreatingListing = false
         this.toast.warning('Postal Code must be a 6-digit number (Singapore).')
         return
@@ -502,13 +502,13 @@ export default {
 
       // UPDATED: Unit validation depends on Landed toggle
       if (this.isLanded) {
-        if(!/^#?[0-9]{2}$/.test(this.locationUnit.trim())){
+        if (!/^#?[0-9]{2}$/.test(this.locationUnit.trim())) {
           this.isCreatingListing = false
           this.toast.warning('Unit No must look like #09 for landed properties.')
           return
         }
       } else {
-        if(!/^#?[0-9]{2}-[0-9]{2,3}$/.test(this.locationUnit.trim())){
+        if (!/^#?[0-9]{2}-[0-9]{2,3}$/.test(this.locationUnit.trim())) {
           this.isCreatingListing = false
           this.toast.warning('Unit No must look like #09-12 or #09-142 for non-landed properties.')
           return
@@ -546,8 +546,8 @@ export default {
       }
 
       const { blk, road: street, postal } = check.data
-      for(const m of this.menuItems){
-        if(!m.name.trim() || !m.price.trim()){
+      for (const m of this.menuItems) {
+        if (!m.name.trim() || !m.price.trim()) {
           this.isCreatingListing = false
           this.toast.warning(this.emptyLineAlertText)
           return
@@ -564,13 +564,13 @@ export default {
       const unitFormatted = unit.startsWith('#') ? unit : `#${unit}`
       const locationFormatted = `BLK ${blk} ${street} Singapore ${postal} ${unitFormatted}`
 
-      try{
+      try {
         // First prepare menu without image URLs (we'll add them after upload)
         const menu = this.menuItems
-          .filter(m=>(m.name||'').trim())
-          .map(m=>({
-            name:m.name.trim(),
-            price:(m.price||'').trim(),
+          .filter(m => (m.name || '').trim())
+          .map(m => ({
+            name: m.name.trim(),
+            price: (m.price || '').trim(),
             imageUrl: m.imagePreview && m.imagePreview.startsWith('http') ? m.imagePreview : '' // Keep existing URLs
           }))
 
@@ -698,7 +698,7 @@ export default {
           this.createdListingId = listingId
           this.showSuccessModal = true
         }
-      }catch(e){
+      } catch (e) {
         console.error(e)
         this.toast.error('Failed to add listing, please try again')
       } finally {
@@ -719,21 +719,21 @@ export default {
       this.router.push('/')
     },
 
-    clearForm(){
-      this.businessName=''
-      this.businessDesc=''
-      this.businessCategory=''
-      this.locationBlk=''
-      this.locationStreet=''
-      this.locationPostal=''
-      this.locationUnit=''
+    clearForm() {
+      this.businessName = ''
+      this.businessDesc = ''
+      this.businessCategory = ''
+      this.locationBlk = ''
+      this.locationStreet = ''
+      this.locationPostal = ''
+      this.locationUnit = ''
       // Clean up menu item image previews
       this.menuItems.forEach(item => {
         if (item.imagePreview && !item.imagePreview.startsWith('http')) {
           URL.revokeObjectURL(item.imagePreview)
         }
       })
-      this.menuItems=[{name:'',price:'', image: null, imagePreview: ''}]
+      this.menuItems = [{ name: '', price: '', image: null, imagePreview: '' }]
       this.operatingHours = {
         monday: { enabled: true, start: '09:00', end: '17:00' },
         tuesday: { enabled: true, start: '09:00', end: '17:00' },
@@ -743,10 +743,10 @@ export default {
         saturday: { enabled: true, start: '09:00', end: '17:00' },
         sunday: { enabled: true, start: '09:00', end: '17:00' }
       }
-      this.photos.forEach(p=>p.url && URL.revokeObjectURL(p.url)); this.photos=[]
-      this.photoError=''
-      this.addrError=''
-      this.addrWarning=''
+      this.photos.forEach(p => p.url && URL.revokeObjectURL(p.url)); this.photos = []
+      this.photoError = ''
+      this.addrError = ''
+      this.addrWarning = ''
       this.isLanded = false
       this.acceptsBookings = false
       this.bookingDuration = 60
@@ -762,7 +762,7 @@ export default {
     }
   },
 
-  beforeUnmount(){ this.photos.forEach(p=>p.url && URL.revokeObjectURL(p.url)) }
+  beforeUnmount() { this.photos.forEach(p => p.url && URL.revokeObjectURL(p.url)) }
 }
 </script>
 
@@ -802,21 +802,29 @@ export default {
     <div class="container pb-5 mt-5">
       <div class="d-flex justify-content-center">
         <div class="listing-card shadow-soft rounded-4 p-4 p-md-5">
-          <h2 class="mb-4 text-center">{{ editMode ? 'Edit Listing' : 'Create New Listing' }}</h2>
+          <div class="text-center mb-5">
+            <h2 class="fw-bold text-white py-3 px-4 rounded mb-0"
+              style="background-color: var(--color-primary); border: 2px solid var(--color-primary);">
+              {{ editMode ? 'Edit Listing' : 'Create New Listing' }}
+            </h2>
+            <div style="
+              width: 100%;      
+              height: 4px; 
+              border-radius: 2px;
+              background: linear-gradient(90deg, rgb(75, 42, 166), #9b6cff);
+              margin-top: 2px;  /* small gap below header */
+              margin-bottom: 4px; /* reduce space before form inputs */
+            "></div>
+          </div>
+
           <form @submit.prevent="handleSubmit" novalidate>
             <div class="d-flex flex-column">
-
               <!-- Name and Category (side by side) -->
-              <div class="d-flex gap-3 mb-3">
+              <div class="d-flex gap-3 mb-3 mt-0">
                 <div class="flex-grow-1">
                   <label class="form-label fw-semibold">
-                    Service Name <Icon icon="mdi:briefcase" />
-                  </label>
-                  <input class="form-control form-control-lg" v-model="businessName" placeholder="Enter your business name here" />
-                </div>
-                <div class="flex-grow-1">
-                  <label class="form-label fw-semibold">
-                    Category <Icon icon="mdi:view-dashboard" />
+                    Category
+                    <Icon icon="mdi:view-dashboard" />
                   </label>
                   <select class="form-select" v-model="businessCategory" required>
                     <option disabled value="">-- select category --</option>
@@ -829,14 +837,26 @@ export default {
                     <option>Others</option>
                   </select>
                 </div>
+
+                <div class="flex-grow-1">
+                  <label class="form-label fw-semibold">
+                    {{ businessCategory === 'Food and Drinks' ? 'Business Name' : 'Service Name' }}
+                    <Icon icon="mdi:briefcase" />
+                  </label>
+                  <input class="form-control form-control-lg" v-model="businessName"
+                    :placeholder="businessCategory === 'Food and Drinks' ? 'Enter your business name here' : 'Enter your service name here'" />
+                </div>
               </div>
+
 
               <!-- Description (full-width) -->
               <div class="mb-3">
                 <label class="form-label fw-semibold">
-                  Description <Icon icon="mdi:pencil" />
+                  Description
+                  <Icon icon="mdi:pencil" />
                 </label>
-                <textarea class="form-control" rows="4" v-model="businessDesc" placeholder="Describe your service"></textarea>
+                <textarea class="form-control" rows="4" v-model="businessDesc"
+                  placeholder="Describe your service"></textarea>
               </div>
 
               <!-- Property Type Toggle -->
@@ -859,13 +879,15 @@ export default {
               <div class="d-flex gap-3 mb-3">
                 <div v-if="!isLanded" class="flex-grow-1">
                   <label class="form-label fw-semibold">
-                    Block <Icon icon="mdi:home" />
+                    Block
+                    <Icon icon="mdi:home" />
                   </label>
                   <input class="form-control" v-model.trim="locationBlk" placeholder="e.g 485B" />
                 </div>
                 <div class="flex-grow-1">
                   <label class="form-label fw-semibold">
-                    Street Address <Icon icon="mdi:map-marker" />
+                    Street Address
+                    <Icon icon="mdi:map-marker" />
                   </label>
                   <input class="form-control" v-model.trim="locationStreet" placeholder="e.g Tampines Ave 9" />
                 </div>
@@ -877,20 +899,19 @@ export default {
                   <label class="form-label fw-semibold">
                     Postal Code
                   </label>
-                  <input class="form-control" v-model.trim="locationPostal"
-                         inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
-                         placeholder="6-digit postal code" title="Enter a 6-digit Singapore postal code"
-                         @input="handlePostalInput" />
+                  <input class="form-control" v-model.trim="locationPostal" inputmode="numeric" pattern="[0-9]{6}"
+                    maxlength="6" placeholder="6-digit postal code" title="Enter a 6-digit Singapore postal code"
+                    @input="handlePostalInput" />
                 </div>
                 <div class="flex-grow-1">
                   <label class="form-label fw-semibold">
                     Unit No
                   </label>
                   <input class="form-control" v-model.trim="locationUnit"
-                         :pattern="isLanded ? '#?[0-9]{2}' : '#?[0-9]{2}-[0-9]{2,3}'"
-                         :placeholder="isLanded ? '#01' : '#01-23 or #01-234'"
-                         :title="isLanded ? 'Format like #09' : 'Format like #09-12 or #09-142'"
-                         @input="handleDynamicUnitInput" />
+                    :pattern="isLanded ? '#?[0-9]{2}' : '#?[0-9]{2}-[0-9]{2,3}'"
+                    :placeholder="isLanded ? '#01' : '#01-23 or #01-234'"
+                    :title="isLanded ? 'Format like #09' : 'Format like #09-12 or #09-142'"
+                    @input="handleDynamicUnitInput" />
                 </div>
               </div>
 
@@ -905,13 +926,15 @@ export default {
               <!-- Operating Hours Section -->
               <div class="mb-4">
                 <label class="form-label fw-semibold mb-3">
-                  Operating Hours <Icon icon="mdi:clock-outline" />
+                  Operating Hours
+                  <Icon icon="mdi:clock-outline" />
                 </label>
 
                 <!-- Monday -->
                 <div class="d-flex align-items-center gap-3 mb-2">
                   <div class="custom-checkbox-wrapper" style="min-width: 120px;">
-                    <input class="custom-checkbox-input" type="checkbox" id="monEnabled" v-model="operatingHours.monday.enabled">
+                    <input class="custom-checkbox-input" type="checkbox" id="monEnabled"
+                      v-model="operatingHours.monday.enabled">
                     <label class="custom-checkbox-label" for="monEnabled">
                       <span class="custom-checkbox-box">
                         <Icon icon="mdi:check" class="custom-checkbox-icon" />
@@ -930,7 +953,8 @@ export default {
                 <!-- Tuesday -->
                 <div class="d-flex align-items-center gap-3 mb-2">
                   <div class="custom-checkbox-wrapper" style="min-width: 120px;">
-                    <input class="custom-checkbox-input" type="checkbox" id="tueEnabled" v-model="operatingHours.tuesday.enabled">
+                    <input class="custom-checkbox-input" type="checkbox" id="tueEnabled"
+                      v-model="operatingHours.tuesday.enabled">
                     <label class="custom-checkbox-label" for="tueEnabled">
                       <span class="custom-checkbox-box">
                         <Icon icon="mdi:check" class="custom-checkbox-icon" />
@@ -949,7 +973,8 @@ export default {
                 <!-- Wednesday -->
                 <div class="d-flex align-items-center gap-3 mb-2">
                   <div class="custom-checkbox-wrapper" style="min-width: 120px;">
-                    <input class="custom-checkbox-input" type="checkbox" id="wedEnabled" v-model="operatingHours.wednesday.enabled">
+                    <input class="custom-checkbox-input" type="checkbox" id="wedEnabled"
+                      v-model="operatingHours.wednesday.enabled">
                     <label class="custom-checkbox-label" for="wedEnabled">
                       <span class="custom-checkbox-box">
                         <Icon icon="mdi:check" class="custom-checkbox-icon" />
@@ -968,7 +993,8 @@ export default {
                 <!-- Thursday -->
                 <div class="d-flex align-items-center gap-3 mb-2">
                   <div class="custom-checkbox-wrapper" style="min-width: 120px;">
-                    <input class="custom-checkbox-input" type="checkbox" id="thuEnabled" v-model="operatingHours.thursday.enabled">
+                    <input class="custom-checkbox-input" type="checkbox" id="thuEnabled"
+                      v-model="operatingHours.thursday.enabled">
                     <label class="custom-checkbox-label" for="thuEnabled">
                       <span class="custom-checkbox-box">
                         <Icon icon="mdi:check" class="custom-checkbox-icon" />
@@ -987,7 +1013,8 @@ export default {
                 <!-- Friday -->
                 <div class="d-flex align-items-center gap-3 mb-2">
                   <div class="custom-checkbox-wrapper" style="min-width: 120px;">
-                    <input class="custom-checkbox-input" type="checkbox" id="friEnabled" v-model="operatingHours.friday.enabled">
+                    <input class="custom-checkbox-input" type="checkbox" id="friEnabled"
+                      v-model="operatingHours.friday.enabled">
                     <label class="custom-checkbox-label" for="friEnabled">
                       <span class="custom-checkbox-box">
                         <Icon icon="mdi:check" class="custom-checkbox-icon" />
@@ -1006,7 +1033,8 @@ export default {
                 <!-- Saturday -->
                 <div class="d-flex align-items-center gap-3 mb-2">
                   <div class="custom-checkbox-wrapper" style="min-width: 120px;">
-                    <input class="custom-checkbox-input" type="checkbox" id="satEnabled" v-model="operatingHours.saturday.enabled">
+                    <input class="custom-checkbox-input" type="checkbox" id="satEnabled"
+                      v-model="operatingHours.saturday.enabled">
                     <label class="custom-checkbox-label" for="satEnabled">
                       <span class="custom-checkbox-box">
                         <Icon icon="mdi:check" class="custom-checkbox-icon" />
@@ -1025,7 +1053,8 @@ export default {
                 <!-- Sunday -->
                 <div class="d-flex align-items-center gap-3 mb-2">
                   <div class="custom-checkbox-wrapper" style="min-width: 120px;">
-                    <input class="custom-checkbox-input" type="checkbox" id="sunEnabled" v-model="operatingHours.sunday.enabled">
+                    <input class="custom-checkbox-input" type="checkbox" id="sunEnabled"
+                      v-model="operatingHours.sunday.enabled">
                     <label class="custom-checkbox-label" for="sunEnabled">
                       <span class="custom-checkbox-box">
                         <Icon icon="mdi:check" class="custom-checkbox-icon" />
@@ -1046,9 +1075,11 @@ export default {
               <div class="mb-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                   <label class="form-label fw-semibold m-0">
-                    {{ listLabel }} <Icon icon="mdi:list-box" />
+                    {{ listLabel }}
+                    <Icon icon="mdi:list-box" />
                   </label>
-                  <button type="button" class="btn btn-primary px-4 py-2" @click="addMenuItem">{{ addItemBtnText }}</button>
+                  <button type="button" class="btn btn-primary px-4 py-2" @click="addMenuItem">{{ addItemBtnText
+                  }}</button>
                 </div>
                 <div class="menu-list d-flex flex-column gap-3">
                   <div class="menu-item-card card p-3" v-for="(m, i) in menuItems" :key="i">
@@ -1067,19 +1098,17 @@ export default {
                       <label class="form-label small mb-2 fw-semibold">Food/Drink Image *</label>
                       <div v-if="m.imagePreview" class="menu-image-preview-wrapper mb-2">
                         <img :src="m.imagePreview" alt="Menu item" class="menu-preview-img" />
-                        <button type="button" class="btn btn-sm btn-danger menu-img-remove" @click="removeMenuImage(i)">×</button>
+                        <button type="button" class="btn btn-sm btn-danger menu-img-remove"
+                          @click="removeMenuImage(i)">×</button>
                       </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        class="form-control form-control-sm"
+                      <input type="file" accept="image/*" class="form-control form-control-sm"
                         @change="onMenuImagePicked($event, i)"
-                        :ref="el => { if (el) $refs[`menuImageInput${i}`] = el }"
-                      />
+                        :ref="el => { if (el) $refs[`menuImageInput${i}`] = el }" />
                     </div>
 
                     <div class="d-flex justify-content-end">
-                      <button class="btn btn-outline-danger btn-sm" type="button" @click="removeMenuItem(i)" :disabled="menuItems.length === 1">×</button>
+                      <button class="btn btn-outline-danger btn-sm" type="button" @click="removeMenuItem(i)"
+                        :disabled="menuItems.length === 1">×</button>
                     </div>
                   </div>
                 </div>
@@ -1088,18 +1117,18 @@ export default {
               <!-- Photo Upload Section -->
               <div class="mb-3">
                 <label class="form-label fw-semibold">
-                  Photos <Icon icon="mdi:camera" />
+                  Photos
+                  <Icon icon="mdi:camera" />
                 </label>
 
                 <div v-if="photoError" class="text-danger small mb-2">{{ photoError }}</div>
 
-                <div
-                  ref="uploadZone"
+                <div ref="uploadZone"
                   class="upload-zone rounded-4 mb-3 d-flex flex-column align-items-center justify-content-center"
-                  :class="{ dragging: isDragging }"
-                  @drop="onDrop" @dragover="onDragOver" @dragleave="onDragLeave"
+                  :class="{ dragging: isDragging }" @drop="onDrop" @dragover="onDragOver" @dragleave="onDragLeave"
                   @click="openFilePicker" role="button" tabindex="0">
-                  <input ref="photoInput" type="file" accept="image/*" class="d-none" multiple @change="onPhotoPicked" />
+                  <input ref="photoInput" type="file" accept="image/*" class="d-none" multiple
+                    @change="onPhotoPicked" />
                   <div class="text-center">
                     <div class="camera-icon mb-2">📷</div>
                     <div class="upload-title">Add Photos</div>
@@ -1110,7 +1139,8 @@ export default {
                 <div class="thumbs d-flex flex-wrap gap-2 mb-1">
                   <div v-for="(p, i) in photos" :key="i" class="thumb rounded-3 overflow-hidden position-relative">
                     <img :src="p.url" alt="preview" />
-                    <button type="button" class="btn btn-sm btn-light remove-btn" @click.stop="removePhoto(i)">×</button>
+                    <button type="button" class="btn btn-sm btn-light remove-btn"
+                      @click.stop="removePhoto(i)">×</button>
                   </div>
                 </div>
                 <div class="text-muted small mb-3">Tip: upload at least 3 photos for a better listing.</div>
@@ -1149,7 +1179,9 @@ export default {
                             <div class="form-check">
                               <input class="form-check-input" type="checkbox" :id="`day-${key}`" v-model="day.enabled">
                               <label class="form-check-label fw-semibold text-capitalize" :for="`day-${key}`">
-                                {{ key === 'mon' ? 'Monday' : key === 'tue' ? 'Tuesday' : key === 'wed' ? 'Wednesday' : key === 'thu' ? 'Thursday' : key === 'fri' ? 'Friday' : key === 'sat' ? 'Saturday' : 'Sunday' }}
+                                {{ key === 'mon' ? 'Monday' : key === 'tue' ? 'Tuesday' : key === 'wed' ? 'Wednesday' :
+                                  key === 'thu' ? 'Thursday' : key === 'fri' ? 'Friday' : key === 'sat' ? 'Saturday' :
+                                    'Sunday' }}
                               </label>
                             </div>
 
@@ -1164,7 +1196,8 @@ export default {
                     </div>
 
                     <div class="alert alert-info small">
-                      💡 Customers will be able to request bookings during these times. You can accept or reject each request.
+                      💡 Customers will be able to request bookings during these times. You can accept or reject each
+                      request.
                     </div>
                   </div>
                 </div>
@@ -1175,8 +1208,10 @@ export default {
                 <button type="submit" class="btn btn-primary px-4 py-2">
                   {{ editMode ? 'Update Listing' : 'Publish Listing' }}
                 </button>
-                <button v-if="!editMode" type="button" class="btn btn-outline-secondary px-4 py-2" @click="clearForm">Clear Form</button>
-                <button v-else type="button" class="btn btn-outline-secondary px-4 py-2" @click="router.push('/profile?tab=my')">Cancel</button>
+                <button v-if="!editMode" type="button" class="btn btn-outline-secondary px-4 py-2"
+                  @click="clearForm">Clear Form</button>
+                <button v-else type="button" class="btn btn-outline-secondary px-4 py-2"
+                  @click="router.push('/profile?tab=my')">Cancel</button>
               </div>
             </div>
           </form>
@@ -1188,11 +1223,16 @@ export default {
 
 <style scoped>
 :root {
-  --font-family: 'Arial', sans-serif; /* Global font-family */
-  --font-size-base: 1rem; /* Base font size (16px) */
-  --font-size-large: 1.125rem; /* Large font size for headings/labels */
-  --font-size-input: 1rem; /* Input text size */
-  --font-size-placeholder: 0.875rem; /* Placeholder text size */
+  --font-family: 'Arial', sans-serif;
+  /* Global font-family */
+  --font-size-base: 1rem;
+  /* Base font size (16px) */
+  --font-size-large: 1.125rem;
+  /* Large font size for headings/labels */
+  --font-size-input: 1rem;
+  /* Input text size */
+  --font-size-placeholder: 0.875rem;
+  /* Placeholder text size */
 }
 
 .bg-page {
@@ -1267,7 +1307,8 @@ export default {
 .form-select option:disabled {
   font-size: var(--font-size-placeholder);
   color: var(--color-text-secondary);
-  opacity: 1; /* Override default opacity of placeholder */
+  opacity: 1;
+  /* Override default opacity of placeholder */
 }
 
 /* The first option (which acts as a placeholder) for select elements */
@@ -1684,12 +1725,12 @@ export default {
 }
 
 /* Checked state */
-.custom-checkbox-input:checked + .custom-checkbox-label .custom-checkbox-box {
+.custom-checkbox-input:checked+.custom-checkbox-label .custom-checkbox-box {
   background: var(--color-primary);
   border-color: var(--color-primary);
 }
 
-.custom-checkbox-input:checked + .custom-checkbox-label .custom-checkbox-icon {
+.custom-checkbox-input:checked+.custom-checkbox-label .custom-checkbox-icon {
   opacity: 1;
   transform: scale(1);
 }
@@ -1700,7 +1741,7 @@ export default {
 }
 
 /* Focus state */
-.custom-checkbox-input:focus + .custom-checkbox-label .custom-checkbox-box {
+.custom-checkbox-input:focus+.custom-checkbox-label .custom-checkbox-box {
   box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
 }
 
@@ -1764,6 +1805,7 @@ export default {
   from {
     transform: scale(0);
   }
+
   to {
     transform: scale(1);
   }
@@ -1778,7 +1820,6 @@ export default {
 .day-row .form-check-label {
   color: var(--color-text-primary);
 }
-
 </style>
 
 <style>

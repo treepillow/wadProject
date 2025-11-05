@@ -882,14 +882,14 @@ export default {
                     Block
                     <Icon icon="mdi:home" />
                   </label>
-                  <input class="form-control" v-model.trim="locationBlk" placeholder="e.g 485B" />
+                  <input class="form-control" v-model.trim="locationBlk" placeholder="e.g 999B" />
                 </div>
                 <div class="flex-grow-1">
                   <label class="form-label fw-semibold">
                     Street Address
                     <Icon icon="mdi:map-marker" />
                   </label>
-                  <input class="form-control" v-model.trim="locationStreet" placeholder="e.g Tampines Ave 9" />
+                  <input class="form-control" v-model.trim="locationStreet" placeholder="e.g Tampines Ave 7" />
                 </div>
               </div>
 

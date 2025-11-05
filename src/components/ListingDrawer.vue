@@ -456,7 +456,7 @@ const loadingNearby = ref(false)
 const errorNearby = ref('')
 
 async function fetchNearby(centerLL, category) {
-  if (!centerLL || !category) { nearby.value = []; return }
+  if (!centerLL) { nearby.value = []; return }
   loadingNearby.value = true
   errorNearby.value = ''
 
@@ -466,10 +466,9 @@ async function fetchNearby(centerLL, category) {
       await ensureMapsLoaded().catch(() => { })
     }
 
-    // Query listings in the same category
+    // Query all nearby listings (no category filter)
     const qy = query(
       collection(db, 'allListings'),
-      where('businessCategory', '==', category),
       fsLimit(props.nearbyCap)
     )
     const snap = await getDocs(qy)
@@ -1092,7 +1091,7 @@ watch(() => props.open, (isOpen) => {
           <div class="nearby card">
             <div class="card-body p-2">
               <div class="d-flex align-items-center justify-content-between mb-2">
-                <h6 class="m-0">Nearby in category</h6>
+                <h6 class="m-0">Nearby Businesses</h6>
                 <small class="text-muted" v-if="active">within ~{{ Math.round(radiusM / 1000) }}km</small>
               </div>
 

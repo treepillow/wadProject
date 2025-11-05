@@ -70,10 +70,16 @@
 import AuthLayout from "./AuthLayout.vue";
 import { auth } from "../firebase";
 import { sendPasswordResetEmail as firebaseSendPasswordResetEmail } from "firebase/auth";
+import { useDarkMode } from "@/composables/useDarkMode";
 
 export default {
   name: "ForgotPassword",
   components: { AuthLayout },
+  setup() {
+    // Initialize dark mode
+    useDarkMode();
+    return {};
+  },
   data() {
     return {
       email: "",
@@ -141,18 +147,18 @@ export default {
   justify-content: center;
   align-items: flex-start;
   min-height: 100vh;
-  background: rgb(245, 239, 239);
+  background: var(--color-bg-main);
   padding: 20px;
   overflow-y: auto;
 }
 
 .signup-card {
-  background: #fff;
+  background: var(--color-bg-white);
   border-radius: 20px;
   padding: 30px 40px;
   width: 500px;
   max-width: 500px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  box-shadow: var(--shadow-lg);
   text-align: center;
   position: relative;
   margin-top: 37px;
@@ -167,27 +173,32 @@ export default {
   margin-bottom: 20px;
 }
 
+h2 {
+  color: var(--color-text-primary);
+  margin-bottom: 25px;
+}
+
 input {
   padding: 10px;
   border: none;
   outline: none;
-  border-bottom: 2px solid black;
+  border-bottom: 2px solid var(--color-border-dark);
   background: transparent;
-  color: black;
+  color: var(--color-text-primary);
 }
 
 input::placeholder {
-  color: gray;
+  color: var(--color-text-light);
   opacity: 1;
 }
 
 button.signup-btn {
-  background: rgb(245, 239, 239);
+  background: var(--color-bg-main);
   border: none;
   margin-top: 5px;
   padding: 10px 20px;
   border-radius: 20px;
-  color: black;
+  color: var(--color-text-primary);
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s;
@@ -207,14 +218,14 @@ button.signup-btn:disabled {
 .toggle-link {
   cursor: pointer;
   text-decoration: underline;
-  color: black;
+  color: var(--color-text-primary);
   font-size: 0.9rem;
 }
 
 .info-text {
   font-size: 0.85rem;
   text-align: center;
-  opacity: 0.8;
+  color: var(--color-text-secondary);
   margin-top: 5px;
 }
 
@@ -240,8 +251,12 @@ button.signup-btn:disabled {
 }
 
 .success-message p {
-  color: #555;
+  color: var(--color-text-secondary);
   line-height: 1.6;
+}
+
+.success-message p strong {
+  color: var(--color-text-primary);
 }
 
 .email-input {

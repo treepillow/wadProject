@@ -810,7 +810,7 @@ onBeforeUnmount(() => {
             class="btn btn-outline-primary d-flex align-items-center gap-2 sort-btn"
             @click="sortDropdownOpen = !sortDropdownOpen"
           >
-            <span class="sort-label">Sort: <strong>{{ sortBy === 'trending' ? 'Trending' : sortBy === 'best-match' ? 'Best Match' : sortBy === 'most-reviewed' ? 'Most Reviewed' : sortBy === 'oldest' ? 'Oldest First' : sortBy === 'cheapest' ? 'Cheapest First' : sortBy === 'most-expensive' ? 'Most Expensive First' : sortBy === 'nearby' ? 'Nearest First' : 'Trending' }}</strong></span>
+            <span class="sort-label">Sort by:<strong v-if="sortBy !== 'trending'"> {{ sortBy === 'best-match' ? 'Best Match' : sortBy === 'most-reviewed' ? 'Most Reviewed' : sortBy === 'oldest' ? 'Oldest First' : sortBy === 'cheapest' ? 'Cheapest First' : sortBy === 'most-expensive' ? 'Most Expensive First' : sortBy === 'nearby' ? 'Nearest First' : '' }}</strong></span>
             <i class="fas" :class="sortDropdownOpen ? 'fa-caret-up' : 'fa-caret-down'"></i>
           </button>
 

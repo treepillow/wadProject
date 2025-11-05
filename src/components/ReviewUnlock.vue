@@ -218,11 +218,15 @@ export default {
         const userData = userDoc.data() || {}
 
         // Add review to listing's reviews subcollection
+        // Mark as QR verified since user came through QR code
         await addDoc(collection(db, 'allListings', listingId.value, 'reviews'), {
           userId: user.uid,
           username: userData.username || 'Anonymous',
           rating: rating.value,
           reviewText: comment.value.trim(),
+          qrVerified: true,
+          bookingVerified: false,
+          isVerified: true,
           createdAt: serverTimestamp()
         })
 

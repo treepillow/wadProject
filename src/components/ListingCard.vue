@@ -554,6 +554,8 @@ function goToUserProfile(event) {
 @media (max-width: 575.98px) {
   .card {
     border-radius: 12px;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .img-box {
@@ -562,20 +564,24 @@ function goToUserProfile(event) {
   }
 
   .card-header {
-    padding: 0.75rem 0.9rem 0.5rem !important;
+    padding: 0.4rem 0.75rem 0.25rem !important;
   }
 
   .card-body {
-    padding: 0.65rem 0.9rem !important;
+    padding: 0.3rem 0.75rem 0.25rem !important;
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .card-footer {
-    padding: 0.65rem 0.9rem !important;
+    padding: 0.4rem 0.75rem !important;
+    margin-top: auto !important;
   }
 
   .card-title {
     font-size: 0.9rem !important;
-    margin-bottom: 0.4rem !important;
+    margin-bottom: 0.25rem !important;
   }
 
   .badge {
@@ -603,7 +609,7 @@ function goToUserProfile(event) {
 
   .rating-display {
     gap: 4px;
-    margin-bottom: 0.5rem !important;
+    margin-bottom: 0.25rem !important;
   }
 
   .rating-text {
@@ -617,12 +623,23 @@ function goToUserProfile(event) {
   .fw-semibold {
     font-size: 0.75rem !important;
   }
+
+  .d-flex.justify-content-between.align-items-center.mb-2 {
+    margin-bottom: 0.25rem !important;
+  }
+
+  .mt-auto {
+    margin-top: auto !important;
+    flex-grow: 1 !important;
+  }
 }
 
 /* Narrow mobile screens (393px - 420px width) - 2 column layout optimized */
 @media (max-width: 420px) {
   .card {
     border-radius: 10px;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .img-box {
@@ -631,20 +648,24 @@ function goToUserProfile(event) {
   }
 
   .card-header {
-    padding: 0.6rem 0.75rem 0.4rem !important;
+    padding: 0.35rem 0.65rem 0.2rem !important;
   }
 
   .card-body {
-    padding: 0.5rem 0.75rem !important;
+    padding: 0.25rem 0.65rem 0.2rem !important;
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .card-footer {
-    padding: 0.5rem 0.75rem !important;
+    padding: 0.35rem 0.65rem !important;
+    margin-top: auto !important;
   }
 
   .card-title {
     font-size: 0.85rem !important;
-    margin-bottom: 0.3rem !important;
+    margin-bottom: 0.2rem !important;
     line-height: 1.2;
   }
 
@@ -668,7 +689,7 @@ function goToUserProfile(event) {
 
   .rating-display {
     gap: 3px;
-    margin-bottom: 0.35rem !important;
+    margin-bottom: 0.2rem !important;
   }
 
   .rating-text {
@@ -686,6 +707,15 @@ function goToUserProfile(event) {
   .avatar-box {
     width: 24px !important;
     height: 24px !important;
+  }
+
+  .d-flex.justify-content-between.align-items-center.mb-2 {
+    margin-bottom: 0.2rem !important;
+  }
+
+  .mt-auto {
+    margin-top: auto !important;
+    flex-grow: 1 !important;
   }
 }
 

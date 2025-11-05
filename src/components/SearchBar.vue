@@ -393,18 +393,24 @@ function handleLocationBlur() {
   .home-business,
   .location-search {
     height: 44px;
-    padding: 10px 10px 10px 38px;
+    padding: 10px 10px 10px 10px;
+    padding-left: 40px !important;
     font-size: 0.875rem;
   }
 
   .input-icon {
-    left: 10px;
+    left: 12px;
     font-size: 16px;
   }
 
   .btn-search {
     height: 44px;
     font-size: 0.875rem;
+  }
+
+  .home-business::placeholder,
+  .location-search::placeholder {
+    font-size: 0.8rem;
   }
 }
 </style>

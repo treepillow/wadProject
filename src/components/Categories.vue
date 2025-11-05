@@ -184,7 +184,7 @@ hr { border: 1; opacity: 0.25; }
 
   .category-text {
     font-size: 0.65rem;
-    margin-top: 6px;
+    margin-top: 10px;
     line-height: 1.1;
   }
 }
@@ -198,7 +198,7 @@ hr { border: 1; opacity: 0.25; }
 
   .category-text {
     font-size: 0.6rem;
-    margin-top: 4px;
+    margin-top: 8px;
   }
 }
 
@@ -211,7 +211,7 @@ hr { border: 1; opacity: 0.25; }
 
   .category-text {
     font-size: 0.55rem;
-    margin-top: 3px;
+    margin-top: 6px;
   }
 }
 </style>

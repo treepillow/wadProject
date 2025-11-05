@@ -648,11 +648,14 @@ function toggleCategory(name) {
     return
   }
 
-  // Allow only one category at a time for regular categories
-  if (selectedCats.value.length === 1 && selectedCats.value[0] === name) {
-    selectedCats.value = [] // Deselect if already selected
+  // Allow multiple category selection
+  const idx = selectedCats.value.indexOf(name)
+  if (idx > -1) {
+    // Category is already selected, remove it
+    selectedCats.value = selectedCats.value.filter(c => c !== name)
   } else {
-    selectedCats.value = [name] // Select only this category
+    // Category is not selected, add it
+    selectedCats.value = [...selectedCats.value, name]
   }
 }
 function clearFilters() {
@@ -896,7 +899,7 @@ onBeforeUnmount(() => {
 
       <!-- listings grid -->
       <div v-else class="listings-container">
-        <div class="row g-3 row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xxl-5">
+        <div class="row g-3 row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xxl-5 align-items-stretch">
           <div class="col" v-for="l in listings" :key="l.id">
             <div class="card-sm">
               <ListingCard
@@ -973,8 +976,8 @@ onBeforeUnmount(() => {
 
 @media (max-width: 575.98px) {
   .content-container {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 }
 
@@ -998,6 +1001,11 @@ onBeforeUnmount(() => {
 .listings-container {
   min-height: 600px;
   transition: opacity 0.2s ease;
+}
+
+.listings-container .col {
+  display: flex;
+  flex-direction: column;
 }
 
 .page-title {
@@ -1045,10 +1053,27 @@ onBeforeUnmount(() => {
   color: var(--color-primary-hover);
 }
 
+.card-sm {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-sm :deep(.card) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .card-sm :deep(.img-box) { height: 220px !important; }
 .card-sm :deep(.card-title) { font-size: 1rem; }
 .card-sm :deep(.badge) { font-size: 0.7rem; }
-.card-sm :deep(.card-body) { padding: 0.75rem 1rem; }
+.card-sm :deep(.card-body) {
+  padding: 0.75rem 1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
 .card-sm :deep(.card-footer) { padding: 0.5rem 1rem; }
 
 @media (min-width: 992px) {
@@ -1289,6 +1314,7 @@ onBeforeUnmount(() => {
 /* Map Banner Styles */
 .map-banner {
   margin: 20px 0;
+  margin-bottom: 24px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 16px;
   padding: 24px;
@@ -1384,7 +1410,13 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   .map-banner {
-    padding: 20px;
+    padding: 16px;
+    margin: 16px 0;
+    margin-bottom: 20px;
+  }
+
+  .map-banner-content {
+    gap: 14px;
   }
 
   .map-banner-icon {
@@ -1394,11 +1426,11 @@ onBeforeUnmount(() => {
   }
 
   .map-banner-text h3 {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .map-banner-text p {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .map-banner-arrow {

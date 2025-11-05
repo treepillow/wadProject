@@ -2,10 +2,10 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import {
   getFirestore, collection, query, orderBy, limit, getDoc, getDocs, startAfter,
-  doc, setDoc, updateDoc, increment, deleteDoc, onSnapshot, where,
+  doc, setDoc, updateDoc, increment, arrayUnion, deleteDoc, onSnapshot, where,
   getCountFromServer, addDoc, serverTimestamp
 } from 'firebase/firestore'
-import { onAuthStateChanged } from 'firebase/auth'
+import { onAuthStateChanged, getAuth } from 'firebase/auth'
 import { db, auth } from '@/firebase'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -675,9 +675,9 @@ async function openDrawer(l) {
   
   // Track view when drawer opens
   const listingId = l?.listingId || l?.id
-  if (listingId) {
-    await incrementViewCount(listingId)
-  }
+  // if (listingId) {
+  //   await incrementViewCount(listingId)
+  // }
 }
 function closeDrawer() {
   drawerOpen.value = false
@@ -690,46 +690,49 @@ function openDrawerFromMap(listing) {
 
 async function incrementViewCount(listingId) {
   const db = getFirestore();
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  if (!user) {
+    console.warn("⚠️ User must be signed in to count a view.");
+    return;
+  }
+
+  const listingRef = doc(db, "allListings", listingId);
+
   try {
-    const listingDocRef = doc(db, 'allListings', listingId);
-    const docSnap = await getDoc(listingDocRef);
+    const listingSnap = await getDoc(listingRef);
 
-    if (docSnap.exists()) {
-      const listingData = docSnap.data();
-
-      // Initialize viewCount if missing
-      if (listingData.viewCount === undefined) {
-        await updateDoc(listingDocRef, { viewCount: 0 });
-      }
-
-      // Increment viewCount by 1
-      await updateDoc(listingDocRef, { viewCount: increment(1) });
-      
-      // Also record the view in viewHistory for analytics
-      try {
-        const viewHistoryRef = collection(db, 'allListings', listingId, 'viewHistory');
-        await addDoc(viewHistoryRef, {
-          timestamp: serverTimestamp()
-        });
-      } catch (historyError) {
-        // Silently fail if viewHistory can't be written (e.g., permissions)
-        // The viewCount increment is more important
-        console.warn('Could not record view history:', historyError);
-      }
-    } else {
-      console.warn("⚠️ Listing document does not exist.");
+    if (!listingSnap.exists()) {
+      console.warn("⚠️ Listing does not exist.");
+      return;
     }
+
+    const data = listingSnap.data();
+    const viewedBy = data.viewedBy || []; // default to empty array
+
+    if (!viewedBy.includes(user.uid)) {
+      // Update or create the viewedBy field if missing
+      await updateDoc(listingRef, {
+        viewCount: increment(1),
+        viewedBy: arrayUnion(user.uid)
+      });
+
+      console.log(`✅ View count incremented for user ${user.uid}`);
+    } else {
+      console.log("👀 Already viewed this listing — skipping increment.");
+    }
+
   } catch (error) {
-    console.error("❌ Error incrementing view count:", error);
+    console.error("❌ Error updating view count:", error);
   }
 }
 
 async function handleListingClick(listingId) {
   try {
-    // Increment view count when the listing is clicked
     await incrementViewCount(listingId);
   } catch (error) {
-    console.error('Error handling listing click:', error);
+    console.error("❌ Error handling listing click:", error);
   }
 }
 

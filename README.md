@@ -76,9 +76,3 @@ Use Stripe test cards for testing payment features:
 - Bootstrap 5
 - Express.js
 - Vite
-
-## Build for Production
-
-```bash
-npm run build
-```

@@ -441,7 +441,7 @@ function handleHomeClick() {
   height: 36px;
   object-fit: cover;  /* Ensures the image covers the circular area */
   border-radius: 50%;
-  border: 2px solid #fff;
+  border: 2px solid #000;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   background: #fff;
   opacity: 0;
@@ -450,6 +450,11 @@ function handleHomeClick() {
 
 .avatar-36.loaded {
   opacity: 1;
+}
+
+/* Dark mode - white border */
+:root.dark-mode .avatar-36 {
+  border: 2px solid #fff;
 }
 
 .avatar-btn {

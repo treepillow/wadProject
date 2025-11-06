@@ -32,7 +32,7 @@ const searchFilters = ref({ business: '', location: '' })
 const isApplyingFilter = ref(false) // Flag to prevent infinite loops
 
 const sortDropdownOpen = ref(false)
-const sortBy = ref('trending')
+const sortBy = ref('best-match')
 const minPrice = ref(null)
 const maxPrice = ref(null)
 const userLocation = ref(null)
@@ -876,11 +876,11 @@ onBeforeUnmount(() => {
         
         <!-- Price Range Filters -->
         <div class="d-flex align-items-center gap-2 price-filter-wrapper">
-          <label class="small text-muted mb-0 price-label">Price:</label>
+          <label class="small mb-0 price-label">Price:</label>
           <input type="number" class="form-control form-control-sm price-input" v-model.number="minPrice" placeholder="Min" />
           <span class="text-muted">-</span>
           <input type="number" class="form-control form-control-sm price-input" v-model.number="maxPrice" placeholder="Max" />
-          <button class="btn btn-sm btn-outline-secondary apply-btn" @click="applySorting">Apply</button>
+          <button class="btn btn-sm btn-primary apply-btn" @click="applySorting">Apply</button>
         </div>
       </div>
       
@@ -1155,6 +1155,12 @@ onBeforeUnmount(() => {
   right: 0;
   bottom: 0;
   z-index: 999;
+}
+
+/* Price label styling */
+.price-label {
+  color: var(--color-primary) !important;
+  font-weight: 600;
 }
 
 @keyframes fadeIn {

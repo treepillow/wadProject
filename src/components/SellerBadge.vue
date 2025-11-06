@@ -33,6 +33,7 @@ const progressText = computed(() => getSellerProgressText(props.points))
   height: 64px;
   object-fit: contain;
 }
+
 .progress-container {
   min-width: 120px;
 }
@@ -40,10 +41,12 @@ const progressText = computed(() => getSellerProgressText(props.points))
   min-width: 120px;
   position: relative;
   background: var(--color-bg-purple-tint);
+  border: 2px solid #000;
 }
 
 :root.dark-mode .progress {
   background: rgba(122, 90, 248, 0.2);
+  border: none;
 }
 
 .progress-bar {

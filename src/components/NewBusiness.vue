@@ -851,13 +851,13 @@ export default {
     <div class="container pb-5 mt-5">
       <div class="d-flex justify-content-center">
         <div class="listing-card shadow-soft rounded-4 p-4 p-md-5">
-          <div class="text-center mb-5">
+          <div class="text-center mb-3">
             <h2 class="fw-bold py-1 px-4 rounded mb-0" style="color: rgb(75, 42, 166);">
               {{ editMode ? 'Edit Listing' : 'Create New Listing' }}
             </h2>
             <div style="
-              width: 100%;      
-              height: 4px; 
+              width: 100%;
+              height: 4px;
               border-radius: 2px;
               background: linear-gradient(90deg, rgb(75, 42, 166), #9b6cff);
               margin-top: 4px;
@@ -1482,6 +1482,7 @@ export default {
 .form-switch .form-check-input {
   width: 3em;
   height: 1.5em;
+  margin-right: 0.75rem;
 }
 
 .day-row {

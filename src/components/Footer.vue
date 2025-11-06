@@ -28,16 +28,6 @@
           &copy; {{ currentYear }} Homes. All rights reserved.
         </p>
       </div>
-      <div v-if="showFeedback" class="modal-backdrop" @click="closeModalOnBackdropClick">
-      <div class="modal-content p-4 rounded shadow bg-white" @click.stop>
-        <!-- Close button at top-right -->
-        <button 
-          class="btn-close position-absolute top-0 end-0 m-3" 
-          @click="showFeedback = false">
-        </button>
-          <Feedback />
-        </div>
-      </div>
     </div>
   </footer>
 </template>
@@ -46,29 +36,6 @@
 import { computed } from 'vue'
 
 const currentYear = computed(() => new Date().getFullYear())
-const showFeedback = ref(false);
-
-// Close modal on Escape key press
-const closeModalOnEscape = (event) => {
-  if (event.key === 'Escape') {
-    showFeedback.value = false;
-  }
-};
-
-// Close modal when clicking outside the modal content (on backdrop)
-const closeModalOnBackdropClick = () => {
-  showFeedback.value = false;
-};
-
-onMounted(() => {
-  // Add event listener for Escape key press when modal is open
-  window.addEventListener('keydown', closeModalOnEscape);
-});
-
-onBeforeUnmount(() => {
-  // Remove event listener when the component is destroyed
-  window.removeEventListener('keydown', closeModalOnEscape);
-});
 </script>
 
 <style scoped>

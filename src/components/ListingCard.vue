@@ -69,9 +69,6 @@ watch(() => props.sellerAvatarOverride, (newAvatar) => {
 const avgRating = ref(0)
 const totalReviews = ref(0)
 
-const instagramHandle = ref('')
-const telegramHandle = ref('')
-
 async function fetchRating() {
   try {
     const listingId = props.listing.listingId || props.listing.id
@@ -99,33 +96,8 @@ async function fetchRating() {
   }
 }
 
-async function fetchUserHandles(userId) {
-  if (!userId) return
-
-  try {
-    const userDocRef = doc(db, 'users', userId)
-    const userSnap = await getDoc(userDocRef)
-
-    if (!userSnap.exists()) {
-      console.warn('User not found:', userId)
-      return
-    }
-
-    const userData = userSnap.data() || {}
-
-    instagramHandle.value = userData.instagram || ''
-    telegramHandle.value = userData.telegram || ''
-
-    console.log('Fetched handles:', instagramHandle.value, telegramHandle.value)
-
-  } catch (e) {
-    console.error('Error fetching user handles:', e)
-  }
-}
-
 onMounted(() => {
   fetchRating()
-  fetchUserHandles(props.listing.userId)
 })
 
 /* ---------------- LISTING DATA ---------------- */
@@ -247,16 +219,6 @@ function goToUserProfile(event) {
         <h6 class="card-title mb-0 text-truncate flex-grow-1" :title="listing.businessName">
           {{ listing.businessName }}
         </h6>
-        <div class="social-icons-desktop d-flex align-items-center gap-2 flex-shrink-0 ms-2">
-          <a v-if="instagramHandle" :href="`https://instagram.com/${instagramHandle}`" target="_blank" rel="noopener"
-            class="text-decoration-none" @click.stop>
-            <img src="/src/assets/instagram.png" alt="Instagram" style="width:18px;height:18px;" />
-          </a>
-          <a v-if="telegramHandle" :href="`https://t.me/${telegramHandle}`" target="_blank" rel="noopener"
-            class="text-decoration-none" @click.stop>
-            <img src="/src/assets/telegram.png" alt="Telegram" style="width:18px;height:18px;" />
-          </a>
-        </div>
       </div>
 
 
@@ -295,17 +257,6 @@ function goToUserProfile(event) {
         <StartChatButton v-if="listing.userId !== $auth?.currentUser?.uid" :targetUserId="listing.userId"
           :listingId="listing.listingId || listing.id" :listingTitle="listing.businessName"
           :listingCover="listing.photoUrls?.[0] || listing.photos?.[0]?.url" class="chat-btn-mobile" @click.stop />
-        <!-- Social icons for mobile - placed at far right -->
-        <div class="social-icons-mobile d-flex align-items-center gap-1">
-          <a v-if="instagramHandle" :href="`https://instagram.com/${instagramHandle}`" target="_blank" rel="noopener"
-            class="text-decoration-none social-link" @click.stop>
-            <img src="/src/assets/instagram.png" alt="Instagram" class="social-icon" />
-          </a>
-          <a v-if="telegramHandle" :href="`https://t.me/${telegramHandle}`" target="_blank" rel="noopener"
-            class="text-decoration-none social-link" @click.stop>
-            <img src="/src/assets/telegram.png" alt="Telegram" class="social-icon" />
-          </a>
-        </div>
       </div>
     </div>
   </div>

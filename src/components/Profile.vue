@@ -61,8 +61,6 @@ export default {
     const addressObj = ref(null)
     const averageRating = ref(0)
     const totalReviews = ref(0)
-    const instagramId = ref('')
-    const telegramId = ref('')
 
     const displayName = computed(() => {
       const f = (firstName.value || '').trim()
@@ -279,8 +277,6 @@ export default {
             email.value     = d.email || u.email || ''
             phone.value     = d.phone || ''
             dateOfBirth.value = d.dateOfBirth || ''
-            instagramId.value = d.instagram || ''
-            telegramId.value = d.telegram || ''
             if (d.address) {
               const a = d.address
               // Check if address is a string or object
@@ -612,8 +608,6 @@ export default {
           email: email.value || user.value.email || '',
           photoURL,
           profilePicture: photoURL, // Keep both fields in sync
-          instagram: instagramId.value.trim(),
-          telegram: telegramId.value.trim(),
           updatedAt: serverTimestamp()
         })
         ok.value = 'Profile saved!'
@@ -1475,9 +1469,6 @@ export default {
       /* QR code modal */
       qrModalOpen, qrListing, qrCodeUrl, qrGenerating,
       showQRCode, closeQRModal, downloadQR, printQR,
-      // Socials
-      instagramId,
-      telegramId,
       // Analytics
       analyticsLoading, analyticsTimeFrame, analyticsData,
       timeFrameOptions, loadAnalytics, analyticsLoaded,
@@ -1536,17 +1527,6 @@ export default {
                 <!-- Name + socials -->
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                   <h3 class="m-0">{{ username || '—' }}</h3>
-
-                  <!-- Socials beside name -->
-                  <a v-if="instagramId" :href="`https://instagram.com/${instagramId}`" target="_blank" rel="noopener"
-                    class="text-decoration-none" @click.stop>
-                    <img src="/src/assets/instagram.png" alt="Instagram" style="width:22px;height:22px;" />
-                  </a>
-
-                  <a v-if="telegramId" :href="`https://t.me/${telegramId}`" target="_blank" rel="noopener"
-                    class="text-decoration-none" @click.stop>
-                    <img src="/src/assets/telegram.png" alt="Telegram" style="width:22px;height:22px;" />
-                  </a>
                 </div>
 
                 <div class="text-muted">{{ email || '—' }}</div>
@@ -1598,25 +1578,6 @@ export default {
                 <label class="form-label fw-semibold">Address</label>
                 <input class="form-control" v-model="address" placeholder="BLK 555B Tampines Ave 11" />
               </div>
-              <!-- Social Media -->
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Instagram</label>
-                <div class="input-group social-input-group">
-                  <span class="input-group-text social-prefix">@</span>
-                  <input class="form-control" v-model="instagramId" placeholder="your_instagram_handle" />
-                </div>
-                <div class="form-text">Enter your Instagram username (no link, just the handle)</div>
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Telegram</label>
-                <div class="input-group social-input-group">
-                  <span class="input-group-text social-prefix">@</span>
-                  <input class="form-control" v-model="telegramId" placeholder="your_telegram_handle" />
-                </div>
-                <div class="form-text">Enter your Telegram username (no link, just the handle)</div>
-              </div>
-
             </div>
             <div class="d-flex justify-content-end mt-4">
               <button class="btn btn-primary" :disabled="saving" @click="saveProfile">

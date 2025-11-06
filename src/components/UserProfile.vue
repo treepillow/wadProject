@@ -15,10 +15,6 @@ const userReviews = ref([])
 const loading = ref(true)
 const error = ref('')
 
-// Social handles
-const instagramId = ref('')
-const telegramId = ref('')
-
 // Stats
 const totalRating = ref(0)
 const avgRating = computed(() => {
@@ -50,10 +46,6 @@ async function fetchUserProfile() {
     }
 
     userProfile.value = { id: userDoc.id, ...userDoc.data() }
-
-    // Load social handles if exist
-    instagramId.value = userProfile.value.instagram || ''
-    telegramId.value = userProfile.value.telegram || ''
 
     // Fetch user's listings
     const listingsQuery = query(
@@ -146,28 +138,6 @@ onMounted(() => {
                   :points="(userProfile.stats.reviews || 0) + (userProfile.stats.boosts || 0) * 5" 
                   :progress="false" 
                 />
-
-                <!-- Social Icons -->
-                <div class="d-flex ms-1 gap-1">
-                  <a 
-                    v-if="instagramId" 
-                    :href="`https://instagram.com/${instagramId}`" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    title="Instagram"
-                  >
-                    <img src="/src/assets/instagram.png" alt="Instagram" style="width:24px; height:24px;">
-                  </a>
-                  <a 
-                    v-if="telegramId" 
-                    :href="`https://t.me/${telegramId}`" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    title="Telegram"
-                  >
-                    <img src="/src/assets/telegram.png" alt="Telegram" style="width:24px; height:24px;">
-                  </a>
-                </div>
               </div>
 
               <p class="text-muted mb-3">{{ userProfile.email }}</p>

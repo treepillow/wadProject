@@ -46,9 +46,6 @@ const bookingTime = ref('')
 const bookingMessage = ref('')
 const submittingBooking = ref(false)
 
-// Socials
-const instagramHandle = ref('')
-const telegramHandle = ref('')
 const loadingHandles = ref(false)
 const handleError = ref('')
 
@@ -462,45 +459,8 @@ function onEsc(e) {
   }
 }
 
-async function fetchUserHandles(userId) {
-  if (!userId) return
-
-  try {
-    const userDocRef = doc(db, 'users', userId)
-    const userSnap = await getDoc(userDocRef)
-
-    if (!userSnap.exists()) {
-      console.warn('User not found:', userId)
-      return
-    }
-
-    const userData = userSnap.data() || {}
-
-    instagramHandle.value = userData.instagram || ''
-    telegramHandle.value = userData.telegram || ''
-  } catch (e) {
-    console.error('Error fetching user handles:', e)
-  }
-}
-
-watch(
-  () => props.listing?.userId,
-  (newUserId) => {
-    if (newUserId) {
-      fetchUserHandles(newUserId)
-    } else {
-      instagramHandle.value = ''
-      telegramHandle.value = ''
-    }
-  },
-  { immediate: true } // fetch immediately on component mount
-)
-
 onMounted(() => {
   document.addEventListener('keydown', onEsc)
-  if (props.listing?.userId) {
-    fetchUserHandles(props.listing.userId)
-  }
 })
 onBeforeUnmount(() => document.removeEventListener('keydown', onEsc))
 
@@ -1163,7 +1123,6 @@ async function updateSellerRating(sellerId, newRating) {
 watch(() => props.listing?.listingId || props.listing?.id, (newId) => {
   if (newId && props.open) {
     fetchReviews()
-    fetchUserHandles(props.listing.userId)
   }
 }, { immediate: true })
 
@@ -1264,17 +1223,6 @@ watch(() => props.open, (isOpen) => {
             <span class="fw-semibold seller-name-clickable" @click="goToSellerProfile">
               {{ sellerName || 'Seller' }}
             </span>
-
-            <!-- Social icons beside name -->
-            <a v-if="instagramHandle" :href="`https://instagram.com/${instagramHandle}`" target="_blank" rel="noopener"
-              class="text-decoration-none" @click.stop>
-              <img src="/src/assets/instagram.png" alt="Instagram" style="width:18px;height:18px;" />
-            </a>
-
-            <a v-if="telegramHandle" :href="`https://t.me/${telegramHandle}`" target="_blank" rel="noopener"
-              class="text-decoration-none" @click.stop>
-              <img src="/src/assets/telegram.png" alt="Telegram" style="width:18px;height:18px;" />
-            </a>
 
             <!-- Seller badge -->
             <SellerBadge :points="listing?.sellerStats

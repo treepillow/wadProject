@@ -127,21 +127,24 @@ const router = createRouter({
 })
 
 
-// --- Auth guard with caching ---
-let cachedUser = null;
+// --- Auth guard with initialization state ---
+let currentUser = null;
 let cachedUserData = null;
 let lastFetchTime = 0;
-const CACHE_DURATION = 5000; // Cache for 5 seconds
+let authInitialized = false;
+const CACHE_DURATION = 300000; // Cache for 5 minutes (increased from 5 seconds)
 
-function getCurrentUser() {
-  return new Promise((resolve) => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      unsub();
-      cachedUser = user;
-      resolve(user);
-    });
-  });
-}
+// Initialize auth state listener ONCE when the router loads
+onAuthStateChanged(auth, (user) => {
+  currentUser = user;
+  authInitialized = true;
+
+  // Clear user data cache when user changes
+  if (!user) {
+    cachedUserData = null;
+    lastFetchTime = 0;
+  }
+});
 
 async function getUserData(uid) {
   const now = Date.now();
@@ -166,7 +169,17 @@ async function getUserData(uid) {
 }
 
 router.beforeEach(async (to, _from, next) => {
-  const user = await getCurrentUser();
+  // Wait for auth to initialize only on first navigation
+  if (!authInitialized) {
+    await new Promise((resolve) => {
+      const unsubscribe = onAuthStateChanged(auth, () => {
+        unsubscribe();
+        resolve();
+      });
+    });
+  }
+
+  const user = currentUser;
 
   // Special handling for root path - redirect to about if not logged in
   if (to.path === '/' && !user) {
@@ -201,9 +214,10 @@ router.beforeEach(async (to, _from, next) => {
 
 // Function to clear router cache (used on logout)
 export function clearCache() {
-  cachedUser = null;
+  currentUser = null;
   cachedUserData = null;
   lastFetchTime = 0;
+  authInitialized = false;
 }
 
 export default router

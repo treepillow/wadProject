@@ -216,7 +216,7 @@ function goToUserProfile(event) {
             {{ (sellerName || 'S').toString().trim().charAt(0).toUpperCase() }}
           </div>
         </div>
-        <span class="fw-semibold small text-truncate seller-name-link" style="max-width:100px" :title="sellerName"
+        <span class="fw-semibold small text-truncate seller-name-link" :title="sellerName"
           @click="goToUserProfile">{{ sellerName }}</span>
         <SellerBadge
           :points="listing.sellerStats ? (listing.sellerStats.reviews || 0) + (listing.sellerStats.boosts || 0) * 5 : 0"
@@ -232,7 +232,8 @@ function goToUserProfile(event) {
 
         <!-- Actual image -->
         <img v-if="photo && !imgErrored" :src="photo" :alt="listing.businessName" class="img-cover" loading="lazy"
-          decoding="async" @load="onImgLoad" @error="onImgError" :class="{ 'img-visible': imgLoaded }" />
+          decoding="async" referrerpolicy="no-referrer-when-downgrade"
+          @load="onImgLoad" @error="onImgError" :class="{ 'img-visible': imgLoaded }" />
 
         <!-- Fallback -->
         <div v-if="!photo || imgErrored" class="img-fallback">No photo</div>
@@ -492,6 +493,7 @@ function goToUserProfile(event) {
 .seller-name-link {
   cursor: pointer;
   transition: color var(--transition-fast);
+  max-width: 150px;
 }
 
 .seller-name-link:hover {
@@ -565,6 +567,10 @@ function goToUserProfile(event) {
 
   .card-header {
     padding: 0.4rem 0.75rem 0.25rem !important;
+  }
+
+  .seller-name-link {
+    max-width: 120px;
   }
 
   .card-body {

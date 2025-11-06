@@ -174,6 +174,14 @@ export default {
           return
         }
 
+        // Check if user is trying to review their own listing
+        if (listingData.userId === user.uid) {
+          error.value = true
+          errorMessage.value = 'You cannot review your own listing.'
+          loading.value = false
+          return
+        }
+
         // Check if user already reviewed this listing
         const reviewsRef = collection(db, 'allListings', listingId.value, 'reviews')
         const userReviewQuery = query(reviewsRef, where('userId', '==', user.uid))

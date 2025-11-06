@@ -149,9 +149,19 @@ export default {
 
 <template>
   <div class="container my-5">
-    <h2 class="text-center mb-4">Share Feedback or Report an Issue</h2>
-
-    <form @submit="submitForm" class="feedback-form border shadow-sm p-4 bg-white">
+    <form @submit="submitForm" class="feedback-form border shadow-sm w-300 mx-auto p-4 bg-white">
+      <h2 class="text-center fw-bold pt-3 px-4 rounded mb-0"
+        style="color: rgb(75, 42, 166); font-size: 32px; line-height: 1.2; padding-top: 0.25rem; padding-bottom: 0.25rem;">
+        Share Feedback or Report an Issue
+      </h2>
+      <div style="
+        width: 100%;      
+        height: 4px; 
+        border-radius: 2px;
+        background: linear-gradient(90deg, rgb(75, 42, 166), #9b6cff);
+        margin-top: 4px;
+        margin-bottom: 1rem; /* remove bottom margin */
+      "></div>
       <!-- Type + Category -->
       <div class="row mb-3">
         <div class="col-md-6">
@@ -159,13 +169,8 @@ export default {
             Type
             <Icon icon="mdi:clipboard-text-outline" class="ms-1" />
           </label>
-          <select
-            class="form-select"
-            id="feedbackType"
-            v-model="feedbackForm.feedbackType"
-            @change="onTypeChange"
-            required
-          >
+          <select class="form-select" id="feedbackType" v-model="feedbackForm.feedbackType" @change="onTypeChange"
+            required>
             <option disabled value="">Select type</option>
             <option value="feedback">Feedback</option>
             <option value="report issue">Report Issue</option>
@@ -180,20 +185,12 @@ export default {
           <select class="form-select" v-model="feedbackForm.category" required>
             <option disabled value="">Select category</option>
             <template v-if="showFeedbackCategory">
-              <option
-                v-for="cat in feedbackCategories"
-                :key="cat.value"
-                :value="cat.value"
-              >
+              <option v-for="cat in feedbackCategories" :key="cat.value" :value="cat.value">
                 {{ cat.text }}
               </option>
             </template>
             <template v-else>
-              <option
-                v-for="cat in issueCategories"
-                :key="cat.value"
-                :value="cat.value"
-              >
+              <option v-for="cat in issueCategories" :key="cat.value" :value="cat.value">
                 {{ cat.text }}
               </option>
             </template>
@@ -222,16 +219,9 @@ export default {
             Name
             <Icon icon="mdi:account-outline" class="ms-1" />
           </label>
-          <input
-            type="text"
-            class="form-control"
-            id="name"
-            v-model="feedbackForm.name"
-            :readonly="isUserDataPresent"
-            :style="isUserDataPresent ? 'background-color: #e9ecef; cursor: not-allowed;' : ''"
-            placeholder="Your name"
-            required
-          />
+          <input type="text" class="form-control" id="name" v-model="feedbackForm.name" :readonly="isUserDataPresent"
+            :style="isUserDataPresent ? 'background-color: #e9ecef; cursor: not-allowed;' : ''" placeholder="Your name"
+            required />
         </div>
 
         <div class="col-md-6">
@@ -255,16 +245,9 @@ export default {
             Email
             <Icon icon="mdi:email-outline" class="ms-1" />
           </label>
-          <input
-            type="email"
-            class="form-control"
-            id="email"
-            v-model="feedbackForm.email"
-            :readonly="isUserDataPresent"
+          <input type="email" class="form-control" id="email" v-model="feedbackForm.email" :readonly="isUserDataPresent"
             :style="isUserDataPresent ? 'background-color: #e9ecef; cursor: not-allowed;' : ''"
-            placeholder="you@example.com"
-            required
-          />
+            placeholder="you@example.com" required />
         </div>
 
         <div class="col-md-6">
@@ -272,16 +255,9 @@ export default {
             Phone
             <Icon icon="mdi:phone-outline" class="ms-1" />
           </label>
-          <input
-            type="tel"
-            class="form-control"
-            id="phone"
-            v-model="feedbackForm.phone"
-            :readonly="isUserDataPresent"
+          <input type="tel" class="form-control" id="phone" v-model="feedbackForm.phone" :readonly="isUserDataPresent"
             :style="isUserDataPresent ? 'background-color: #e9ecef; cursor: not-allowed;' : ''"
-            placeholder="+65 9123 4567"
-            required
-          />
+            placeholder="+65 9123 4567" required />
         </div>
       </div>
 
@@ -291,14 +267,8 @@ export default {
           Description
           <Icon icon="mdi:text-box-outline" class="ms-1" />
         </label>
-        <textarea
-          class="form-control"
-          id="description"
-          v-model="feedbackForm.description"
-          rows="4"
-          placeholder="Describe your feedback or issue..."
-          required
-        ></textarea>
+        <textarea class="form-control" id="description" v-model="feedbackForm.description" rows="4"
+          placeholder="Describe your feedback or issue..." required></textarea>
       </div>
 
       <div class="text-center">
@@ -310,17 +280,17 @@ export default {
 
 <style scoped>
 .feedback-form {
-    max-width: 800px;
-    margin: 0 auto;
-    background-color: #ffffff;
-    padding: 2rem;
-    border-radius: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 form label {
-    color: rgb(75, 42, 166);
-    font-weight: 600;
-    font-size: 16px;
+  color: rgb(75, 42, 166);
+  font-weight: 600;
+  font-size: 16px;
 }
 </style>

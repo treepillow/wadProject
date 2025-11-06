@@ -28,6 +28,16 @@
           &copy; {{ currentYear }} Homes. All rights reserved.
         </p>
       </div>
+      <div v-if="showFeedback" class="modal-backdrop" @click="closeModalOnBackdropClick">
+      <div class="modal-content p-4 rounded shadow bg-white" @click.stop>
+        <!-- Close button at top-right -->
+        <button 
+          class="btn-close position-absolute top-0 end-0 m-3" 
+          @click="showFeedback = false">
+        </button>
+          <Feedback />
+        </div>
+      </div>
     </div>
   </footer>
 </template>
@@ -36,6 +46,29 @@
 import { computed } from 'vue'
 
 const currentYear = computed(() => new Date().getFullYear())
+const showFeedback = ref(false);
+
+// Close modal on Escape key press
+const closeModalOnEscape = (event) => {
+  if (event.key === 'Escape') {
+    showFeedback.value = false;
+  }
+};
+
+// Close modal when clicking outside the modal content (on backdrop)
+const closeModalOnBackdropClick = () => {
+  showFeedback.value = false;
+};
+
+onMounted(() => {
+  // Add event listener for Escape key press when modal is open
+  window.addEventListener('keydown', closeModalOnEscape);
+});
+
+onBeforeUnmount(() => {
+  // Remove event listener when the component is destroyed
+  window.removeEventListener('keydown', closeModalOnEscape);
+});
 </script>
 
 <style scoped>
@@ -140,6 +173,70 @@ const currentYear = computed(() => new Date().getFullYear())
 
   .footer-copyright {
     font-size: 0.8rem;
+  }
+}
+
+/* Backdrop (semi-transparent overlay) */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);  /* Semi-transparent black */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+}
+
+/* Modal content container */
+.modal-content {
+  max-width: 90%;
+  width: 600px;  /* Default width */
+  position: relative;
+  padding: 2rem;
+  border-radius: 1rem;
+  background: white;  /* White background */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);  /* Light shadow */
+}
+
+/* Close button styling */
+.btn-close {
+  position: absolute;  /* Positioned inside modal-content */
+  top: 1rem;  /* Space from the top */
+  right: 1rem;  /* Space from the right */
+  color: black;
+  border: none;
+  font-size: 1.5rem;  /* Font size for close button */
+  cursor: pointer;
+  z-index: 1060;  /* Ensure it's on top of modal content */
+}
+
+.btn-close:focus {
+  outline: none;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 90%;    /* Use 90% of the screen width on tablets */
+    padding: 1.5rem; /* Less padding on smaller screens */
+  }
+
+  .btn-close {
+    font-size: 1.2rem; /* Slightly smaller button on smaller screens */
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-content {
+    width: 95%;    /* Further reduce modal width on small screens */
+    padding: 1rem;  /* Less padding */
+  }
+
+  .btn-close {
+    font-size: 1rem; /* Even smaller button on very small screens */
   }
 }
 </style>

@@ -96,7 +96,7 @@ export default {
         key,
         data: this.availableSlots[key],
         label: key === 'mon' ? 'Monday' : key === 'tue' ? 'Tuesday' : key === 'wed' ? 'Wednesday' :
-               key === 'thu' ? 'Thursday' : key === 'fri' ? 'Friday' : key === 'sat' ? 'Saturday' : 'Sunday'
+          key === 'thu' ? 'Thursday' : key === 'fri' ? 'Friday' : key === 'sat' ? 'Saturday' : 'Sunday'
       }))
     }
   },
@@ -852,8 +852,7 @@ export default {
       <div class="d-flex justify-content-center">
         <div class="listing-card shadow-soft rounded-4 p-4 p-md-5">
           <div class="text-center mb-5">
-            <h2 class="fw-bold text-white py-3 px-4 rounded mb-0"
-              style="background-color: var(--color-primary); border: 2px solid var(--color-primary);">
+            <h2 class="fw-bold py-1 px-4 rounded mb-0" style="color: rgb(75, 42, 166);">
               {{ editMode ? 'Edit Listing' : 'Create New Listing' }}
             </h2>
             <div style="
@@ -861,8 +860,8 @@ export default {
               height: 4px; 
               border-radius: 2px;
               background: linear-gradient(90deg, rgb(75, 42, 166), #9b6cff);
-              margin-top: 2px;  /* small gap below header */
-              margin-bottom: 4px; /* reduce space before form inputs */
+              margin-top: 4px;
+              margin-bottom: 0; /* remove bottom margin */
             "></div>
           </div>
 
@@ -871,7 +870,7 @@ export default {
               <!-- Name and Category (side by side) -->
               <div class="d-flex gap-3 mb-3 mt-0">
                 <div class="flex-grow-1">
-                  <label class="form-label fw-semibold">
+                  <label class="form-label fw-semibold mb-1">
                     Category
                     <Icon icon="mdi:view-dashboard" />
                   </label>
@@ -1222,12 +1221,15 @@ export default {
 
                     <div class="mb-3">
                       <label class="form-label fw-semibold">Available Days for Booking</label>
-                      <p class="text-muted small mb-2">Select which days customers can book appointments. Booking hours will automatically match your operating hours.</p>
+                      <p class="text-muted small mb-2">Select which days customers can book appointments. Booking hours
+                        will automatically match your operating hours.</p>
                       <div class="days-grid">
                         <div v-for="dayObj in orderedAvailableSlots" :key="dayObj.key" class="day-row card p-3 mb-2">
                           <div class="form-check">
-                            <input class="form-check-input" type="checkbox" :id="`day-${dayObj.key}`" v-model="dayObj.data.enabled">
-                            <label class="form-check-label fw-semibold clickable-label" :for="`day-${dayObj.key}`" style="cursor: pointer;">
+                            <input class="form-check-input" type="checkbox" :id="`day-${dayObj.key}`"
+                              v-model="dayObj.data.enabled">
+                            <label class="form-check-label fw-semibold clickable-label" :for="`day-${dayObj.key}`"
+                              style="cursor: pointer;">
                               {{ dayObj.label }}
                             </label>
                           </div>
@@ -1236,7 +1238,8 @@ export default {
                     </div>
 
                     <div class="alert alert-info small">
-                      💡 Customers will be able to request bookings during your operating hours on the selected days. You can accept or reject each request.
+                      💡 Customers will be able to request bookings during your operating hours on the selected days.
+                      You can accept or reject each request.
                     </div>
                   </div>
                 </div>

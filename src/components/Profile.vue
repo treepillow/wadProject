@@ -87,6 +87,8 @@ export default {
     const usernameSuccess = ref('')
     const checkingUsername = ref(false)
     const usernameTimeout = ref(null)
+    const originalUsername = ref('') // Store the original username
+    const isEditingUsername = ref(false) // Track if username is being edited
 
     const displayName = computed(() => {
       const f = (firstName.value || '').trim()
@@ -147,6 +149,7 @@ export default {
     watch(username, (newUsername) => {
       usernameError.value = ''
       usernameSuccess.value = ''
+      isEditingUsername.value = false
 
       if (usernameTimeout.value) {
         clearTimeout(usernameTimeout.value)
@@ -156,6 +159,14 @@ export default {
         return
       }
 
+      // Check if username has actually changed from original
+      if (newUsername.trim() === originalUsername.value) {
+        // Don't show any message when it's the same as original
+        return
+      }
+
+      // User is editing the username - check availability
+      isEditingUsername.value = true
       checkingUsername.value = true
       usernameTimeout.value = setTimeout(async () => {
         const isUnique = await checkUsernameUnique(newUsername.trim())
@@ -389,6 +400,7 @@ export default {
           if (snap.exists()) {
             const d = snap.data()
             username.value = d.username || ''
+            originalUsername.value = d.username || '' // Store original username
             firstName.value = d.firstName || ''
             lastName.value  = d.lastName || ''
             email.value     = d.email || u.email || ''
@@ -1855,7 +1867,7 @@ export default {
                 <input
                   class="form-control"
                   v-model="username"
-                  placeholder="aaron"
+                  placeholder="meme"
                   :class="{ 'is-invalid': usernameError, 'is-valid': usernameSuccess }"
                 />
                 <div v-if="checkingUsername" class="text-muted small mt-1">
@@ -1900,26 +1912,30 @@ export default {
                   </div>
                 </div>
               </div>
+              <div class="row mb-3 mt-3">
+                <div class="col-md" v-if="!isLanded">
+                  <label class="form-label fw-semibold">Block Number</label>
+                  <input class="form-control" v-model="blk" placeholder="123A" :class="{ 'is-invalid': addrError }" />
+                </div>
 
-              <div class="col-md-4" v-if="!isLanded">
-                <label class="form-label fw-semibold">Block Number</label>
-                <input class="form-control" v-model="blk" placeholder="123A" :class="{ 'is-invalid': addrError }" />
+                <div :class="isLanded ? 'col-md' : 'col-md'">
+                  <label class="form-label fw-semibold">Street Name</label>
+                  <input class="form-control" v-model="street" placeholder="Tampines Avenue 11" :class="{ 'is-invalid': addrError }" />
+                </div>
               </div>
 
-              <div :class="isLanded ? 'col-md-8' : 'col-md-8'">
-                <label class="form-label fw-semibold">Street Name</label>
-                <input class="form-control" v-model="street" placeholder="Tampines Avenue 11" :class="{ 'is-invalid': addrError }" />
-              </div>
-
-              <div class="col-md-4">
+            <div class="row">
+              <div class="col-md">
                 <label class="form-label fw-semibold">Postal Code</label>
                 <input class="form-control" v-model="postal" placeholder="123456" maxlength="6" :class="{ 'is-invalid': addrError }" />
               </div>
 
-              <div class="col-md-4">
+              <div class="col-md">
                 <label class="form-label fw-semibold">Unit Number</label>
                 <input class="form-control" v-model="unit" placeholder="01-23" />
               </div>
+            </div>
+
 
               <div class="col-12" v-if="fullAddress">
                 <label class="form-label fw-semibold">Full Address (Read-Only)</label>

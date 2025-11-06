@@ -668,12 +668,12 @@ async function openDrawer(l) {
   drawerSellerName.value   = prof?.displayName || ''
   drawerSellerAvatar.value = prof?.photoURL || ''
   drawerOpen.value = true
-  
+
   // Track view when drawer opens
   const listingId = l?.listingId || l?.id
-  // if (listingId) {
-  //   await incrementViewCount(listingId)
-  // }
+  if (listingId) {
+    await incrementViewCount(listingId)
+  }
 }
 function closeDrawer() {
   drawerOpen.value = false
@@ -705,6 +705,13 @@ async function incrementViewCount(listingId) {
     }
 
     const data = listingSnap.data();
+
+    // Don't count views from the listing owner
+    if (data.userId === user.uid) {
+      console.log("👤 Viewing own listing — skipping view count increment.");
+      return;
+    }
+
     const viewedBy = data.viewedBy || []; // default to empty array
 
     if (!viewedBy.includes(user.uid)) {

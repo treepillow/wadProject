@@ -142,15 +142,10 @@
                     <h4 class="business-name">{{ listing.businessName }}</h4>
                     <div class="business-rating">
                       <Icon icon="mdi:star" class="star-icon" />
-                      <span>{{ (listingsReviews[listing.id || listing.listingId]?.avgRating || listing.averageRating || 0).toFixed(1) }}</span>
-                      <span class="review-count" v-if="listingsReviews[listing.id || listing.listingId]?.totalReviews">
-                        ({{ listingsReviews[listing.id || listing.listingId].totalReviews }})
+                      <span>{{ (listingsReviews[listing.id || listing.listingId]?.avgRating ?? listing.averageRating ?? listing.rating ?? 0).toFixed(1) }}</span>
+                      <span class="review-count" v-if="(listingsReviews[listing.id || listing.listingId]?.totalReviews ?? listing.totalReviews ?? 0) > 0">
+                        ({{ listingsReviews[listing.id || listing.listingId]?.totalReviews ?? listing.totalReviews ?? 0 }})
                       </span>
-                      <span v-else-if="listing.totalReviews">({{ listing.totalReviews }})</span>
-                    </div>
-                    <div v-if="listingsReviews[listing.id || listing.listingId]?.topReview" class="business-review-preview">
-                      <p class="review-text">{{ listingsReviews[listing.id || listing.listingId].topReview.text }}</p>
-                      <span class="review-author">— {{ listingsReviews[listing.id || listing.listingId].topReview.author }}</span>
                     </div>
                   </div>
                 </div>
@@ -198,8 +193,9 @@ const drawerSellerName = ref('')
 const drawerSellerAvatar = ref('')
 const mapLoaded = ref(false)
 
-// Reviews data for listings
+// Reviews data for listings - same structure as ListingDrawer
 const listingsReviews = ref({}) // { listingId: { avgRating, totalReviews, topReview } }
+const reviewUnsubs = new Map() // Track review listeners for cleanup
 
 // Seller profile map (for names and avatars)
 const profileMap = ref({})
@@ -270,11 +266,17 @@ const filteredListings = computed(() => {
 
 // Watch for filtered listings changes to fetch reviews for new listings
 watch(filteredListings, (newListings) => {
-  // Fetch reviews for listings that don't have them yet
+  // Fetch reviews and start listeners for listings that don't have them yet
   newListings.forEach(listing => {
     const listingId = listing.id || listing.listingId
-    if (listingId && !listingsReviews.value[listingId]) {
-      fetchListingReviews(listingId)
+    if (listingId) {
+      if (!listingsReviews.value[listingId]) {
+        // Fetch initial data and start listener
+        fetchListingReviews(listingId)
+      } else if (!reviewUnsubs.has(listingId)) {
+        // Reviews exist but listener not started - start listener only
+        startReviewListener(listingId)
+      }
     }
   })
 }, { immediate: true })
@@ -546,39 +548,148 @@ function attachProfileListeners(rows) {
   uids.forEach(startProfileListener)
 }
 
-// Fetch reviews for a single listing
+// Set up real-time listener for a single listing's reviews
+function startReviewListener(listingId) {
+  if (!listingId || reviewUnsubs.has(listingId)) return
+  
+  // Listen to the listing document for averageRating and totalReviews updates
+  const listingUnsub = onSnapshot(doc(db, 'allListings', listingId), (listingSnap) => {
+    if (!listingSnap.exists()) return
+    
+    const data = listingSnap.data()
+    const avgRating = Number(data.averageRating) || Number(data.rating) || 0
+    const totalReviews = Number(data.totalReviews) || 0
+    
+    // Update the listing in the listings array
+    const listingIndex = listings.value.findIndex(l => (l.id || l.listingId) === listingId)
+    if (listingIndex !== -1) {
+      listings.value[listingIndex] = {
+        ...listings.value[listingIndex],
+        averageRating: avgRating,
+        rating: avgRating,
+        totalReviews: totalReviews
+      }
+    }
+  }, (error) => {
+    console.error(`Error listening to listing ${listingId}:`, error)
+  })
+  
+  // Listen to all reviews and recalculate - same as ListingDrawer
+  const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
+  const q = query(reviewsRef, orderBy('createdAt', 'desc'))
+  const reviewUnsub = onSnapshot(q, (snapshot) => {
+    let avgRating = 0
+    let totalReviews = 0
+    let topReview = null
+    let totalRating = 0
+    let totalWeight = 0
+    
+    // Calculate from all reviews - same as ListingDrawer
+    snapshot.docs.forEach((docSnap) => {
+      const reviewData = docSnap.data()
+      
+      // Get top review (most recent) - same field names as ListingDrawer
+      if (!topReview && (reviewData.reviewText || reviewData.text) && (reviewData.reviewText || reviewData.text).length > 0) {
+        topReview = {
+          text: reviewData.reviewText || reviewData.text,
+          author: reviewData.userName || 'Anonymous'
+        }
+      }
+      
+      // Weighted rating: verified reviews count 2x, unverified count 1x (same as ListingDrawer)
+      const rating = reviewData.rating || 0
+      const weight = reviewData.isVerified ? 2 : 1
+      totalRating += rating * weight
+      totalWeight += weight
+    })
+    
+    totalReviews = snapshot.size
+    // Calculate weighted average (verified reviews count more) - same as ListingDrawer
+    avgRating = totalWeight > 0 ? totalRating / totalWeight : 0
+    
+    // Update listingsReviews
+    listingsReviews.value = {
+      ...listingsReviews.value,
+      [listingId]: { avgRating, totalReviews, topReview }
+    }
+    
+    // Update the listing object
+    const listingIndex = listings.value.findIndex(l => (l.id || l.listingId) === listingId)
+    if (listingIndex !== -1) {
+      listings.value[listingIndex] = {
+        ...listings.value[listingIndex],
+        averageRating: avgRating,
+        rating: avgRating,
+        totalReviews: totalReviews
+      }
+    }
+  }, (error) => {
+    console.error(`Error listening to reviews for ${listingId}:`, error)
+  })
+  
+  // Store both unsubscribers
+  reviewUnsubs.set(listingId, () => {
+    listingUnsub()
+    reviewUnsub()
+  })
+}
+
+// Fetch reviews for a single listing - same approach as ListingDrawer
 async function fetchListingReviews(listingId) {
   if (!listingId) return
+  
   try {
     const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
-    const q = query(reviewsRef, orderBy('timestamp', 'desc'), limit(1))
+    const q = query(reviewsRef, orderBy('createdAt', 'desc'))
     const snapshot = await getDocs(q)
     
     let avgRating = 0
     let totalReviews = 0
     let topReview = null
-
-    // Get aggregate rating and total reviews from the listing document itself
-    const listingDoc = await getDoc(doc(db, 'allListings', listingId))
-    if (listingDoc.exists()) {
-      const data = listingDoc.data()
-      avgRating = data.averageRating || 0
-      totalReviews = data.totalReviews || 0
-    }
-
-    if (!snapshot.empty) {
-      const reviewData = snapshot.docs[0].data()
-      if (reviewData.text && reviewData.text.length > 0) {
+    let totalRating = 0
+    let totalWeight = 0
+    
+    // Calculate from all reviews - same as ListingDrawer
+    for (const docSnap of snapshot.docs) {
+      const reviewData = docSnap.data()
+      
+      // Get top review (most recent) - same field names as ListingDrawer
+      if (!topReview && (reviewData.reviewText || reviewData.text) && (reviewData.reviewText || reviewData.text).length > 0) {
         topReview = {
-          text: reviewData.text,
+          text: reviewData.reviewText || reviewData.text,
           author: reviewData.userName || 'Anonymous'
         }
       }
+      
+      // Weighted rating: verified reviews count 2x, unverified count 1x (same as ListingDrawer)
+      const rating = reviewData.rating || 0
+      const weight = reviewData.isVerified ? 2 : 1
+      totalRating += rating * weight
+      totalWeight += weight
     }
+    
+    totalReviews = snapshot.size
+    // Calculate weighted average (verified reviews count more) - same as ListingDrawer
+    avgRating = totalWeight > 0 ? totalRating / totalWeight : 0
+    
     listingsReviews.value = {
       ...listingsReviews.value,
       [listingId]: { avgRating, totalReviews, topReview }
     }
+    
+    // Update the listing object with calculated values
+    const listingIndex = listings.value.findIndex(l => (l.id || l.listingId) === listingId)
+    if (listingIndex !== -1) {
+      listings.value[listingIndex] = {
+        ...listings.value[listingIndex],
+        averageRating: avgRating,
+        rating: avgRating,
+        totalReviews: totalReviews
+      }
+    }
+    
+    // Start real-time listener
+    startReviewListener(listingId)
   } catch (error) {
     console.error(`Error fetching reviews for ${listingId}:`, error)
   }
@@ -595,9 +706,22 @@ async function fetchAllReviews() {
 async function loadListings() {
   try {
     const snapshot = await getDocs(collection(db, 'allListings'))
-    listings.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    listings.value = snapshot.docs.map(doc => {
+      const data = doc.data()
+      return { 
+        id: doc.id, 
+        listingId: doc.id,
+        ...data,
+        // Ensure averageRating and totalReviews are numbers, default to 0
+        // Support both 'averageRating' and 'rating' field names
+        averageRating: Number(data.averageRating) || Number(data.rating) || 0,
+        rating: Number(data.averageRating) || Number(data.rating) || 0,
+        totalReviews: Number(data.totalReviews) || 0
+      }
+    })
     console.log('Loaded listings:', listings.value.length)
     console.log('Sample listing:', listings.value[0])
+    console.log('Sample listing rating:', listings.value[0]?.averageRating, 'reviews:', listings.value[0]?.totalReviews)
     
     // Attach profile listeners
     attachProfileListeners(listings.value)
@@ -1044,6 +1168,9 @@ onBeforeUnmount(() => {
   // Clean up profile listeners
   profileUnsubs.forEach(unsub => unsub && unsub())
   profileUnsubs.clear()
+  // Clean up review listeners
+  reviewUnsubs.forEach(unsub => unsub && unsub())
+  reviewUnsubs.clear()
 })
 </script>
 

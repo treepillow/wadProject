@@ -248,7 +248,7 @@
             <div class="username-container">
               <input
                 type="text"
-                placeholder="Username (no spaces allowed)"
+                placeholder="Username"
                 v-model="signup.username"
                 @input="validateUsername"
                 required

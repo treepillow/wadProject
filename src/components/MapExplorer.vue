@@ -1397,9 +1397,9 @@ body.map-explorer-open {
 }
 
 .my-location-btn:hover {
-  background: var(--color-primary-dark);
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .close-btn {

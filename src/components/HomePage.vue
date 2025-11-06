@@ -1231,6 +1231,11 @@ onBeforeUnmount(() => {
 .price-label {
   color: var(--color-primary) !important;
   font-weight: 600;
+  font-family: inherit;
+}
+
+.price-input {
+  font-family: inherit;
 }
 
 @keyframes fadeIn {

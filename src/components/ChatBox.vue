@@ -148,12 +148,15 @@ function subscribeMyChats() {
 async function populateUserMeta(chat) {
   if (!chat.participants) return
   chat.meta = chat.meta || {}
+
+  let hasUpdates = false
+
   for (const uid of chat.participants) {
     if (uid === currentUserId.value) continue
-    
+
     // Skip if already populated from cache (no need to fetch again)
     if (chat.meta[uid]) continue
-    
+
     // Only fetch if not in cache (async, non-blocking)
     try {
       const userSnap = await getDoc(doc(db, 'users', uid))
@@ -165,15 +168,20 @@ async function populateUserMeta(chat) {
       } else {
         userCache.value[uid] = { displayName: 'User', photoURL: '' }
       }
-      // Update chat meta and trigger reactivity
+      // Update chat meta
       chat.meta[uid] = userCache.value[uid]
-      // Force Vue reactivity update
-      chats.value = [...chats.value]
+      hasUpdates = true
     } catch (e) {
       // Silently handle errors - use fallback
       chat.meta[uid] = { displayName: 'User', photoURL: '' }
-      chats.value = [...chats.value]
+      hasUpdates = true
     }
+  }
+
+  // Only trigger reactivity once after all participants are processed
+  // This prevents flickering by batching all updates together
+  if (hasUpdates) {
+    chats.value = [...chats.value]
   }
 }
 
@@ -196,6 +204,29 @@ function getOtherAvatar(chat) {
   return photoURL
 }
 const otherUidActive = computed(() => activeChat.value ? getOtherUid(activeChat.value) : '')
+
+// Computed properties for active chat to prevent flickering
+const activeChatName = computed(() => {
+  if (!activeChat.value) return 'User'
+  const otherUid = otherUidActive.value
+  // First check userCache for instant display
+  if (userCache.value[otherUid]) {
+    return userCache.value[otherUid].displayName || userCache.value[otherUid].username || 'User'
+  }
+  // Fall back to chat meta
+  return getOtherName(activeChat.value)
+})
+
+const activeChatAvatar = computed(() => {
+  if (!activeChat.value) return `https://ui-avatars.com/api/?name=User&background=ECE8FF&color=4b2aa6&size=128`
+  const otherUid = otherUidActive.value
+  // First check userCache for instant display
+  if (userCache.value[otherUid]?.photoURL) {
+    return userCache.value[otherUid].photoURL
+  }
+  // Fall back to chat meta or generated avatar
+  return getOtherAvatar(activeChat.value)
+})
 
 const badgeModalOpen = ref(false)
 function openBadgeInfoModal() { badgeModalOpen.value = true }
@@ -259,15 +290,8 @@ async function selectChat(chat) {
   const q = query(collection(db, `chats/${chat.id}/messages`), orderBy('timestamp', 'asc'))
   unsubscribeMsgs = onSnapshot(q, (snap) => {
     messages.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    
-    // Mark as read when messages are first loaded, but only once for this chat opening
-    // This ensures the notification count becomes 0 and highlight is removed when viewing a chat
-    // Only mark as read if this is still the active chat AND we haven't already marked it
-    if (chat.id === activeChat.value?.id) {
-      // markChatAsRead is already called in selectChat, but call it again to ensure
-      // lastReadAt is updated to the current time (in case new messages came in)
-      markChatAsRead(chat.id)
-    }
+    // Don't call markChatAsRead here - it's already called once when selecting the chat
+    // Calling it on every snapshot would create infinite loops with Firestore updates
   })
 
   // Delete previous chat only if it truly had no messages (not just cleared)
@@ -534,13 +558,13 @@ const groupedMessages = computed(() => {
               class="chat-user-info router-link flex-gap"
             >
               <img
-                :src="getOtherAvatar(activeChat)"
-                :alt="getOtherName(activeChat)"
+                :src="activeChatAvatar"
+                :alt="activeChatName"
                 class="chat-user-avatar"
-                @error="$event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(getOtherName(activeChat))}&background=ECE8FF&color=4b2aa6&size=128`"
+                @error="$event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChatName)}&background=ECE8FF&color=4b2aa6&size=128`"
               />
               <div class="chat-user-details d-flex align-items-center gap-2">
-                <h5 class="chat-user-name mb-0">{{ getOtherName(activeChat) }}</h5>
+                <h5 class="chat-user-name mb-0">{{ activeChatName }}</h5>
                 <span style="cursor:pointer;" @click.stop="openBadgeInfoModal">
                   <SellerBadge :points="activeChat?.meta?.[otherUidActive]?.stats ? (activeChat.meta[otherUidActive].stats.reviews||0)+(activeChat.meta[otherUidActive].stats.boosts||0)*5 : 0" :progress="false" />
                 </span>

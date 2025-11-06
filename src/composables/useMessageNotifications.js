@@ -1,13 +1,14 @@
 import { ref, computed } from 'vue'
 import { auth, db } from '@/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import { collection, query, where, onSnapshot, doc, getDoc, setDoc, serverTimestamp, getDocs, orderBy, limit } from 'firebase/firestore'
+import { collection, query, where, onSnapshot, doc, getDoc, setDoc, updateDoc, serverTimestamp, getDocs, orderBy, limit, Timestamp } from 'firebase/firestore'
 
 const unreadCount = ref(0)
 let unsubscribeChats = null
 let currentUserId = null
 const chatUnreadCounts = ref({}) // chatId -> count
 const optimisticallyReadChats = ref(new Set()) // Track chats optimistically marked as read
+const savingReadStatus = ref(new Set()) // Track chats currently being saved to prevent duplicate writes
 
 export function useMessageNotifications() {
   
@@ -63,24 +64,19 @@ export function useMessageNotifications() {
     
     try {
       // Get last read timestamp for this chat - silently handle permission errors
-      // This is critical - if lastReadAt exists, only messages sent after it are unread
-      // If lastReadAt doesn't exist, ALL messages are unread (correct behavior for new/unread chats)
+      // Store lastReadAt in the main chat document under a 'readBy' map field
+      // This avoids subcollection permission issues
       let lastRead = null
       try {
-        const readDocRef = doc(db, 'chats', chatId, 'readStatus', currentUserId)
-        const readSnap = await getDoc(readDocRef)
-        if (readSnap.exists()) {
-          const readData = readSnap.data()
-          lastRead = readData.lastReadAt || null
-          // If lastReadAt exists but is a serverTimestamp placeholder, try to get actual value
-          // Firestore serverTimestamp() creates a placeholder that gets filled server-side
-          // On client read, it should be a Timestamp object
-          // If it's null or undefined, user hasn't read this chat, so all messages are unread
-          
-          // Debug: Log if lastReadAt exists (will be filtered by console filter in production)
-          // This helps verify that lastReadAt is being saved and retrieved correctly
+        const chatDocRef = doc(db, 'chats', chatId)
+        const chatSnap = await getDoc(chatDocRef)
+        if (chatSnap.exists()) {
+          const chatData = chatSnap.data()
+          // readBy is a map of userId -> lastReadAt timestamp
+          const readBy = chatData.readBy || {}
+          lastRead = readBy[currentUserId] || null
         }
-        // If readSnap doesn't exist, lastRead stays null (all messages unread - correct for new chats)
+        // If chat doesn't exist or readBy doesn't have currentUserId, lastRead stays null
       } catch (readError) {
         // Permission errors mean we can't access readStatus - assume no read time
         // This will cause all messages to be counted as unread (conservative approach)
@@ -126,7 +122,7 @@ export function useMessageNotifications() {
           const nanoseconds = lastRead._nanoseconds || 0
           lastReadTime = new Date(seconds * 1000 + nanoseconds / 1000000)
         }
-        
+
         // Validate that lastReadTime is a valid date
         if (lastReadTime && (isNaN(lastReadTime.getTime()) || !(lastReadTime instanceof Date))) {
           lastReadTime = null
@@ -156,18 +152,17 @@ export function useMessageNotifications() {
           // Count only if message time is valid and after last read time
           if (lastReadTime) {
             const timeDiff = msgTime.getTime() - lastReadTime.getTime()
-            
-            // Messages sent BEFORE lastReadTime are always considered read (timeDiff < 0)
-            // Messages sent AFTER lastReadTime might be unread, but we use a small buffer
-            // (3 seconds) to account for timestamp precision differences, server sync delays,
-            // and clock skew between client and server
-            if (timeDiff > 3000) {
-              // Message was sent more than 3 seconds AFTER lastReadTime - it's unread
+
+            // Messages sent BEFORE lastReadTime are always considered read (timeDiff <= 0)
+            // Messages sent AFTER lastReadTime are unread (timeDiff > 0)
+            // Use a 1-second buffer to account for timestamp precision and server sync delays
+            if (timeDiff > 1000) {
+              // Message was sent more than 1 second AFTER lastReadTime - it's unread
               count++
             }
-            // If timeDiff <= 3000ms (or negative), message is considered read
+            // If timeDiff <= 1000ms (or negative), message is considered read
             // This ensures that when we mark as read with serverTimestamp(), all existing messages
-            // (which have negative or small positive timeDiff) are properly excluded
+            // are properly excluded
           } else {
             // No lastReadTime means user has never read this chat - count ALL messages as unread
             count++
@@ -185,11 +180,12 @@ export function useMessageNotifications() {
   
   function startListening() {
     if (!auth.currentUser) return
-    
+
     currentUserId = auth.currentUser.uid
-    // Clear optimistic reads on new login - we'll rebuild from server's lastReadAt
-    // The optimistic reads are only for the current session, not persistent
-    optimisticallyReadChats.value.clear()
+    // Don't clear optimistic reads on login anymore - rely entirely on lastReadAt from Firestore
+    // The optimistic reads are only needed during the current session to prevent race conditions
+    // After login, lastReadAt timestamps in Firestore should be the source of truth
+    // Clear optimistic only on logout (in stopListening)
     chatUnreadCounts.value = {}
     // Calculate unread count from server - this will read lastReadAt from Firestore
     // If lastReadAt exists, only messages sent after it will be counted as unread
@@ -274,102 +270,42 @@ export function useMessageNotifications() {
   
   async function markChatAsRead(chatId) {
     if (!currentUserId || !chatId) return
-    
-    // Mark this chat as optimistically read - PERMANENTLY until server confirms
+
+    // Prevent duplicate saves - if already saving, skip
+    if (savingReadStatus.value.has(chatId)) {
+      return
+    }
+
+    // Mark as currently saving to prevent duplicate calls
+    savingReadStatus.value.add(chatId)
+
+    // Mark this chat as optimistically read
     optimisticallyReadChats.value.add(chatId)
-    
-    // Update local count immediately (optimistic update) - set to 0 and update total
+
+    // Update local count immediately (optimistic update)
     chatUnreadCounts.value[chatId] = 0
     const total = Object.values(chatUnreadCounts.value).reduce((sum, c) => sum + c, 0)
     unreadCount.value = total
-    
-    // Save read status to Firestore - use serverTimestamp for consistency
-    // This will mark ALL messages up to this point as read
-    // CRITICAL: This must succeed for the unread count to work correctly on next login
+
+    // Save read status to Firestore
     try {
-      const readDocRef = doc(db, 'chats', chatId, 'readStatus', currentUserId)
-      // Use serverTimestamp() which Firestore will convert to server time
-      // This ensures consistency across different clients and sessions
-      // By using serverTimestamp(), we mark all messages before this moment as read
-      // This timestamp will be used on next login to determine which messages are unread
-      const writeResult = await setDoc(readDocRef, {
-        lastReadAt: serverTimestamp(),
-        userId: currentUserId, // Store userId for easier querying/debugging
-        chatId: chatId, // Store chatId for easier querying/debugging
-        updatedAt: serverTimestamp() // Track when read status was last updated
-      }, { merge: true })
-      
-      // Verify the write succeeded by immediately reading it back
-      // This helps catch permission errors early
-      try {
-        await new Promise(resolve => setTimeout(resolve, 500)) // Wait 500ms for serverTimestamp to process
-        const verifySnap = await getDoc(readDocRef)
-        if (!verifySnap.exists() || !verifySnap.data().lastReadAt) {
-          // Write might have failed - keep optimistic flag permanently
-          // The UI will still show 0 unread, but we can't verify from server
-        }
-      } catch (verifyError) {
-        // Verification failed - might be permission error
-        // Keep optimistic flag permanently to ensure UI stays correct
-      }
-      
-      // Verify after a delay that lastReadAt is saved and count is 0
-      // Keep the optimistic flag PERMANENTLY until verified - this prevents old messages from being counted
-      setTimeout(async () => {
-        try {
-          // Re-read the lastReadAt from Firestore to ensure it's saved
-          const readDocRef = doc(db, 'chats', chatId, 'readStatus', currentUserId)
-          const readSnap = await getDoc(readDocRef)
-          
-          // If lastReadAt is saved, verify count
-          if (readSnap.exists() && readSnap.data().lastReadAt) {
-            // Wait a bit more for serverTimestamp to fully propagate
-            await new Promise(resolve => setTimeout(resolve, 2000))
-            
-            const verifiedCount = await countUnreadInChat(chatId)
-            if (verifiedCount === 0) {
-              // Count is confirmed 0 from server - can safely remove optimistic flag
-              // But keep the count at 0 to be safe
-              optimisticallyReadChats.value.delete(chatId)
-              chatUnreadCounts.value[chatId] = 0
-              const newTotal = Object.values(chatUnreadCounts.value).reduce((sum, c) => sum + c, 0)
-              unreadCount.value = newTotal
-            } else {
-              // Server still shows unread messages, but user has opened the chat
-              // Keep optimistic flag PERMANENTLY to ensure UI stays at 0
-              // Don't update count or remove optimistic flag
-            }
-          } else {
-            // lastReadAt not saved yet, keep optimistic and try again later
-            // Don't remove optimistic flag - keep it until verified
-            setTimeout(async () => {
-              try {
-                const retryReadSnap = await getDoc(doc(db, 'chats', chatId, 'readStatus', currentUserId))
-                if (retryReadSnap.exists() && retryReadSnap.data().lastReadAt) {
-                  await new Promise(resolve => setTimeout(resolve, 2000))
-                  const retryCount = await countUnreadInChat(chatId)
-                  if (retryCount === 0) {
-                    optimisticallyReadChats.value.delete(chatId)
-                    chatUnreadCounts.value[chatId] = 0
-                    const newTotal = Object.values(chatUnreadCounts.value).reduce((sum, c) => sum + c, 0)
-                    unreadCount.value = newTotal
-                  }
-                  // If retryCount > 0, keep optimistic flag permanently
-                }
-              } catch (e) {
-                // Keep optimistic permanently on error
-              }
-            }, 5000)
-          }
-        } catch (verifyError) {
-          // Keep optimistic permanently - user has read the chat
-          // Don't remove optimistic flag on error - this ensures old messages stay marked as read
-        }
-      }, 7000) // Wait 7 seconds to ensure serverTimestamp is fully saved and processed
+      const chatDocRef = doc(db, 'chats', chatId)
+      const now = Timestamp.now()
+
+      // Update the readBy map field in the chat document
+      await updateDoc(chatDocRef, {
+        [`readBy.${currentUserId}`]: now
+      })
+
+      // Remove flags after successful write
+      setTimeout(() => {
+        optimisticallyReadChats.value.delete(chatId)
+        savingReadStatus.value.delete(chatId)
+      }, 2000)
     } catch (error) {
-      // If save fails, keep optimistic update permanently to ensure UI is correct
-      // The user has already read the chat, so count should be 0
-      // Don't remove optimistic flag - keep it forever if save fails
+      // Remove saving flag on error so it can be retried
+      savingReadStatus.value.delete(chatId)
+      // Keep optimistic update to ensure UI is correct
     }
   }
   

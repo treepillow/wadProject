@@ -1,49 +1,32 @@
 <template>
   <footer class="app-footer">
     <div class="container py-4">
-      <div class="row g-4">
-        <!-- About Section -->
-        <div class="col-md-4">
-          <h5 class="footer-title mb-3">Homes</h5>
-          <p class="footer-text">
-            Discover and list home-based businesses in your area. Connect with local entrepreneurs and support your community.
-          </p>
+      <!-- Single centered column for minimalistic design -->
+      <div class="text-center">
+        <h5 class="footer-title mb-3">Homes</h5>
+        <p class="footer-text mb-3">
+          Discover and list home-based businesses in your area.
+        </p>
+
+        <!-- Quick Links (horizontal) -->
+        <div class="footer-links-horizontal mb-3">
+          <router-link to="/home">Home</router-link>
+          <span class="link-divider">•</span>
+          <router-link to="/profile">Profile</router-link>
+          <span class="link-divider">•</span>
+          <router-link to="/chat">Messages</router-link>
+          <span class="link-divider">•</span>
+          <router-link to="/feedback">Feedback</router-link>
+          <span class="link-divider">•</span>
+          <router-link to="/report">Report Issue</router-link>
         </div>
 
-        <!-- Quick Links -->
-        <div class="col-md-4">
-          <h5 class="footer-title mb-3">Quick Links</h5>
-          <ul class="footer-links">
-            <li><router-link to="/home">Home</router-link></li>
-            <li><router-link to="/about">About</router-link></li>
-            <li><router-link to="/profile">Profile</router-link></li>
-            <li><router-link to="/chat">Messages</router-link></li>
-          </ul>
-        </div>
+        <hr class="footer-divider my-3" />
 
-        <!-- Contact & Social -->
-        <div class="col-md-4">
-          <h5 class="footer-title mb-3">Contact Us</h5>
-          <p class="footer-text mb-2">
-            <Icon icon="mdi:email" class="me-2" />
-            support@homes.com
-          </p>
-          <p class="footer-text">
-            <Icon icon="mdi:phone" class="me-2" />
-            +65 1234 5678
-          </p>
-        </div>
-      </div>
-
-      <hr class="footer-divider my-4" />
-
-      <!-- Copyright -->
-      <div class="row">
-        <div class="col-12 text-center">
-          <p class="footer-copyright mb-0">
-            &copy; {{ currentYear }} Homes. All rights reserved.
-          </p>
-        </div>
+        <!-- Copyright -->
+        <p class="footer-copyright mb-0">
+          &copy; {{ currentYear }} Homes. All rights reserved.
+        </p>
       </div>
     </div>
   </footer>
@@ -51,7 +34,6 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Icon } from '@iconify/vue'
 
 const currentYear = computed(() => new Date().getFullYear())
 </script>
@@ -92,33 +74,41 @@ const currentYear = computed(() => new Date().getFullYear())
   color: #aaa;
 }
 
-.footer-links {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.footer-links-horizontal {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
-.footer-links li {
-  margin-bottom: 0.5rem;
-}
-
-.footer-links a {
+.footer-links-horizontal a {
   color: #666;
   text-decoration: none;
   font-size: 0.9rem;
   transition: color 0.2s ease;
 }
 
-.footer-links a:hover {
+.footer-links-horizontal a:hover {
   color: var(--color-primary, #5A43C5);
 }
 
-:root.dark-mode .footer-links a {
+:root.dark-mode .footer-links-horizontal a {
   color: #aaa;
 }
 
-:root.dark-mode .footer-links a:hover {
+:root.dark-mode .footer-links-horizontal a:hover {
   color: var(--color-primary, #8B7DE8);
+}
+
+.link-divider {
+  color: #ccc;
+  font-size: 0.8rem;
+  user-select: none;
+}
+
+:root.dark-mode .link-divider {
+  color: #555;
 }
 
 .footer-divider {
@@ -140,13 +130,16 @@ const currentYear = computed(() => new Date().getFullYear())
 }
 
 @media (max-width: 767.98px) {
-  .app-footer {
-    text-align: center;
+  .footer-text {
+    font-size: 0.85rem;
   }
 
-  .footer-links {
-    display: inline-block;
-    text-align: left;
+  .footer-links-horizontal a {
+    font-size: 0.85rem;
+  }
+
+  .footer-copyright {
+    font-size: 0.8rem;
   }
 }
 </style>

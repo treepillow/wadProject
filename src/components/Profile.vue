@@ -1655,7 +1655,6 @@ export default {
               <div class="row g-3">
                 <div class="col-12 col-md-4">
                   <label class="filter-label">
-                    <Icon icon="mdi:check-circle" class="me-1" />
                     Status
                   </label>
                   <select v-model="bookingStatusFilter" class="booking-filter-select">
@@ -1667,7 +1666,6 @@ export default {
                 </div>
                 <div class="col-12 col-md-4">
                   <label class="filter-label">
-                    <Icon icon="mdi:store" class="me-1" />
                     Business Listing
                   </label>
                   <select v-model="bookingListingFilter" class="booking-filter-select">
@@ -1679,7 +1677,6 @@ export default {
                 </div>
                 <div class="col-12 col-md-4">
                   <label class="filter-label">
-                    <Icon icon="mdi:sort-calendar-descending" class="me-1" />
                     Sort by Date
                   </label>
                   <select v-model="bookingDateSort" class="booking-filter-select">

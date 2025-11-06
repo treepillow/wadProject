@@ -25,14 +25,6 @@
         <!-- Contact & Social -->
         <div class="col-md-4">
           <h5 class="footer-title mb-3">Contact Us</h5>
-          <p class="footer-text mb-2">
-            <Icon icon="mdi:email" class="me-2" />
-            support@homes.com
-          </p>
-          <p class="footer-text">
-            <Icon icon="mdi:phone" class="me-2" />
-            +65 1234 5678
-          </p>
           <p class="footer-text">
             <Icon icon="mdi:form" class="me-2" />
             <a href="#" @click.prevent="showFeedback = true"

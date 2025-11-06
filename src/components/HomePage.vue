@@ -23,7 +23,7 @@ const listings     = ref([])
 const loading      = ref(true)
 const loadingMore  = ref(false)
 const error        = ref('')
-const pageSize     = 12
+const pageSize     = 20 // Changed from 12 to 20 to better fill grid rows (divisible by 2,4,5)
 const lastDoc      = ref(null)
 const noMore       = ref(false)
 

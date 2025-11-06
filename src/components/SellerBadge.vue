@@ -34,6 +34,10 @@ const progressText = computed(() => getSellerProgressText(props.points))
   object-fit: contain;
 }
 
+:root.dark-mode .badge-icon {
+  filter: brightness(1.5) contrast(1.3) saturate(1.2);
+}
+
 .progress-container {
   min-width: 120px;
 }

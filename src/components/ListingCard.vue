@@ -406,7 +406,11 @@ function goToUserProfile(event) {
 }
 
 .stars-small .star.filled {
-  color: #ffc107;
+  color: #ffc107 !important;
+}
+
+:root.dark-mode .stars-small .star.filled {
+  color: #ffd700 !important;
 }
 
 .rating-text {

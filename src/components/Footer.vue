@@ -3,7 +3,7 @@
     <div class="container py-4">
       <div class="row g-4">
         <!-- About Section -->
-        <div class="col-md-4">
+        <div class="col-md-6">
           <h5 class="footer-title mb-3">Homes</h5>
           <p class="footer-text">
             Discover and list home-based businesses in your area. Connect with local entrepreneurs and support your
@@ -11,19 +11,8 @@
           </p>
         </div>
 
-        <!-- Quick Links -->
-        <div class="col-md-4">
-          <h5 class="footer-title mb-3">Quick Links</h5>
-          <ul class="footer-links">
-            <li><router-link to="/home">Home</router-link></li>
-            <li><router-link to="/about">About</router-link></li>
-            <li><router-link to="/profile">Profile</router-link></li>
-            <li><router-link to="/chat">Messages</router-link></li>
-          </ul>
-        </div>
-
         <!-- Contact & Social -->
-        <div class="col-md-4">
+        <div class="col-md-6">
           <h5 class="footer-title mb-3">Contact Us</h5>
           <p class="footer-text">
             <Icon icon="mdi:form" class="me-2" />

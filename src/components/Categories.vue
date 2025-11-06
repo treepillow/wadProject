@@ -142,6 +142,15 @@ hr { border: 1; opacity: 0.25; }
   filter: invert(1) brightness(1.2);
 }
 
+.category-icon {
+  color: #000000;
+  transition: all var(--transition-fast);
+}
+
+:root.dark-mode .category-icon {
+  color: #ffffff !important;
+}
+
 :root.dark-mode .category {
   border-color: #e5e5e5;
 }
@@ -187,6 +196,19 @@ hr { border: 1; opacity: 0.25; }
     font-size: 0.65rem;
     margin-top: 10px;
     line-height: 1.1;
+  }
+
+  .category-wrapper-mobile {
+
+    margin-top: 10px;
+  }
+
+  .container-fluid {
+    padding-bottom: 24px;
+  }
+
+  .row.g-2 {
+    row-gap: 1rem !important;
   }
 }
 

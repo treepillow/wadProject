@@ -5,8 +5,8 @@ A web application for discovering and connecting with local home businesses in S
 ## Prerequisites
 
 **IMPORTANT:** Ensure you have the following installed:
-- **Node.js** (version 20.x or higher) - [Download here](https://nodejs.org/)
-- **npm** (comes with Node.js) - version 10.x or higher
+- **Node.js** (version 20.x or higher) 
+- **npm** (comes with Node.js) 
 
 To check your versions:
 ```bash

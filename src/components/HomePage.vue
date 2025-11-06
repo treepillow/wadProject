@@ -714,44 +714,49 @@ async function incrementViewCount(listingId) {
       return;
     }
 
-    console.log(`📝 Updating view count for listing ${listingId}...`);
+    const viewedBy = data.viewedBy || [];
 
-    // Always increment viewCount for non-owner users (counts every view, even repeat views)
-    try {
-      await updateDoc(listingRef, {
-        viewCount: increment(1),
-        viewedBy: arrayUnion(user.uid) // Track who has viewed (but don't prevent repeat counts)
-      });
-      console.log(`✅ View count incremented for user ${user.uid}`);
-    } catch (updateError) {
-      console.error("❌ Error updating viewCount:", updateError);
-      console.error("Error details:", {
-        code: updateError.code,
-        message: updateError.message,
-        listingId,
-        userId: user.uid
-      });
-    }
+    // Only count unique views (don't increment if user already viewed)
+    if (!viewedBy.includes(user.uid)) {
+      console.log(`📝 Updating view count for listing ${listingId}...`);
 
-    // Always add to viewHistory for analytics (tracks every view, even repeat views)
-    // This allows analytics to show view trends over time
-    try {
-      console.log(`📊 Adding to viewHistory for listing ${listingId}...`);
-      const viewHistoryRef = collection(db, "allListings", listingId, "viewHistory");
-      await addDoc(viewHistoryRef, {
-        timestamp: serverTimestamp(),
-        userId: user.uid
-      });
-      console.log(`✅ View logged to analytics for user ${user.uid}`);
-    } catch (viewHistoryError) {
-      // Log but don't fail the whole operation if viewHistory write fails
-      console.error("❌ Error adding to viewHistory:", viewHistoryError);
-      console.error("Error details:", {
-        code: viewHistoryError.code,
-        message: viewHistoryError.message,
-        listingId,
-        userId: user.uid
-      });
+      try {
+        await updateDoc(listingRef, {
+          viewCount: increment(1),
+          viewedBy: arrayUnion(user.uid)
+        });
+        console.log(`✅ View count incremented for user ${user.uid}`);
+      } catch (updateError) {
+        console.error("❌ Error updating viewCount:", updateError);
+        console.error("Error details:", {
+          code: updateError.code,
+          message: updateError.message,
+          listingId,
+          userId: user.uid
+        });
+      }
+
+      // Add to viewHistory for analytics (only for first-time views)
+      try {
+        console.log(`📊 Adding to viewHistory for listing ${listingId}...`);
+        const viewHistoryRef = collection(db, "allListings", listingId, "viewHistory");
+        await addDoc(viewHistoryRef, {
+          timestamp: serverTimestamp(),
+          userId: user.uid
+        });
+        console.log(`✅ View logged to analytics for user ${user.uid}`);
+      } catch (viewHistoryError) {
+        // Log but don't fail the whole operation if viewHistory write fails
+        console.error("❌ Error adding to viewHistory:", viewHistoryError);
+        console.error("Error details:", {
+          code: viewHistoryError.code,
+          message: viewHistoryError.message,
+          listingId,
+          userId: user.uid
+        });
+      }
+    } else {
+      console.log("👀 Already viewed this listing — skipping increment.");
     }
 
   } catch (error) {

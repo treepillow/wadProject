@@ -1,6 +1,6 @@
 <script>
 import { ref, computed, onMounted } from 'vue'
-import { collection, getDocs, doc, updateDoc, getFirestore, query, orderBy } from 'firebase/firestore'
+import { collection, getDoc, getDocs, doc, updateDoc, getFirestore, query, orderBy } from 'firebase/firestore'
 
 export default {
     components: {},
@@ -24,14 +24,33 @@ export default {
 
         const markReviewed = async (item) => {
             try {
-                const collectionName = item.type === 'feedback' ? 'feedback' : 'issues'
-                const docRef = doc(dbInstance, collectionName, item.id)
-                await updateDoc(docRef, { reviewed: true })
-                item.reviewed = true
+                const collectionName = item.type === 'feedback' ? 'feedback' : 'issues';
+                const docRef = doc(dbInstance, collectionName, item.id);
+
+                // Ensure the document exists before updating
+                const docSnap = await getDoc(docRef);
+                if (!docSnap.exists()) {
+                    throw new Error('Document not found');
+                }
+
+                // Update the 'reviewed' field to true
+                await updateDoc(docRef, { reviewed: true });
+
+                // Update the item in the UI (local state)
+                item.reviewed = true;
+
+                console.log(`Document ${item.id} marked as reviewed successfully.`);
+
+                // Optionally, you can update the UI or show a message
+                alert(`Document ${item.id} has been marked as reviewed.`);
+
             } catch (err) {
-                console.error('Error marking reviewed:', err)
+                console.error('Error marking reviewed:', err);
+                alert('Failed to mark as reviewed. Please try again.');
             }
         }
+
+
 
         const formatDate = (timestamp) => {
             if (!timestamp) return ''

@@ -100,16 +100,16 @@ export default {
     },
 
     async submitForm(e) {
-      e.preventDefault()
+      e.preventDefault();
 
       try {
-        let targetCollection = ''
+        let targetCollection = '';
         if (this.feedbackForm.feedbackType === 'feedback') {
-          targetCollection = 'feedback'
+          targetCollection = 'feedback';
         } else if (this.feedbackForm.feedbackType === 'report issue') {
-          targetCollection = 'issues'
+          targetCollection = 'issues';
         } else {
-          throw new Error('Invalid feedback type')
+          throw new Error('Invalid feedback type');
         }
 
         const docData = {
@@ -123,24 +123,25 @@ export default {
           description: this.feedbackForm.description,
           reviewed: false,
           createdAt: serverTimestamp(),
-        }
+        };
 
-        await addDoc(collection(db, targetCollection), docData)
+        // Add new feedback or issue document to Firestore
+        await addDoc(collection(db, targetCollection), docData);
 
-        alert('Thank you for your submission!')
+        alert('Thank you for your submission!');
 
         // Reset form (except user data)
-        this.feedbackForm.feedbackType = ''
-        this.feedbackForm.category = ''
-        this.feedbackForm.context = ''
-        this.feedbackForm.userRole = ''
-        this.feedbackForm.description = ''
+        this.feedbackForm.feedbackType = '';
+        this.feedbackForm.category = '';
+        this.feedbackForm.context = '';
+        this.feedbackForm.userRole = '';
+        this.feedbackForm.description = '';
 
-        this.showFeedbackCategory = false
-        this.showIssueCategory = false
+        this.showFeedbackCategory = false;
+        this.showIssueCategory = false;
       } catch (error) {
-        console.error('Error saving submission:', error)
-        alert('Something went wrong. Please try again.')
+        console.error('Error saving submission:', error);
+        alert('Something went wrong. Please try again.');
       }
     },
   },

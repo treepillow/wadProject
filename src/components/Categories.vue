@@ -9,7 +9,6 @@ export default {
   },
   emits: ['toggle'],
   data() {
-    const src = (file) => new URL(`../assets/category_images/${file}`, import.meta.url).href
     return {
       options: [
         'Trending',
@@ -21,21 +20,22 @@ export default {
         'Pets',
         'Others'
       ],
-      images: {
-        'Food and Drinks': src('food_drinks.png'),
-        'Beauty':          src('beauty.png'),
-        'Fitness':         src('fitness.png'),
-        'Arts & Craft':    src('arts_craft.png'),
-        'Education':       src('education.png'),
-        'Pets':            src('pets.png'),
-        'Others':          src('others.png')
+      // Mapping categories to Iconify icons
+      icons: {
+        'Food and Drinks': 'mdi:food',
+        'Beauty': 'mdi:lipstick',
+        'Fitness': 'mdi:run-fast',
+        'Arts & Craft': 'mdi:brush',
+        'Education': 'mdi:school',
+        'Pets': 'mdi:paw',
+        'Others': 'mdi:help-circle',
+        'Trending': 'mdi:fire'
       }
     }
   },
   methods: {
     isActive(name) { return this.selected?.includes(name) },
-    toggle(name) { this.$emit('toggle', name) },
-    hasImage(name) { return !!this.images[name] }
+    toggle(name) { this.$emit('toggle', name) }
   }
 }
 </script>
@@ -54,8 +54,8 @@ export default {
           :class="{ active: isActive(opt), 'trending-category': opt === 'Trending' }"
           @click="toggle(opt)"
         >
-          <img v-if="hasImage(opt)" :src="images[opt]" alt="category image" width="50" height="50" />
-          <Icon v-else icon="mdi:fire" class="trending-icon" />
+          <!-- Use Iconify icon based on the category -->
+          <Icon :icon="icons[opt]" class="category-icon" width="100" height="100" />
         </button>
         <div class="category-text text-center fs-5">{{ opt }}</div>
       </div>
@@ -75,8 +75,8 @@ export default {
               :class="{ active: isActive(opt), 'trending-category': opt === 'Trending' }"
               @click="toggle(opt)"
             >
-              <img v-if="hasImage(opt)" :src="images[opt]" alt="category image" width="50" height="50" />
-              <Icon v-else icon="mdi:fire" class="trending-icon" />
+              <!-- Use Iconify icon based on the category -->
+              <Icon :icon="icons[opt]" class="category-icon" width="50" height="50" />
             </button>
             <div class="category-text text-center">{{ opt }}</div>
           </div>
@@ -87,6 +87,7 @@ export default {
     <hr />
   </div>
 </template>
+
 
 <style scoped>
 hr { border: 1; opacity: 0.25; }

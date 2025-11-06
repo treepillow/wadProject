@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { db } from '@/firebase'
 import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 import ListingCard from './ListingCard.vue'
+import ListingDrawer from './ListingDrawer.vue'
 import SellerBadge from '@/components/SellerBadge.vue'
 
 const route = useRoute()
@@ -14,6 +15,10 @@ const userListings = ref([])
 const userReviews = ref([])
 const loading = ref(true)
 const error = ref('')
+
+// Drawer state
+const drawerOpen = ref(false)
+const drawerListing = ref(null)
 
 // Stats
 const totalRating = ref(0)
@@ -54,7 +59,7 @@ async function fetchUserProfile() {
       orderBy('createdAt', 'desc')
     )
     const listingsSnapshot = await getDocs(listingsQuery)
-    userListings.value = listingsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    userListings.value = listingsSnapshot.docs.map(doc => ({ id: doc.id, listingId: doc.id, ...doc.data() }))
 
     // Fetch all reviews from user's listings
     const allReviews = []
@@ -88,6 +93,16 @@ async function fetchUserProfile() {
   } finally {
     loading.value = false
   }
+}
+
+function openDrawer(listing) {
+  drawerListing.value = listing
+  drawerOpen.value = true
+}
+
+function closeDrawer() {
+  drawerOpen.value = false
+  drawerListing.value = null
 }
 
 onMounted(() => {
@@ -192,7 +207,7 @@ onMounted(() => {
                   :sellerNameOverride="sellerName"
                   :sellerAvatarOverride="sellerAvatar"
                   :showAll="true"
-                  @open="() => {}"
+                  @open="openDrawer"
                 />
               </div>
             </div>
@@ -224,6 +239,15 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Listing Drawer -->
+    <ListingDrawer
+      :open="drawerOpen"
+      :listing="drawerListing"
+      :sellerName="sellerName"
+      :sellerAvatar="sellerAvatar"
+      @close="closeDrawer"
+    />
   </div>
 </template>
 

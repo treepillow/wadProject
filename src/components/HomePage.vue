@@ -430,6 +430,12 @@ watch(selectedCats, async (newCats) => {
   if (isApplyingFilter.value) return
   isApplyingFilter.value = true
   
+  // Ensure only one category is selected (safety check)
+  if (newCats.length > 1) {
+    selectedCats.value = [newCats[0]]
+    await nextTick()
+  }
+  
   // Automatically switch to Best Match when category is selected
   if (newCats.length > 0 && sortBy.value !== 'best-match') {
     sortBy.value = 'best-match'
@@ -636,19 +642,11 @@ async function onToggleLike(listing) {
 
 /* UI actions */
 function toggleCategory(name) {
-  // Allow multiple category selection including Trending
-  const idx = selectedCats.value.indexOf(name)
-  if (idx > -1) {
-    // Category is already selected, remove it
-    selectedCats.value = selectedCats.value.filter(c => c !== name)
+  // Allow only one category at a time
+  if (selectedCats.value.length === 1 && selectedCats.value[0] === name) {
+    selectedCats.value = [] // Deselect if already selected
   } else {
-    // Category is not selected, add it
-    selectedCats.value = [...selectedCats.value, name]
-  }
-
-  // If Trending is selected, set sort to trending
-  if (name === 'Trending' && selectedCats.value.includes('Trending')) {
-    sortBy.value = 'trending'
+    selectedCats.value = [name] // Select only this category
   }
 }
 function clearFilters() {

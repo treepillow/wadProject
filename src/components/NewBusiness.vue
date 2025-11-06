@@ -1205,10 +1205,10 @@ export default {
 
                   <div class="form-check form-switch mb-3">
                     <input class="form-check-input" type="checkbox" id="acceptsBookings" v-model="acceptsBookings">
-                    <label class="form-check-label fw-semibold" for="acceptsBookings">
+                    <label class="form-check-label fw-semibold" for="acceptsBookings" style="margin-left: 0.5rem;">
                       Enable Booking System for this Service
                     </label>
-                    <div class="text-muted small">Allow customers to book appointments in advance</div>
+                    <div class="text-muted small" style="margin-left: 1rem; margin-top: 0.25rem;">Allow customers to book appointments in advance</div>
                   </div>
 
                   <div v-if="acceptsBookings" class="booking-settings">

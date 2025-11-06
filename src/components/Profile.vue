@@ -62,6 +62,32 @@ export default {
     const averageRating = ref(0)
     const totalReviews = ref(0)
 
+    // Address fields for OneMap validation
+    const isLanded = ref(false)
+    const blk = ref('')
+    const street = ref('')
+    const postal = ref('')
+    const unit = ref('')
+    const addrError = ref('')
+    const addrSuccess = ref('')
+    const validatingAddress = ref(false)
+    const validationTimeout = ref(null)
+    const fullAddress = computed(() => {
+      if (!street.value || !postal.value) return ''
+      const parts = []
+      if (!isLanded.value && blk.value) parts.push(`BLK ${blk.value}`)
+      parts.push(street.value)
+      if (unit.value) parts.push(unit.value)
+      parts.push(`Singapore ${postal.value}`)
+      return parts.join(', ')
+    })
+
+    // Username checking
+    const usernameError = ref('')
+    const usernameSuccess = ref('')
+    const checkingUsername = ref(false)
+    const usernameTimeout = ref(null)
+
     const displayName = computed(() => {
       const f = (firstName.value || '').trim()
       const l = (lastName.value || '').trim()
@@ -116,6 +142,96 @@ export default {
         openTab(newTab)
       }
     }, { immediate: true })
+
+    // Watch username for real-time availability checking
+    watch(username, (newUsername) => {
+      usernameError.value = ''
+      usernameSuccess.value = ''
+
+      if (usernameTimeout.value) {
+        clearTimeout(usernameTimeout.value)
+      }
+
+      if (!newUsername || newUsername.trim().length === 0) {
+        return
+      }
+
+      checkingUsername.value = true
+      usernameTimeout.value = setTimeout(async () => {
+        const isUnique = await checkUsernameUnique(newUsername.trim())
+        checkingUsername.value = false
+
+        if (isUnique) {
+          usernameSuccess.value = 'Username is available!'
+        } else {
+          usernameError.value = 'Username is already taken.'
+        }
+      }, 500)
+    })
+
+    // Watch postal code for address validation
+    watch(postal, (newPostal) => {
+      if (validationTimeout.value) {
+        clearTimeout(validationTimeout.value)
+      }
+
+      if (newPostal && newPostal.length === 6) {
+        validationTimeout.value = setTimeout(() => {
+          validateAddress()
+        }, 500)
+      } else {
+        addrError.value = ''
+        addrSuccess.value = ''
+      }
+    })
+
+    // Watch block number for address validation
+    watch(blk, () => {
+      if (validationTimeout.value) {
+        clearTimeout(validationTimeout.value)
+      }
+
+      if (postal.value && postal.value.length === 6) {
+        validationTimeout.value = setTimeout(() => {
+          validateAddress()
+        }, 500)
+      }
+    })
+
+    // Watch street name for address validation
+    watch(street, () => {
+      if (validationTimeout.value) {
+        clearTimeout(validationTimeout.value)
+      }
+
+      if (postal.value && postal.value.length === 6) {
+        validationTimeout.value = setTimeout(() => {
+          validateAddress()
+        }, 500)
+      }
+    })
+
+    // Watch unit for auto-formatting
+    watch(unit, (newUnit) => {
+      if (!newUnit) return
+
+      // Remove all special characters first
+      let cleaned = newUnit.replace(/[^0-9]/g, '')
+
+      if (cleaned.length === 0) {
+        unit.value = ''
+        return
+      }
+
+      // Auto-format: #XX-XXX (allow up to 3 digits for unit number)
+      if (cleaned.length <= 2) {
+        unit.value = `#${cleaned}`
+      } else {
+        const floor = cleaned.substring(0, 2)
+        const unitNum = cleaned.substring(2)
+        unit.value = `#${floor}-${unitNum}`
+      }
+    })
 
     // Live seller profiles (username/avatar)
     const profileMap = ref({})
@@ -282,20 +398,19 @@ export default {
               const a = d.address
               // Check if address is a string or object
               if (typeof a === 'string') {
-                // Address is already a string
+                // Address is already a string - try to parse it or leave it
                 address.value = a
                 addressObj.value = null
                 console.log('[Profile] Loaded address as string:', address.value)
               } else {
-                // Address is an object
+                // Address is an object - populate individual fields
                 addressObj.value = a
-                const parts = []
-                if (a.blk) parts.push(a.blk)
-                if (a.street) parts.push(a.street)
-                if (a.unit) parts.push(a.unit)
-                if (a.postal) parts.push(a.postal)
-                address.value = parts.join(' ').trim()
-                console.log('[Profile] Loaded address from object:', address.value, a)
+                isLanded.value = a.isLanded || false
+                blk.value = a.blk || ''
+                street.value = a.street || ''
+                postal.value = a.postal || ''
+                unit.value = a.unit || ''
+                console.log('[Profile] Loaded address from object:', a)
               }
             } else {
               address.value = ''
@@ -473,10 +588,13 @@ export default {
     })
 
     // Get unique listings from booking requests for filtering
+    // Only show listings that still exist in myListings
     const bookingListings = computed(() => {
       const uniqueListings = new Map()
+      const existingListingIds = new Set(myListings.value.map(l => l.listingId || l.id))
+
       bookingRequests.value.forEach(b => {
-        if (b.listingId && b.listingName) {
+        if (b.listingId && b.listingName && existingListingIds.has(b.listingId)) {
           uniqueListings.set(b.listingId, b.listingName)
         }
       })
@@ -582,12 +700,140 @@ export default {
       avatarLoaded.value = true // Show the preview immediately
     }
 
+    async function validateAddress() {
+      addrError.value = ''
+      addrSuccess.value = ''
+      validatingAddress.value = true
+
+      try {
+        // Validate required fields
+        if (!postal.value || postal.value.length !== 6) {
+          addrError.value = 'Please enter a valid 6-digit postal code.'
+          validatingAddress.value = false
+          return false
+        }
+
+        if (!street.value || street.value.trim().length === 0) {
+          addrError.value = 'Please enter a street name.'
+          validatingAddress.value = false
+          return false
+        }
+
+        if (!isLanded.value && (!blk.value || blk.value.trim().length === 0)) {
+          addrError.value = 'Please enter a block number for HDB/Condominium.'
+          validatingAddress.value = false
+          return false
+        }
+
+        // Search by postal code with OneMap API
+        const postalResponse = await fetch(
+          `https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${postal.value}&returnGeom=N&getAddrDetails=Y&pageNum=1`
+        )
+
+        if (!postalResponse.ok) {
+          throw new Error('Failed to connect to address validation service')
+        }
+
+        const postalData = await postalResponse.json()
+
+        if (postalData.found === 0 || !postalData.results || postalData.results.length === 0) {
+          addrError.value = 'Postal code not found in Singapore. Please check and try again.'
+          validatingAddress.value = false
+          return false
+        }
+
+        const result = postalData.results[0]
+        const officialBlk = result.BLK_NO || ''
+        const officialRoad = result.ROAD_NAME ? result.ROAD_NAME.toUpperCase() : ''
+
+        // Validate block number if not landed
+        if (!isLanded.value && blk.value) {
+          const inputBlk = blk.value.trim().toUpperCase().replace(/BLK\s*/gi, '')
+          const officialBlkClean = officialBlk.toUpperCase().replace(/BLK\s*/gi, '')
+
+          if (officialBlk && inputBlk !== officialBlkClean) {
+            addrError.value = 'Address not found. Please check your block, street name, and postal code.'
+            validatingAddress.value = false
+            return false
+          }
+        }
+
+        // Validate street name
+        const inputStreet = street.value.trim().toUpperCase()
+        const normalizeStreet = (str) => {
+          return str
+            .replace(/\bAVE\b/g, 'AVENUE')
+            .replace(/\bAV\b/g, 'AVENUE')
+            .replace(/\bST\b/g, 'STREET')
+            .replace(/\bRD\b/g, 'ROAD')
+            .replace(/\bDR\b/g, 'DRIVE')
+            .replace(/\bCL\b/g, 'CLOSE')
+            .replace(/\bCRES\b/g, 'CRESCENT')
+            .replace(/\bTER\b/g, 'TERRACE')
+            .replace(/\s+/g, ' ')
+            .trim()
+        }
+
+        const normalizedInput = normalizeStreet(inputStreet)
+        const normalizedOfficial = normalizeStreet(officialRoad)
+
+        if (normalizedInput !== normalizedOfficial) {
+          addrError.value = 'Address not found. Please check your street name and postal code.'
+          validatingAddress.value = false
+          return false
+        }
+
+        // Address is valid - set success message
+        addrSuccess.value = 'Address verified successfully!'
+        validatingAddress.value = false
+        return true
+      } catch (error) {
+        console.error('Address validation error:', error)
+        addrError.value = 'Failed to validate address. Please try again.'
+        validatingAddress.value = false
+        return false
+      }
+    }
+
+    async function checkUsernameUnique(newUsername) {
+      // Get current user's document to compare with their existing username
+      const currentUserDoc = await getDoc(doc(db, 'users', user.value.uid))
+      const currentUsername = currentUserDoc.exists() ? currentUserDoc.data().username : ''
+
+      // If username hasn't changed, it's valid
+      if (newUsername === currentUsername) {
+        return true
+      }
+
+      // Check if username is taken by another user
+      const usernameQuery = query(
+        collection(db, 'users'),
+        where('username', '==', newUsername)
+      )
+      const snapshot = await getDocs(usernameQuery)
+
+      // Username is available if no documents found
+      return snapshot.empty
+    }
+
     async function saveProfile() {
       err.value = ''; ok.value = ''
       const u = username.value.trim()
       const ph = normPhone(phone.value)
       if (!u) { err.value = 'Username is required.'; return }
       if (ph && !/^\+65\d{8}$/.test(ph)) { err.value = 'Phone must be +65 followed by 8 digits.'; return }
+
+      // Check if username error exists from real-time validation
+      if (usernameError.value) {
+        err.value = usernameError.value
+        return
+      }
+
+      // Check if address error exists from real-time validation
+      if (addrError.value) {
+        err.value = addrError.value
+        return
+      }
 
       saving.value = true
       try {
@@ -601,21 +847,33 @@ export default {
           avatarFile.value = null
           avatarUrl.value = photoURL
         }
+
+        // Build address object if new fields are used
+        const addressData = (postal.value && street.value) ? {
+          isLanded: isLanded.value,
+          blk: blk.value.trim(),
+          street: street.value.trim(),
+          postal: postal.value.trim(),
+          unit: unit.value.trim()
+        } : address.value.trim()
+
         await updateDoc(doc(db, 'users', user.value.uid), {
           username: u,
           firstName: firstName.value.trim(),
           lastName: lastName.value.trim(),
           phone: ph,
           dateOfBirth: (dateOfBirth.value || '').trim(),
-          address: address.value.trim(),
+          address: addressData,
           email: email.value || user.value.email || '',
           photoURL,
           profilePicture: photoURL, // Keep both fields in sync
           updatedAt: serverTimestamp()
         })
         ok.value = 'Profile saved!'
+        toast.success('Profile updated successfully!')
       } catch (e) {
         console.error(e); err.value = 'Failed to save. Please try again.'
+        toast.error('Failed to save profile. Please try again.')
       } finally { saving.value = false }
     }
 
@@ -911,8 +1169,27 @@ export default {
           console.warn('Failed to delete likes:', likeErr)
         }
 
+        // Delete all booking requests for this listing
+        try {
+          const bookingsQuery = query(
+            collection(db, 'bookingRequests'),
+            where('listingId', '==', listingId)
+          )
+          const bookingsSnapshot = await getDocs(bookingsQuery)
+          for (const bookingDoc of bookingsSnapshot.docs) {
+            await deleteDoc(bookingDoc.ref)
+          }
+        } catch (bookingErr) {
+          console.warn('Failed to delete booking requests:', bookingErr)
+        }
+
         // Refresh the listings
         await loadMyListings()
+
+        // Refresh booking requests to update the filter dropdown
+        if (bookingsLoaded.value) {
+          await loadBookingRequests()
+        }
       } catch (error) {
         console.error('Error deleting listing:', error)
       } finally {
@@ -1457,6 +1734,11 @@ export default {
       firstName, lastName, username, email, phone, dateOfBirth, address, displayName,
       averageRating, totalReviews,
       saveProfile,
+      /* address fields */
+      isLanded, blk, street, postal, unit, fullAddress,
+      addrError, addrSuccess, validatingAddress,
+      /* username checking */
+      usernameError, usernameSuccess, checkingUsername,
       /* lists + likes + profiles */
       myListings, myLoading, likedListings, likedLoading,
       likedSet, likeCounts, onToggleLike,
@@ -1560,7 +1842,18 @@ export default {
             <div class="row g-4">
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Username</label>
-                <input class="form-control" v-model="username" placeholder="aaron" />
+                <input
+                  class="form-control"
+                  v-model="username"
+                  placeholder="aaron"
+                  :class="{ 'is-invalid': usernameError, 'is-valid': usernameSuccess }"
+                />
+                <div v-if="checkingUsername" class="text-muted small mt-1">
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                  Checking availability...
+                </div>
+                <div v-if="usernameError" class="text-danger small mt-1">{{ usernameError }}</div>
+                <div v-if="usernameSuccess" class="text-success small mt-1">{{ usernameSuccess }}</div>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Email</label>
@@ -1582,9 +1875,62 @@ export default {
                 <label class="form-label fw-semibold">Date of birth</label>
                 <input type="date" class="form-control" v-model="dateOfBirth" />
               </div>
+
+              <!-- Address Section -->
               <div class="col-12">
-                <label class="form-label fw-semibold">Address</label>
-                <input class="form-control" v-model="address" placeholder="BLK 555B Tampines Ave 11" />
+                <label class="form-label fw-semibold">Address Type</label>
+                <div class="d-flex gap-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" id="hdb" :value="false" v-model="isLanded" />
+                    <label class="form-check-label fw-normal" for="hdb">HDB/Condominium</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" id="landed" :value="true" v-model="isLanded" />
+                    <label class="form-check-label fw-normal" for="landed">Landed Property</label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-4" v-if="!isLanded">
+                <label class="form-label fw-semibold">Block Number</label>
+                <input class="form-control" v-model="blk" placeholder="123A" :class="{ 'is-invalid': addrError }" />
+              </div>
+
+              <div :class="isLanded ? 'col-md-8' : 'col-md-8'">
+                <label class="form-label fw-semibold">Street Name</label>
+                <input class="form-control" v-model="street" placeholder="Tampines Avenue 11" :class="{ 'is-invalid': addrError }" />
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Postal Code</label>
+                <input class="form-control" v-model="postal" placeholder="123456" maxlength="6" :class="{ 'is-invalid': addrError }" />
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Unit Number</label>
+                <input class="form-control" v-model="unit" placeholder="01-23" />
+              </div>
+
+              <div class="col-12" v-if="fullAddress">
+                <label class="form-label fw-semibold">Full Address (Read-Only)</label>
+                <input class="form-control" :value="fullAddress" disabled />
+              </div>
+
+              <div class="col-12" v-if="addrError">
+                <div class="alert alert-danger py-2 mb-0">
+                  <span class="text-danger fw-semibold">{{ addrError }}</span>
+                </div>
+              </div>
+              <div class="col-12" v-if="addrSuccess">
+                <div class="alert alert-success py-2 mb-0">
+                  <span class="text-success fw-semibold">{{ addrSuccess }}</span>
+                </div>
+              </div>
+              <div class="col-12" v-if="validatingAddress">
+                <div class="text-muted small">
+                  <span class="spinner-border spinner-border-sm me-2"></span>
+                  Validating address...
+                </div>
               </div>
             </div>
             <div class="d-flex justify-content-end mt-4">

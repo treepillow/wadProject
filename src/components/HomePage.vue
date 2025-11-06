@@ -1232,10 +1232,19 @@ onBeforeUnmount(() => {
   color: var(--color-primary) !important;
   font-weight: 600;
   font-family: inherit;
+  font-size: 0.875rem;
 }
 
 .price-input {
-  font-family: inherit;
+  font-family: inherit !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+}
+
+.apply-btn {
+  font-family: inherit !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
 }
 
 @keyframes fadeIn {

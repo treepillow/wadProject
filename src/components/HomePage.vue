@@ -909,7 +909,7 @@ onBeforeUnmount(() => {
                 :sellerNameOverride="profileMap[l.userId]?.displayName || ''"
                 :sellerAvatarOverride="profileMap[l.userId]?.photoURL || ''"
                 :reveal="revealedIds.has(l.listingId || l.id)"
-                :showAll="showAllCards"
+                :showAll="true"
                 @toggle-like="onToggleLike"
                 @image-loaded="() => handleImageLoaded(l.listingId || l.id)"
                 @card-ready="handleCardReady"

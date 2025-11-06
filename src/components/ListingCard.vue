@@ -216,7 +216,7 @@ function goToUserProfile(event) {
             {{ (sellerName || 'S').toString().trim().charAt(0).toUpperCase() }}
           </div>
         </div>
-        <span class="fw-semibold small text-truncate seller-name-link" :title="sellerName"
+        <span class="fw-semibold small text-truncate seller-name-link" style="max-width:100px" :title="sellerName"
           @click="goToUserProfile">{{ sellerName }}</span>
         <SellerBadge
           :points="listing.sellerStats ? (listing.sellerStats.reviews || 0) + (listing.sellerStats.boosts || 0) * 5 : 0"
@@ -247,7 +247,7 @@ function goToUserProfile(event) {
         <h6 class="card-title mb-0 text-truncate flex-grow-1" :title="listing.businessName">
           {{ listing.businessName }}
         </h6>
-        <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
+        <div class="social-icons-desktop d-flex align-items-center gap-2 flex-shrink-0 ms-2">
           <a v-if="instagramHandle" :href="`https://instagram.com/${instagramHandle}`" target="_blank" rel="noopener"
             class="text-decoration-none" @click.stop>
             <img src="/src/assets/instagram.png" alt="Instagram" style="width:18px;height:18px;" />
@@ -285,18 +285,27 @@ function goToUserProfile(event) {
 
     <!-- Footer -->
     <div class="card-footer bg-transparent d-flex justify-content-between align-items-center">
-      <div class="d-flex align-items-center gap-2">
+      <div class="d-flex align-items-center gap-2 footer-left">
         <span class="small text-muted">{{ likesCount }}</span>
-        <button class="btn btn-sm" :class="liked ? 'btn-danger' : 'btn-outline-danger'"
+        <button class="btn btn-sm like-btn" :class="liked ? 'btn-danger' : 'btn-outline-danger'"
           @click.stop="emit('toggle-like', listing)" aria-label="Toggle like">♥</button>
       </div>
-      <div class="d-flex gap-2">
-        <!-- ✅ Only show StartChatButton if this is NOT your own listing -->
+      <div class="d-flex gap-2 align-items-center footer-right">
         <!-- ✅ Only show StartChatButton if this is NOT your own listing -->
         <StartChatButton v-if="listing.userId !== $auth?.currentUser?.uid" :targetUserId="listing.userId"
           :listingId="listing.listingId || listing.id" :listingTitle="listing.businessName"
-          :listingCover="listing.photoUrls?.[0] || listing.photos?.[0]?.url" @click.stop />
-
+          :listingCover="listing.photoUrls?.[0] || listing.photos?.[0]?.url" class="chat-btn-mobile" @click.stop />
+        <!-- Social icons for mobile - placed at far right -->
+        <div class="social-icons-mobile d-flex align-items-center gap-1">
+          <a v-if="instagramHandle" :href="`https://instagram.com/${instagramHandle}`" target="_blank" rel="noopener"
+            class="text-decoration-none social-link" @click.stop>
+            <img src="/src/assets/instagram.png" alt="Instagram" class="social-icon" />
+          </a>
+          <a v-if="telegramHandle" :href="`https://t.me/${telegramHandle}`" target="_blank" rel="noopener"
+            class="text-decoration-none social-link" @click.stop>
+            <img src="/src/assets/telegram.png" alt="Telegram" class="social-icon" />
+          </a>
+        </div>
       </div>
     </div>
   </div>
@@ -493,12 +502,16 @@ function goToUserProfile(event) {
 .seller-name-link {
   cursor: pointer;
   transition: color var(--transition-fast);
-  max-width: 150px;
 }
 
 .seller-name-link:hover {
   color: var(--color-primary);
   text-decoration: underline;
+}
+
+/* Hide mobile social icons on desktop by default */
+.social-icons-mobile {
+  display: none !important;
 }
 
 .btn-sm {
@@ -569,10 +582,6 @@ function goToUserProfile(event) {
     padding: 0.4rem 0.75rem 0.25rem !important;
   }
 
-  .seller-name-link {
-    max-width: 120px;
-  }
-
   .card-body {
     padding: 0.3rem 0.75rem 0.25rem !important;
     flex: 1 !important;
@@ -590,14 +599,53 @@ function goToUserProfile(event) {
     margin-bottom: 0.25rem !important;
   }
 
+  /* Hide desktop social icons on mobile */
+  .social-icons-desktop {
+    display: none !important;
+  }
+
   .badge {
     font-size: 0.625rem !important;
     padding: 0.25rem 0.5rem;
   }
 
+  /* Smaller buttons on mobile */
   .btn-sm {
-    font-size: 0.7rem;
-    padding: 0.25rem 0.5rem;
+    font-size: 0.65rem !important;
+    padding: 0.2rem 0.4rem !important;
+  }
+
+  .like-btn {
+    min-width: auto !important;
+  }
+
+  /* Show social icons in footer on mobile */
+  .social-icons-mobile {
+    display: flex !important;
+    gap: 0.15rem !important;
+  }
+
+  .social-icon {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .social-link {
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  /* Reduce footer gap */
+  .card-footer {
+    gap: 0.25rem !important;
+  }
+
+  .footer-left {
+    gap: 0.25rem !important;
+  }
+
+  .footer-right {
+    gap: 0.3rem !important;
   }
 
   .small {
@@ -675,14 +723,53 @@ function goToUserProfile(event) {
     line-height: 1.2;
   }
 
+  /* Hide desktop social icons on narrow mobile */
+  .social-icons-desktop {
+    display: none !important;
+  }
+
   .badge {
     font-size: 0.6rem !important;
     padding: 0.2rem 0.4rem;
   }
 
+  /* Smaller buttons on narrow mobile */
   .btn-sm {
-    font-size: 0.65rem;
-    padding: 0.2rem 0.4rem;
+    font-size: 0.6rem !important;
+    padding: 0.18rem 0.35rem !important;
+  }
+
+  .like-btn {
+    min-width: auto !important;
+  }
+
+  /* Show social icons in footer on mobile */
+  .social-icons-mobile {
+    display: flex !important;
+    gap: 0.1rem !important;
+  }
+
+  .social-icon {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .social-link {
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  /* Reduce footer gap */
+  .card-footer {
+    gap: 0.2rem !important;
+  }
+
+  .footer-left {
+    gap: 0.2rem !important;
+  }
+
+  .footer-right {
+    gap: 0.25rem !important;
   }
 
   .small {

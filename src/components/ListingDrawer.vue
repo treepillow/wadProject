@@ -10,6 +10,8 @@ import { useToast } from '@/composables/useToast'
 import { startChatWithUser } from '@/helpers/chatHelper'
 import SellerBadge from './SellerBadge.vue'
 import { Icon } from '@iconify/vue'
+import {VueDatePicker} from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
 
 const router = useRouter()
 const toast = useToast()
@@ -25,6 +27,11 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close'])
+
+// Dark mode detection
+const isDarkMode = computed(() => {
+  return document.documentElement.classList.contains('dark-mode')
+})
 
 /* Report Modal State */
 const showReportModal = ref(false)
@@ -130,7 +137,7 @@ function openBookingModal() {
     return
   }
 
-  bookingDate.value = ''
+  bookingDate.value = null
   bookingTime.value = ''
   bookingMessage.value = ''
   showBookingModal.value = true
@@ -138,9 +145,243 @@ function openBookingModal() {
 
 function closeBookingModal() {
   showBookingModal.value = false
-  bookingDate.value = ''
+  bookingDate.value = null
   bookingTime.value = ''
   bookingMessage.value = ''
+}
+
+// Get max date (1 year from now to limit year input to 4 digits)
+function getMaxDate() {
+  const maxDate = new Date()
+  maxDate.setFullYear(maxDate.getFullYear() + 1)
+  return maxDate.toISOString().split('T')[0]
+}
+
+// Check if a specific date is a closed day
+function isDateClosed(dateString) {
+  if (!active.value?.operatingHours || !dateString) return false
+
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+  const selectedDay = new Date(dateString + 'T12:00:00').getDay() // Add time to avoid timezone issues
+  const dayName = dayNames[selectedDay]
+
+  const hours = active.value.operatingHours
+
+  if (typeof hours === 'object' && hours[dayName]) {
+    const dayHours = hours[dayName]
+    return dayHours === 'Closed' || dayHours === 'closed' || !dayHours
+  }
+
+  return false
+}
+
+// Function to disable specific week days in date picker (for VueDatePicker)
+const disabledWeekDays = computed(() => {
+  // Use availableSlots for booking calendar, not operatingHours
+  if (!active.value?.availableSlots) return []
+
+  const slots = active.value.availableSlots
+  const closedDays = []
+
+  // Map of day names to day numbers (0 = Sunday, 6 = Saturday)
+  const dayMapping = {
+    'sun': 0,
+    'mon': 1,
+    'tue': 2,
+    'wed': 3,
+    'thu': 4,
+    'fri': 5,
+    'sat': 6
+  }
+
+  // Check which days are NOT available for booking based on the 'enabled' field
+  Object.keys(dayMapping).forEach(dayName => {
+    const daySlot = slots[dayName]
+
+    // If day is not enabled for booking, disable it in calendar
+    if (!daySlot || daySlot.enabled !== true) {
+      closedDays.push(dayMapping[dayName])
+    }
+  })
+
+  return closedDays
+})
+
+// Function to check if a specific date should be disabled
+const isDateDisabled = (date) => {
+  const dayOfWeek = date.getDay()
+  return disabledWeekDays.value.includes(dayOfWeek)
+}
+
+// Convert bookingDate to string format for backend
+const bookingDateString = computed(() => {
+  if (!bookingDate.value) return ''
+  // With model-type="yyyy-MM-dd", it's already a string in the correct format
+  if (typeof bookingDate.value === 'string') return bookingDate.value
+  // Fallback: If it's a Date object, convert to YYYY-MM-DD
+  const d = new Date(bookingDate.value)
+  return d.toISOString().split('T')[0]
+})
+
+// Get operating hours for selected date (returns {min, max} time strings or null if closed)
+const timeRestrictions = computed(() => {
+  if (!bookingDateString.value || !active.value?.availableSlots) {
+    return null
+  }
+
+  if (isDateClosed(bookingDateString.value)) {
+    return null
+  }
+
+  const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+  const selectedDay = new Date(bookingDateString.value + 'T12:00:00').getDay()
+  const dayName = dayNames[selectedDay]
+
+  const slots = active.value.availableSlots
+
+  // Get the time range from availableSlots
+  if (slots[dayName] && slots[dayName].enabled === true) {
+    const startTime = slots[dayName].start
+    const endTime = slots[dayName].end
+
+    if (startTime && endTime) {
+      return {
+        min: startTime,
+        max: endTime
+      }
+    }
+  }
+
+  return null
+})
+
+// Generate available time slots based on booking duration
+const availableTimeSlots = computed(() => {
+  if (!timeRestrictions.value || !active.value?.bookingDuration) return []
+
+  const { min, max } = timeRestrictions.value
+  const [startHour, startMin] = min.split(':').map(Number)
+  const [endHour, endMin] = max.split(':').map(Number)
+
+  const startMinutes = startHour * 60 + startMin
+  const endMinutes = endHour * 60 + endMin
+
+  // Use the booking duration from the listing (in minutes)
+  const interval = active.value.bookingDuration || 30
+
+  const slots = []
+  // Generate slots up to the last possible start time (end time - booking duration)
+  for (let minutes = startMinutes; minutes <= endMinutes - interval; minutes += interval) {
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    const timeStr = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
+    slots.push(timeStr)
+  }
+
+  return slots
+})
+
+// Handle date input change - prevent selection of closed days
+function handleDateInput(event) {
+  const selectedDate = event.target.value
+
+  if (selectedDate && isDateClosed(selectedDate)) {
+    // Clear the date and show warning
+    bookingDate.value = ''
+    event.target.value = ''
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    const selectedDay = new Date(selectedDate + 'T12:00:00').getDay()
+    const dayName = dayNames[selectedDay]
+
+    toast.warning(`This business is closed on ${dayName}s. Please select another day.`)
+    return false
+  }
+
+  bookingDate.value = selectedDate
+}
+
+// Handle time input change - validate against operating hours
+function handleTimeInput(event) {
+  const selectedTime = event.target.value
+
+  if (!bookingDate.value) {
+    toast.warning('Please select a date first')
+    bookingTime.value = ''
+    event.target.value = ''
+    return false
+  }
+
+  if (selectedTime && timeRestrictions.value) {
+    const { min, max } = timeRestrictions.value
+
+    // Convert times to minutes for comparison
+    const [selectedHour, selectedMin] = selectedTime.split(':').map(Number)
+    const selectedMinutes = selectedHour * 60 + selectedMin
+
+    const [minHour, minMin] = min.split(':').map(Number)
+    const minMinutes = minHour * 60 + minMin
+
+    const [maxHour, maxMin] = max.split(':').map(Number)
+    const maxMinutes = maxHour * 60 + maxMin
+
+    if (selectedMinutes < minMinutes || selectedMinutes > maxMinutes) {
+      // Clear the time and show warning
+      bookingTime.value = ''
+      event.target.value = ''
+
+      toast.warning(`Please select a time between ${min} and ${max}`)
+      return false
+    }
+  }
+
+  bookingTime.value = selectedTime
+}
+
+// Watch for date changes and clear time if new date is closed
+watch(bookingDate, (newDate) => {
+  if (newDate) {
+    const dateStr = typeof newDate === 'string' ? newDate : new Date(newDate).toISOString().split('T')[0]
+    if (isDateClosed(dateStr)) {
+      bookingTime.value = ''
+    }
+  }
+})
+
+// Check if time is within operating hours (kept for backward compatibility)
+function isTimeWithinOperatingHours(date, time) {
+  if (!active.value?.operatingHours) return true // If no operating hours set, allow any time
+
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+  const selectedDay = new Date(date + 'T12:00:00').getDay()
+  const dayName = dayNames[selectedDay]
+
+  const hours = active.value.operatingHours
+
+  // Check if it's structured operating hours object
+  if (typeof hours === 'object' && hours[dayName]) {
+    const dayHours = hours[dayName]
+
+    // Check if business is closed that day
+    if (dayHours === 'Closed' || dayHours === 'closed' || !dayHours) {
+      return false
+    }
+
+    // Parse hours like "09:00 - 17:00"
+    const hoursMatch = dayHours.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/)
+    if (hoursMatch) {
+      const [_, openHour, openMin, closeHour, closeMin] = hoursMatch
+      const openTime = parseInt(openHour) * 60 + parseInt(openMin)
+      const closeTime = parseInt(closeHour) * 60 + parseInt(closeMin)
+
+      const [selectedHour, selectedMin] = time.split(':').map(Number)
+      const selectedTime = selectedHour * 60 + selectedMin
+
+      return selectedTime >= openTime && selectedTime <= closeTime
+    }
+  }
+
+  return true // Allow if operating hours format is not recognized
 }
 
 async function submitBooking() {
@@ -150,23 +391,23 @@ async function submitBooking() {
     return
   }
 
-  if (!bookingDate.value) {
+  if (!bookingDateString.value) {
     toast.warning('Please select a date')
-    return
-  }
-
-  // Check if selected date is in the past
-  const selectedDate = new Date(bookingDate.value)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0) // Reset time to midnight for accurate comparison
-
-  if (selectedDate < today) {
-    toast.warning('Please select a future date')
     return
   }
 
   if (!bookingTime.value) {
     toast.warning('Please select a time')
+    return
+  }
+
+  // Check if selected date is in the past
+  const selectedDate = new Date(bookingDateString.value)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset time to midnight for accurate comparison
+
+  if (selectedDate < today) {
+    toast.warning('Please select a future date')
     return
   }
 
@@ -188,7 +429,7 @@ async function submitBooking() {
       buyerName: `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() || user.email,
       buyerEmail: user.email,
       buyerPhone: userData?.address?.phone || '',
-      date: bookingDate.value,
+      date: bookingDateString.value,
       time: bookingTime.value,
       message: bookingMessage.value.trim(),
       status: 'pending',
@@ -197,7 +438,7 @@ async function submitBooking() {
 
     toast.success('Booking request submitted successfully! The seller will review your request.')
     showBookingModal.value = false
-    bookingDate.value = ''
+    bookingDate.value = null
     bookingTime.value = ''
     bookingMessage.value = ''
   } catch (error) {
@@ -1348,13 +1589,55 @@ watch(() => props.open, (isOpen) => {
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Preferred Date *</label>
-            <input type="date" v-model="bookingDate" class="form-control"
-              :min="new Date().toISOString().split('T')[0]" required />
+            <VueDatePicker
+              v-model="bookingDate"
+              :min-date="new Date()"
+              :max-date="new Date(getMaxDate())"
+              :time-config="{ enableTimePicker: false }"
+              :disabled-week-days="disabledWeekDays"
+              :disabled-dates="isDateDisabled"
+              mode-height="255"
+              placeholder="Select a date"
+              auto-apply
+              :dark="isDarkMode"
+              :clearable="false"
+              format="MM/dd/yyyy"
+              model-type="yyyy-MM-dd"
+              :time-picker="false"
+            />
+            <div v-if="disabledWeekDays.length > 0" class="text-muted small mt-1">
+              <i class="fas fa-info-circle me-1"></i>
+              Closed days: {{ disabledWeekDays.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(', ') }}
+            </div>
           </div>
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Preferred Time *</label>
-            <input type="time" v-model="bookingTime" class="form-control" />
+            <div v-if="!bookingDate" class="text-muted small mb-2">
+              <i class="fas fa-info-circle me-1"></i>
+              Please select a date first
+            </div>
+            <div v-else-if="availableTimeSlots.length === 0" class="text-danger small mb-2">
+              <i class="fas fa-exclamation-circle me-1"></i>
+              No time slots available for this date
+            </div>
+            <div v-else class="time-slots-grid">
+              <button
+                v-for="slot in availableTimeSlots"
+                :key="slot"
+                type="button"
+                class="time-slot-btn"
+                :class="{ active: bookingTime === slot }"
+                @click="bookingTime = slot"
+              >
+                {{ slot }}
+              </button>
+            </div>
+            <div v-if="timeRestrictions && bookingDate" class="text-muted small mt-2">
+              <i class="fas fa-clock me-1"></i>
+              Business hours: {{ timeRestrictions.min }} - {{ timeRestrictions.max }}
+              <span v-if="active.bookingDuration"> | Session: {{ active.bookingDuration }} min</span>
+            </div>
           </div>
 
           <div class="mb-3">
@@ -2103,6 +2386,7 @@ textarea::placeholder {
 .booking-modal-body {
   padding: 1.5rem;
   overflow-y: auto;
+  overflow-x: visible; /* Allow dropdown to extend outside */
   flex: 1;
 }
 
@@ -2168,6 +2452,188 @@ textarea::placeholder {
   cursor: not-allowed;
 }
 
+/* VueDatePicker custom styling */
+.booking-modal :deep(.dp__input_wrap) {
+  width: 100%;
+}
+
+.booking-modal :deep(.dp__input) {
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  padding: 0.625rem 3.5rem 0.625rem 0.75rem;
+  font-size: 0.95rem;
+  width: 100%;
+}
+
+.booking-modal :deep(.dp__input_icon) {
+  right: 2.5rem;
+  left: auto;
+}
+
+.booking-modal :deep(.dp__clear_icon) {
+  right: 0.75rem;
+  left: auto;
+}
+
+.booking-modal :deep(.dp__input:focus) {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(106, 90, 248, 0.1);
+}
+
+.booking-modal :deep(.dp__disabled) {
+  opacity: 0.3;
+  text-decoration: line-through;
+  background-color: #f5f5f5 !important;
+  color: #999 !important;
+  cursor: not-allowed !important;
+}
+
+:root.dark-mode .booking-modal :deep(.dp__disabled) {
+  background-color: #2a2a2a !important;
+  color: #666 !important;
+}
+
+/* Hide time picker in calendar */
+.booking-modal :deep(.dp__time_input),
+.booking-modal :deep(.dp__time_col) {
+  display: none !important;
+}
+
+/* Dark mode adaptations */
+:root.dark-mode .booking-modal :deep(.dp__input) {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-color: #444;
+}
+
+:root.dark-mode .booking-modal :deep(.dp__input::placeholder) {
+  color: #aaa;
+}
+
+/* Dark mode fix for alert-info */
+:root.dark-mode .booking-modal .alert-info {
+  background-color: rgba(13, 202, 240, 0.15) !important;
+  border-color: rgba(13, 202, 240, 0.3) !important;
+  color: #9ed9f0 !important;
+}
+
+:root.dark-mode .booking-modal .alert-info .fa-info-circle {
+  color: #9ed9f0 !important;
+}
+
+/* Dark mode for select dropdown */
+:root.dark-mode .booking-modal .form-select {
+  background-color: #2d2d2d !important;
+  color: #ffffff !important;
+  border-color: #404040 !important;
+  /* Force browser to use our colors */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 12px;
+  padding-right: 2.5rem;
+}
+
+:root.dark-mode .booking-modal .form-select:focus {
+  background-color: #2d2d2d !important;
+  color: #ffffff !important;
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(106, 90, 248, 0.1) !important;
+}
+
+:root.dark-mode .booking-modal .form-select option {
+  background-color: #2d2d2d !important;
+  color: #ffffff !important;
+  padding: 8px;
+}
+
+:root.dark-mode .booking-modal .form-select option:hover {
+  background-color: #3d3d3d !important;
+}
+
+/* Time Slots Grid - Calendar Style */
+.time-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--color-bg-main);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.time-slot-btn {
+  padding: 12px 16px;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.time-slot-btn:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-pale);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.time-slot-btn.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.time-slot-btn.active:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+/* Dark mode time slots */
+:root.dark-mode .time-slots-grid {
+  background: #1a1a1a;
+  border-color: #404040;
+}
+
+:root.dark-mode .time-slot-btn {
+  background: #2d2d2d;
+  border-color: #404040;
+  color: #ffffff;
+}
+
+:root.dark-mode .time-slot-btn:hover {
+  border-color: var(--color-primary);
+  background: #3d3348;
+}
+
+:root.dark-mode .time-slot-btn.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+/* Ensure select dropdown opens downward */
+.booking-modal .form-select {
+  position: relative;
+}
+
+.booking-modal-body .mb-3:has(.form-select) {
+  position: relative;
+  z-index: 1;
+}
+
 @keyframes modalSlideIn {
   from {
     transform: translateY(-50px);
@@ -2200,6 +2666,18 @@ textarea::placeholder {
     text-align: center;
     padding: 0.4rem 0.6rem;
     font-size: 0.75rem;
+  }
+
+  /* Mobile time slots - adjust grid for smaller screens */
+  .time-slots-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .time-slot-btn {
+    padding: 10px 12px;
+    font-size: 0.85rem;
   }
 
   /* Fix Google Maps button - center and resize */

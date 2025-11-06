@@ -88,6 +88,16 @@ export default {
       return this.isFoodCategory
         ? 'Please ensure each menu item has a name and price.'
         : 'Please ensure each service has a name and price.'
+    },
+    orderedAvailableSlots() {
+      // Return days in correct order: Mon, Tue, Wed, Thu, Fri, Sat, Sun
+      const order = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+      return order.map(key => ({
+        key,
+        data: this.availableSlots[key],
+        label: key === 'mon' ? 'Monday' : key === 'tue' ? 'Tuesday' : key === 'wed' ? 'Wednesday' :
+               key === 'thu' ? 'Thursday' : key === 'fri' ? 'Friday' : key === 'sat' ? 'Saturday' : 'Sunday'
+      }))
     }
   },
 
@@ -98,6 +108,28 @@ export default {
       // Clear/normalize unit when toggling formats, then re-validate
       if (newVal) this.locationUnit = ''
       this.triggerValidation()
+    },
+
+    // Sync booking hours from operating hours whenever operating hours change
+    operatingHours: {
+      handler(newHours) {
+        const dayMap = {
+          monday: 'mon', tuesday: 'tue', wednesday: 'wed',
+          thursday: 'thu', friday: 'fri', saturday: 'sat', sunday: 'sun'
+        }
+
+        Object.keys(dayMap).forEach(fullDay => {
+          const shortDay = dayMap[fullDay]
+          const opHours = newHours[fullDay]
+
+          if (opHours && opHours.enabled) {
+            // Sync the start and end times from operating hours
+            this.availableSlots[shortDay].start = opHours.start
+            this.availableSlots[shortDay].end = opHours.end
+          }
+        })
+      },
+      deep: true
     }
   },
 
@@ -181,10 +213,11 @@ export default {
         }
 
         // Booking system
-        if (data.bookings) {
-          this.acceptsBookings = true
-          this.bookingDuration = data.bookings.duration || 60
-          this.bookingSlots = data.bookings.availableSlots || [{ start: '', end: '' }]
+        this.acceptsBookings = data.acceptsBookings || false
+        this.bookingDuration = data.bookingDuration || 60
+
+        if (data.availableSlots) {
+          this.availableSlots = data.availableSlots
         }
 
       } catch (error) {
@@ -759,6 +792,22 @@ export default {
         sat: { enabled: false, start: '09:00', end: '17:00' },
         sun: { enabled: false, start: '09:00', end: '17:00' }
       }
+    },
+
+    // Get operating hours for a specific day (used to display booking hours)
+    getOperatingHoursForDay(dayKey) {
+      const dayMap = {
+        mon: 'monday', tue: 'tuesday', wed: 'wednesday',
+        thu: 'thursday', fri: 'friday', sat: 'saturday', sun: 'sunday'
+      }
+      const fullDayName = dayMap[dayKey]
+      const dayHours = this.operatingHours[fullDayName]
+
+      if (!dayHours || !dayHours.enabled) {
+        return 'Closed'
+      }
+
+      return `${dayHours.start} - ${dayHours.end}`
     }
   },
 
@@ -1172,32 +1221,22 @@ export default {
                     </div>
 
                     <div class="mb-3">
-                      <label class="form-label fw-semibold">Available Days & Hours</label>
+                      <label class="form-label fw-semibold">Available Days for Booking</label>
+                      <p class="text-muted small mb-2">Select which days customers can book appointments. Booking hours will automatically match your operating hours.</p>
                       <div class="days-grid">
-                        <div v-for="(day, key) in availableSlots" :key="key" class="day-row card p-3 mb-2">
-                          <div class="d-flex align-items-center gap-3">
-                            <div class="form-check">
-                              <input class="form-check-input" type="checkbox" :id="`day-${key}`" v-model="day.enabled">
-                              <label class="form-check-label fw-semibold text-capitalize" :for="`day-${key}`">
-                                {{ key === 'mon' ? 'Monday' : key === 'tue' ? 'Tuesday' : key === 'wed' ? 'Wednesday' :
-                                  key === 'thu' ? 'Thursday' : key === 'fri' ? 'Friday' : key === 'sat' ? 'Saturday' :
-                                    'Sunday' }}
-                              </label>
-                            </div>
-
-                            <div v-if="day.enabled" class="flex-grow-1 d-flex align-items-center gap-2">
-                              <input type="time" class="form-control form-control-sm" v-model="day.start">
-                              <span>to</span>
-                              <input type="time" class="form-control form-control-sm" v-model="day.end">
-                            </div>
+                        <div v-for="dayObj in orderedAvailableSlots" :key="dayObj.key" class="day-row card p-3 mb-2">
+                          <div class="form-check">
+                            <input class="form-check-input" type="checkbox" :id="`day-${dayObj.key}`" v-model="dayObj.data.enabled">
+                            <label class="form-check-label fw-semibold clickable-label" :for="`day-${dayObj.key}`" style="cursor: pointer;">
+                              {{ dayObj.label }}
+                            </label>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     <div class="alert alert-info small">
-                      💡 Customers will be able to request bookings during these times. You can accept or reject each
-                      request.
+                      💡 Customers will be able to request bookings during your operating hours on the selected days. You can accept or reject each request.
                     </div>
                   </div>
                 </div>

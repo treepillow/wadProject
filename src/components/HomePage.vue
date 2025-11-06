@@ -720,21 +720,51 @@ async function incrementViewCount(listingId) {
     if (!viewedBy.includes(user.uid)) {
       console.log(`📝 Updating view count for listing ${listingId}...`);
 
+    // Always increment viewCount for non-owner users (counts every view, even repeat views)
+    try {
+      // Check if viewCount exists, if not initialize it to 0 first
+      const currentViewCount = data.viewCount ?? 0;
+      console.log(`📊 Current viewCount: ${currentViewCount}`);
+      
+      // Use increment which works even if field doesn't exist
+      await updateDoc(listingRef, {
+        viewCount: increment(1),
+        viewedBy: arrayUnion(user.uid) // Track who has viewed (but don't prevent repeat counts)
+      });
+      
+      // Verify the update worked by reading the document back
+      const verifySnap = await getDoc(listingRef);
+      const verifiedData = verifySnap.data();
+      const newViewCount = verifiedData?.viewCount ?? 0;
+      
+      console.log(`✅ View count updated: ${currentViewCount} → ${newViewCount} for user ${user.uid}`);
+      
+      if (newViewCount === currentViewCount) {
+        console.warn(`⚠️ View count didn't change! Expected ${currentViewCount + 1}, got ${newViewCount}`);
+      }
+    } catch (updateError) {
+      console.error("❌ Error updating viewCount:", updateError);
+      console.error("Error details:", {
+        code: updateError.code,
+        message: updateError.message,
+        listingId,
+        userId: user.uid,
+        currentViewCount: data.viewCount
+      });
+      
+      // If increment fails, try setting it directly (fallback)
       try {
+        const currentViewCount = data.viewCount ?? 0;
+        const newViewCount = currentViewCount + 1;
         await updateDoc(listingRef, {
-          viewCount: increment(1),
+          viewCount: newViewCount,
           viewedBy: arrayUnion(user.uid)
         });
-        console.log(`✅ View count incremented for user ${user.uid}`);
-      } catch (updateError) {
-        console.error("❌ Error updating viewCount:", updateError);
-        console.error("Error details:", {
-          code: updateError.code,
-          message: updateError.message,
-          listingId,
-          userId: user.uid
-        });
+        console.log(`✅ View count set directly to ${newViewCount} (fallback method)`);
+      } catch (fallbackError) {
+        console.error("❌ Fallback method also failed:", fallbackError);
       }
+    }
 
       // Add to viewHistory for analytics (only for first-time views)
       try {

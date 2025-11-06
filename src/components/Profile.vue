@@ -1171,25 +1171,35 @@ export default {
 
         // Delete all booking requests for this listing
         try {
-          const bookingsQuery = query(
-            collection(db, 'bookingRequests'),
-            where('listingId', '==', listingId)
-          )
-          const bookingsSnapshot = await getDocs(bookingsQuery)
-          for (const bookingDoc of bookingsSnapshot.docs) {
-            await deleteDoc(bookingDoc.ref)
+          // Load booking requests if not already loaded
+          if (!bookingsLoaded.value) {
+            await loadBookingRequests()
+          }
+
+          // Find booking requests that match this listingId
+          const bookingsToDelete = bookingRequests.value.filter(b => b.listingId === listingId)
+          console.log(`Found ${bookingsToDelete.length} booking requests to delete for listing ${listingId}`)
+
+          for (const booking of bookingsToDelete) {
+            try {
+              console.log(`Attempting to delete booking request ${booking.id}`)
+              await deleteDoc(doc(db, 'bookingRequests', booking.id))
+              console.log(`✅ Successfully deleted booking request ${booking.id}`)
+            } catch (deleteErr) {
+              console.error(`❌ Failed to delete booking request ${booking.id}:`, deleteErr)
+            }
+          }
+
+          // Refresh booking requests after deletion
+          if (bookingsLoaded.value) {
+            await loadBookingRequests()
           }
         } catch (bookingErr) {
-          console.warn('Failed to delete booking requests:', bookingErr)
+          console.error('Failed to delete booking requests:', bookingErr)
         }
 
         // Refresh the listings
         await loadMyListings()
-
-        // Refresh booking requests to update the filter dropdown
-        if (bookingsLoaded.value) {
-          await loadBookingRequests()
-        }
       } catch (error) {
         console.error('Error deleting listing:', error)
       } finally {

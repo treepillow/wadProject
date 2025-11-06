@@ -16,10 +16,26 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 // ✅ Load environment variables
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://homes-beige.vercel.app";
 
-// ✅ Configure CORS (allow only your frontend domain)
+// ✅ Configure CORS (allow both localhost and production)
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174", // In case of port conflicts
+  "https://homes-beige.vercel.app",
+  FRONTEND_URL
+];
+
 app.use(
   cors({
-    origin: FRONTEND_URL,
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ["GET", "POST"],
     credentials: true,
   })

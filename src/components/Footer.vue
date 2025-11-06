@@ -1,41 +1,93 @@
 <template>
   <footer class="app-footer">
     <div class="container py-4">
-      <!-- Single centered column for minimalistic design -->
-      <div class="text-center">
-        <h5 class="footer-title mb-3">Homes</h5>
-        <p class="footer-text mb-3">
-          Discover and list home-based businesses in your area.
-        </p>
-
-        <!-- Quick Links (horizontal) -->
-        <div class="footer-links-horizontal mb-3">
-          <router-link to="/home">Home</router-link>
-          <span class="link-divider">•</span>
-          <router-link to="/profile">Profile</router-link>
-          <span class="link-divider">•</span>
-          <router-link to="/chat">Messages</router-link>
-          <span class="link-divider">•</span>
-          <router-link to="/feedback">Feedback</router-link>
-          <span class="link-divider">•</span>
-          <router-link to="/report">Report Issue</router-link>
+      <div class="row g-4">
+        <!-- About Section -->
+        <div class="col-md-4">
+          <h5 class="footer-title mb-3">Homes</h5>
+          <p class="footer-text">
+            Discover and list home-based businesses in your area. Connect with local entrepreneurs and support your
+            community.
+          </p>
         </div>
 
-        <hr class="footer-divider my-3" />
+        <!-- Quick Links -->
+        <div class="col-md-4">
+          <h5 class="footer-title mb-3">Quick Links</h5>
+          <ul class="footer-links">
+            <li><router-link to="/home">Home</router-link></li>
+            <li><router-link to="/about">About</router-link></li>
+            <li><router-link to="/profile">Profile</router-link></li>
+            <li><router-link to="/chat">Messages</router-link></li>
+          </ul>
+        </div>
 
-        <!-- Copyright -->
-        <p class="footer-copyright mb-0">
-          &copy; {{ currentYear }} Homes. All rights reserved.
-        </p>
+        <!-- Contact & Social -->
+        <div class="col-md-4">
+          <h5 class="footer-title mb-3">Contact Us</h5>
+          <p class="footer-text">
+            <Icon icon="mdi:form" class="me-2" />
+            <a href="#" @click.prevent="showFeedback = true"
+              style="text-decoration: none; color: inherit; cursor: pointer;">
+              Give Feedback
+            </a>
+          </p>
+        </div>
+      </div>
+
+      <hr class="footer-divider my-4" />
+
+      <!-- Copyright -->
+      <div class="row">
+        <div class="col-12 text-center">
+          <p class="footer-copyright mb-0">
+            &copy; {{ currentYear }} Homes. All rights reserved.
+          </p>
+        </div>
+      </div>
+      <div v-if="showFeedback" class="modal-backdrop" @click="closeModalOnBackdropClick">
+      <div class="modal-content p-4 rounded shadow bg-white" @click.stop>
+        <!-- Close button at top-right -->
+        <button 
+          class="btn-close position-absolute top-0 end-0 m-3" 
+          @click="showFeedback = false">
+        </button>
+          <Feedback />
+        </div>
       </div>
     </div>
   </footer>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { Icon } from '@iconify/vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
+import Feedback from './Feedback.vue';
 
 const currentYear = computed(() => new Date().getFullYear())
+const showFeedback = ref(false);
+
+// Close modal on Escape key press
+const closeModalOnEscape = (event) => {
+  if (event.key === 'Escape') {
+    showFeedback.value = false;
+  }
+};
+
+// Close modal when clicking outside the modal content (on backdrop)
+const closeModalOnBackdropClick = () => {
+  showFeedback.value = false;
+};
+
+onMounted(() => {
+  // Add event listener for Escape key press when modal is open
+  window.addEventListener('keydown', closeModalOnEscape);
+});
+
+onBeforeUnmount(() => {
+  // Remove event listener when the component is destroyed
+  window.removeEventListener('keydown', closeModalOnEscape);
+});
 </script>
 
 <style scoped>
@@ -74,41 +126,33 @@ const currentYear = computed(() => new Date().getFullYear())
   color: #aaa;
 }
 
-.footer-links-horizontal {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+.footer-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
-.footer-links-horizontal a {
+.footer-links li {
+  margin-bottom: 0.5rem;
+}
+
+.footer-links a {
   color: #666;
   text-decoration: none;
   font-size: 0.9rem;
   transition: color 0.2s ease;
 }
 
-.footer-links-horizontal a:hover {
+.footer-links a:hover {
   color: var(--color-primary, #5A43C5);
 }
 
-:root.dark-mode .footer-links-horizontal a {
+:root.dark-mode .footer-links a {
   color: #aaa;
 }
 
-:root.dark-mode .footer-links-horizontal a:hover {
+:root.dark-mode .footer-links a:hover {
   color: var(--color-primary, #8B7DE8);
-}
-
-.link-divider {
-  color: #ccc;
-  font-size: 0.8rem;
-  user-select: none;
-}
-
-:root.dark-mode .link-divider {
-  color: #555;
 }
 
 .footer-divider {
@@ -119,7 +163,6 @@ const currentYear = computed(() => new Date().getFullYear())
 :root.dark-mode .footer-divider {
   border-color: #2a2a3e;
 }
-
 .footer-copyright {
   font-size: 0.85rem;
   color: #999;
@@ -130,16 +173,13 @@ const currentYear = computed(() => new Date().getFullYear())
 }
 
 @media (max-width: 767.98px) {
-  .footer-text {
-    font-size: 0.85rem;
+  .app-footer {
+    text-align: center;
   }
 
-  .footer-links-horizontal a {
-    font-size: 0.85rem;
-  }
-
-  .footer-copyright {
-    font-size: 0.8rem;
+  .footer-links {
+    display: inline-block;
+    text-align: left;
   }
 }
 

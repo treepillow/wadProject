@@ -710,18 +710,26 @@ async function incrementViewCount(listingId) {
       return;
     }
 
-    const viewedBy = data.viewedBy || []; // default to empty array
+    // Always increment viewCount for non-owner users (counts every view, even repeat views)
+    await updateDoc(listingRef, {
+      viewCount: increment(1),
+      viewedBy: arrayUnion(user.uid) // Track who has viewed (but don't prevent repeat counts)
+    });
 
-    if (!viewedBy.includes(user.uid)) {
-      // Update or create the viewedBy field if missing
-      await updateDoc(listingRef, {
-        viewCount: increment(1),
-        viewedBy: arrayUnion(user.uid)
+    console.log(`✅ View count incremented for user ${user.uid}`);
+
+    // Always add to viewHistory for analytics (tracks every view, even repeat views)
+    // This allows analytics to show view trends over time
+    try {
+      const viewHistoryRef = collection(db, "allListings", listingId, "viewHistory");
+      await addDoc(viewHistoryRef, {
+        timestamp: serverTimestamp(),
+        userId: user.uid
       });
-
-      console.log(`✅ View count incremented for user ${user.uid}`);
-    } else {
-      console.log("👀 Already viewed this listing — skipping increment.");
+      console.log(`📊 View logged to analytics for user ${user.uid}`);
+    } catch (viewHistoryError) {
+      // Log but don't fail the whole operation if viewHistory write fails
+      console.warn("⚠️ Could not add to viewHistory:", viewHistoryError);
     }
 
   } catch (error) {

@@ -773,6 +773,27 @@ onMounted(async () => {
     }
   }
 })
+
+// Watch for query parameter to reset filters when Homes icon is clicked
+watch(() => route.query.reset, async (newReset) => {
+  if (newReset === 'true') {
+    // Reset all filters
+    selectedCats.value = []
+    searchFilters.value = { business: '', location: '' }
+    sortBy.value = 'best-match'
+    minPrice.value = null
+    maxPrice.value = null
+
+    // Reload listings with no filters
+    listings.value = []
+    lastDoc.value = null
+    noMore.value = false
+    await fetchPage()
+
+    // Clear the reset query parameter
+    router.replace({ query: {} })
+  }
+})
 onBeforeUnmount(() => {
   if (unsubLikes) unsubLikes()
   if (unsubAuth) unsubAuth()

@@ -149,9 +149,20 @@ export default {
 
 <template>
   <div class="container my-5">
-    <h2 class="text-center mb-4">Share Feedback or Report an Issue</h2>
 
-    <form @submit="submitForm" class="feedback-form border shadow-sm p-4 bg-white">
+    <form @submit="submitForm" class="feedback-form border shadow-sm w-300 mx-auto p-4 bg-white">
+<h2 class="text-center fw-bold pt-3 px-4 rounded mb-0" 
+    style="color: rgb(75, 42, 166); font-size: 32px; line-height: 1.2; padding-top: 0.25rem; padding-bottom: 0.25rem;">
+  Share Feedback or Report an Issue
+</h2>
+      <div style="
+        width: 100%;      
+        height: 4px; 
+        border-radius: 2px;
+        background: linear-gradient(90deg, rgb(75, 42, 166), #9b6cff);
+        margin-top: 4px;
+        margin-bottom: 1rem; /* remove bottom margin */
+      "></div>
       <!-- Type + Category -->
       <div class="row mb-3">
         <div class="col-md-6">
@@ -323,4 +334,5 @@ form label {
     font-weight: 600;
     font-size: 16px;
 }
+
 </style>

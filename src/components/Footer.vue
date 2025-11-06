@@ -6,7 +6,8 @@
         <div class="col-md-4">
           <h5 class="footer-title mb-3">Homes</h5>
           <p class="footer-text">
-            Discover and list home-based businesses in your area. Connect with local entrepreneurs and support your community.
+            Discover and list home-based businesses in your area. Connect with local entrepreneurs and support your
+            community.
           </p>
         </div>
 
@@ -32,6 +33,13 @@
             <Icon icon="mdi:phone" class="me-2" />
             +65 1234 5678
           </p>
+          <p class="footer-text">
+            <Icon icon="mdi:form" class="me-2" />
+            <a href="#" @click.prevent="showFeedback = true"
+              style="text-decoration: none; color: inherit; cursor: pointer;">
+              Give Feedback
+            </a>
+          </p>
         </div>
       </div>
 
@@ -45,6 +53,12 @@
           </p>
         </div>
       </div>
+      <div v-if="showFeedback" class="modal-backdrop">
+        <div class="modal-content p-4 rounded shadow bg-white">
+          <button class="btn-close float-end" @click="showFeedback = false"></button>
+          <Feedback />
+        </div>
+      </div>
     </div>
   </footer>
 </template>
@@ -52,8 +66,12 @@
 <script setup>
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { ref } from 'vue';
+import Feedback from './Feedback.vue';
 
 const currentYear = computed(() => new Date().getFullYear())
+const showFeedback = ref(false);
+
 </script>
 
 <style scoped>
@@ -148,5 +166,24 @@ const currentYear = computed(() => new Date().getFullYear())
     display: inline-block;
     text-align: left;
   }
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+}
+
+.modal-content {
+  max-width: 600px;
+  width: 100%;
+  position: relative;
 }
 </style>

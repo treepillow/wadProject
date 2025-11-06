@@ -66,7 +66,8 @@ npm run dev
 
 Create a `.env` file in the root directory with the following:
 
-```
+```env
+# Firebase Configuration
 VITE_FIREBASE_API_KEY=your_api_key
 VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
 VITE_FIREBASE_PROJECT_ID=your_project_id
@@ -75,12 +76,38 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
 
+# Google Maps
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+
+# Stripe Configuration
+VITE_STRIPE_PUBLIC_KEY=your_stripe_public_key
 STRIPE_SECRET_KEY=your_stripe_secret_key
-VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+
+# Stripe Price IDs (from Stripe Dashboard → Products)
 PRICE_ID_1D=price_id_for_1_day
 PRICE_ID_7D=price_id_for_7_days
 PRICE_ID_30D=price_id_for_30_days
+
+# Backend API URL
+# For LOCAL testing: http://localhost:4242
+# For PRODUCTION: your_production_backend_url
+VITE_API_URL=http://localhost:4242
+
+# Frontend URL (for production deployment)
+FRONTEND_URL=http://localhost:5173
 ```
+
+### Important: Local vs Production Configuration
+
+**For Local Development:**
+- Set `VITE_API_URL=http://localhost:4242`
+- Set `FRONTEND_URL=http://localhost:5173`
+- Run both frontend (`npm run dev`) and backend (`npm run server`) servers
+
+**For Production Deployment:**
+- Set `VITE_API_URL` to your deployed backend URL (e.g., Render, Heroku)
+- Set `FRONTEND_URL` to your deployed frontend URL (e.g., Vercel, Netlify)
+- **Important:** After changing environment variables, restart the dev server for changes to take effect
 
 ## Testing Payments
 
@@ -116,6 +143,26 @@ npm install
 **5. Payment features not working**
 - Ensure backend server is running (`npm run server`)
 - Check Stripe API keys in `.env` file
+- Verify `VITE_API_URL` is set correctly in `.env`:
+  - Local: `VITE_API_URL=http://localhost:4242`
+  - Production: `VITE_API_URL=your_production_backend_url`
+- After changing `.env`, restart the frontend dev server
+
+**6. CORS errors when testing payments locally**
+- The backend `server.js` is configured to accept requests from both `http://localhost:5173` and production URLs
+- If you see CORS errors:
+  1. Verify your frontend is running on `http://localhost:5173`
+  2. Restart the backend server (`npm run server`)
+  3. Clear browser cache and refresh
+- If using a different port (e.g., 5174), update `allowedOrigins` array in `server.js`
+
+**7. "Cannot connect to payment server" error**
+- This means the frontend can't reach the backend
+- Check that:
+  1. Backend server is running on port 4242 (`npm run server`)
+  2. `.env` has `VITE_API_URL=http://localhost:4242` for local testing
+  3. You've restarted the frontend after changing `.env`
+  4. No firewall is blocking localhost connections
 
 ## Features
 

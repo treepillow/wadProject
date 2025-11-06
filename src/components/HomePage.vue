@@ -683,8 +683,6 @@ function openDrawerFromMap(listing) {
 }
 
 async function incrementViewCount(listingId) {
-  const db = getFirestore();
-  const auth = getAuth();
   const user = auth.currentUser;
 
   if (!user) {
@@ -692,9 +690,15 @@ async function incrementViewCount(listingId) {
     return;
   }
 
+  if (!listingId) {
+    console.warn("⚠️ No listing ID provided.");
+    return;
+  }
+
   const listingRef = doc(db, "allListings", listingId);
 
   try {
+    console.log(`🔍 Checking listing ${listingId}...`);
     const listingSnap = await getDoc(listingRef);
 
     if (!listingSnap.exists()) {
@@ -710,30 +714,54 @@ async function incrementViewCount(listingId) {
       return;
     }
 
-    // Always increment viewCount for non-owner users (counts every view, even repeat views)
-    await updateDoc(listingRef, {
-      viewCount: increment(1),
-      viewedBy: arrayUnion(user.uid) // Track who has viewed (but don't prevent repeat counts)
-    });
+    console.log(`📝 Updating view count for listing ${listingId}...`);
 
-    console.log(`✅ View count incremented for user ${user.uid}`);
+    // Always increment viewCount for non-owner users (counts every view, even repeat views)
+    try {
+      await updateDoc(listingRef, {
+        viewCount: increment(1),
+        viewedBy: arrayUnion(user.uid) // Track who has viewed (but don't prevent repeat counts)
+      });
+      console.log(`✅ View count incremented for user ${user.uid}`);
+    } catch (updateError) {
+      console.error("❌ Error updating viewCount:", updateError);
+      console.error("Error details:", {
+        code: updateError.code,
+        message: updateError.message,
+        listingId,
+        userId: user.uid
+      });
+    }
 
     // Always add to viewHistory for analytics (tracks every view, even repeat views)
     // This allows analytics to show view trends over time
     try {
+      console.log(`📊 Adding to viewHistory for listing ${listingId}...`);
       const viewHistoryRef = collection(db, "allListings", listingId, "viewHistory");
       await addDoc(viewHistoryRef, {
         timestamp: serverTimestamp(),
         userId: user.uid
       });
-      console.log(`📊 View logged to analytics for user ${user.uid}`);
+      console.log(`✅ View logged to analytics for user ${user.uid}`);
     } catch (viewHistoryError) {
       // Log but don't fail the whole operation if viewHistory write fails
-      console.warn("⚠️ Could not add to viewHistory:", viewHistoryError);
+      console.error("❌ Error adding to viewHistory:", viewHistoryError);
+      console.error("Error details:", {
+        code: viewHistoryError.code,
+        message: viewHistoryError.message,
+        listingId,
+        userId: user.uid
+      });
     }
 
   } catch (error) {
     console.error("❌ Error updating view count:", error);
+    console.error("Error details:", {
+      code: error.code,
+      message: error.message,
+      listingId,
+      userId: user?.uid
+    });
   }
 }
 

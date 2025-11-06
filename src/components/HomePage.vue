@@ -636,19 +636,7 @@ async function onToggleLike(listing) {
 
 /* UI actions */
 function toggleCategory(name) {
-  // Handle "Trending" category specially
-  if (name === 'Trending') {
-    if (selectedCats.value.length === 1 && selectedCats.value[0] === 'Trending') {
-      selectedCats.value = [] // Deselect if already selected
-      sortBy.value = 'trending' // Reset to default trending sort
-    } else {
-      selectedCats.value = ['Trending'] // Select Trending
-      sortBy.value = 'trending' // Set to trending sort
-    }
-    return
-  }
-
-  // Allow multiple category selection
+  // Allow multiple category selection including Trending
   const idx = selectedCats.value.indexOf(name)
   if (idx > -1) {
     // Category is already selected, remove it
@@ -656,6 +644,11 @@ function toggleCategory(name) {
   } else {
     // Category is not selected, add it
     selectedCats.value = [...selectedCats.value, name]
+  }
+
+  // If Trending is selected, set sort to trending
+  if (name === 'Trending' && selectedCats.value.includes('Trending')) {
+    sortBy.value = 'trending'
   }
 }
 function clearFilters() {
@@ -774,26 +767,6 @@ onMounted(async () => {
   }
 })
 
-// Watch for query parameter to reset filters when Homes icon is clicked
-watch(() => route.query.reset, async (newReset) => {
-  if (newReset === 'true') {
-    // Reset all filters
-    selectedCats.value = []
-    searchFilters.value = { business: '', location: '' }
-    sortBy.value = 'best-match'
-    minPrice.value = null
-    maxPrice.value = null
-
-    // Reload listings with no filters
-    listings.value = []
-    lastDoc.value = null
-    noMore.value = false
-    await fetchPage()
-
-    // Clear the reset query parameter
-    router.replace({ query: {} })
-  }
-})
 onBeforeUnmount(() => {
   if (unsubLikes) unsubLikes()
   if (unsubAuth) unsubAuth()

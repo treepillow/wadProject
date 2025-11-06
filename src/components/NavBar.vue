@@ -168,7 +168,7 @@ function closeNavbar() {
 function closeMenuFromBackdrop() {
   closeNavbar()
 }
-// Handle home link click - close any open modals/overlays and reset filters
+// Handle home link click - close any open modals/overlays
 function handleHomeClick(event) {
   event.preventDefault() // Prevent default RouterLink navigation
   closeNavbar()
@@ -177,8 +177,13 @@ function handleHomeClick(event) {
   // MapExplorer will listen for this event
   window.dispatchEvent(new CustomEvent('close-map-explorer'))
 
-  // Navigate to home with reset query parameter to trigger filter reset
-  router.push({ path: '/', query: { reset: 'true' } })
+  // If already on home page, force a full reload to reset filters
+  if (router.currentRoute.value.path === '/') {
+    window.location.href = '/'
+  } else {
+    // Otherwise just navigate normally
+    router.push('/')
+  }
 }
 </script>
 

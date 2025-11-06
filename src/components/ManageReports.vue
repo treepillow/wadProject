@@ -8,7 +8,11 @@ export default {
         const submissions = ref([])
         const filter = ref('all')
         const dbInstance = getFirestore()
+        
+        // Toast notification state
+        const notification = ref({ show: false, type: '', message: '' });
 
+        // Fetching feedbacks and issues
         const fetchSubmissions = async () => {
             const qFeedback = query(collection(dbInstance, 'feedback'), orderBy('createdAt', 'desc'))
             const qIssues = query(collection(dbInstance, 'issues'), orderBy('createdAt', 'desc'))
@@ -22,6 +26,7 @@ export default {
             submissions.value = [...feedbacks, ...issues].sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds || 0)
         }
 
+        // Mark as reviewed function with toast notifications
         const markReviewed = async (item) => {
             try {
                 const collectionName = item.type === 'feedback' ? 'feedback' : 'issues';
@@ -41,16 +46,34 @@ export default {
 
                 console.log(`Document ${item.id} marked as reviewed successfully.`);
 
-                // Optionally, you can update the UI or show a message
-                alert(`Document ${item.id} has been marked as reviewed.`);
+                // Show success toast notification
+                notification.value = {
+                    show: true,
+                    type: 'success', // Success type
+                    message: `Feedback has been marked as reviewed!`,
+                };
+
+                // Hide the notification after 5 seconds
+                setTimeout(() => {
+                    notification.value.show = false;
+                }, 5000);
 
             } catch (err) {
                 console.error('Error marking reviewed:', err);
-                alert('Failed to mark as reviewed. Please try again.');
+
+                // Show error toast notification
+                notification.value = {
+                    show: true,
+                    type: 'danger', // Error type
+                    message: 'Failed to mark as reviewed. Please try again.',
+                };
+
+                // Hide the notification after 5 seconds
+                setTimeout(() => {
+                    notification.value.show = false;
+                }, 5000);
             }
         }
-
-
 
         const formatDate = (timestamp) => {
             if (!timestamp) return ''
@@ -67,9 +90,10 @@ export default {
 
         onMounted(fetchSubmissions)
 
-        return { submissions, filteredSubmissions, filter, markReviewed, formatDate }
+        return { submissions, filteredSubmissions, filter, markReviewed, formatDate, notification }
     }
 }
+
 </script>
 
 <template>
@@ -90,6 +114,15 @@ export default {
                 @click="filter = 'unreviewed'">
                 Unreviewed
             </button>
+        </div>
+
+        <!-- Toast Notification -->
+        <div v-if="notification.show" :class="['notification-toast', notification.type]">
+            <div class="notification-content">
+                <span class="notification-icon">{{ notification.type === 'danger' ? '⚠️' : '✓' }}</span>
+                <span class="notification-message">{{ notification.message }}</span>
+                <button class="notification-close" @click="notification.show = false">✕</button>
+            </div>
         </div>
 
         <div class="row g-3">
@@ -125,6 +158,7 @@ export default {
         </div>
     </div>
 </template>
+
 
 <style scoped>
 /* Container and page title */
@@ -327,5 +361,97 @@ p.text-muted {
     background-color: #2fc157;
     border-color: #2fc157;
     color: #000;
+}
+
+/* Custom Notification Toast */
+.notification-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  min-width: 320px;
+  max-width: 500px;
+  background: var(--color-bg-white); /* Default background */
+  color: var(--color-text-primary); /* Default text color */
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  animation: slideInRight 0.3s ease-out;
+  z-index: 10000;
+  border-left: 4px solid;
+}
+
+/* Success Toast */
+.notification-toast.success {
+  background-color: #28a745; /* Green background */
+  color: #fff; /* White text */
+  border-left-color: #28a745; /* Green border */
+}
+
+/* Error Toast */
+.notification-toast.error {
+  background-color: #dc3545; /* Red background */
+  color: #fff; /* White text */
+  border-left-color: #dc3545; /* Red border */
+}
+
+/* Warning Toast */
+.notification-toast.warning {
+  background-color: #ffc107; /* Yellow background */
+  color: #fff; /* White text */
+  border-left-color: #ffc107; /* Yellow border */
+}
+
+/* Info Toast */
+.notification-toast.info {
+  background-color: #17a2b8; /* Blue background */
+  color: #fff; /* White text */
+  border-left-color: #17a2b8; /* Blue border */
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.notification-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.notification-message {
+  flex: 1;
+  color: inherit; /* Inherit text color */
+  font-weight: 500;
+  font-size: 0.938rem;
+  line-height: 1.4;
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  color: inherit; /* Inherit text color */
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.notification-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--color-text-primary);
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 </style>

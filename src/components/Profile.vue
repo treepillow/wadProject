@@ -104,6 +104,7 @@ export default {
     const activeTab = ref('profile') // 'profile' | 'my' | 'liked' | 'bookings' | 'analytics'
     const openTab = (t) => {
       activeTab.value = t
+      // Load liked listings only if not already loaded (like My Listings behavior)
       if (t === 'liked' && !likedLoaded.value) loadLikedListings()
       if (t === 'bookings' && !bookingsLoaded.value) loadBookingRequests()
       if (t === 'analytics' && !analyticsLoaded.value) loadAnalytics()
@@ -327,6 +328,8 @@ export default {
         })
 
         await loadMyListings()
+        // Load liked listings immediately like My Listings for instant display
+        await loadLikedListings()
       } catch (e) {
         console.error(e); err.value = 'Failed to load profile.'
       } finally {
@@ -646,6 +649,11 @@ export default {
             setDoc(userLikeRef, { listingId: id, ...payload }),
             setDoc(publicLikeRef, payload)
           ])
+          // If we just liked something and we're on liked tab or have loaded it before, refresh
+          if (likedLoaded.value) {
+            likedLoaded.value = false
+            await loadLikedListings()
+          }
         }
       } catch (e) {
         const r = new Set(likedSet.value)
@@ -1751,6 +1759,7 @@ export default {
                   :likesCount="likeCounts[l.listingId || l.id] || 0"
                   :sellerNameOverride="profileMap[l.userId]?.displayName || ''"
                   :sellerAvatarOverride="profileMap[l.userId]?.photoURL || ''"
+                  :showAll="true"
                   :reveal="revealedLiked.has(l.listingId || l.id)" @toggle-like="onToggleLike"
                   @image-loaded="handleLikedImageLoaded" @open="openDrawer(l)" />
               </div>

@@ -5,22 +5,39 @@
         <!-- About Section -->
         <div class="col-md-6">
           <h5 class="footer-title mb-3">Homes</h5>
-          <p class="footer-text">
+          <p class="footer-text mb-3">
             Discover and list home-based businesses in your area. Connect with local entrepreneurs and support your
             community.
           </p>
+          <p class="footer-tagline">
+            Supporting Local Home-Based Businesses
+          </p>
         </div>
 
-        <!-- Contact & Social -->
+        <!-- Contact & Links -->
         <div class="col-md-6">
-          <h5 class="footer-title mb-3">Contact Us</h5>
-          <p class="footer-text">
-            <Icon icon="mdi:form" class="me-2" />
-            <a href="#" @click.prevent="showFeedback = true"
-              style="text-decoration: none; color: inherit; cursor: pointer;">
-              Give Feedback
-            </a>
-          </p>
+          <h5 class="footer-title mb-3">Quick Links</h5>
+          <div class="footer-links-list">
+            <p class="footer-text mb-3">
+              <Icon icon="mdi:form" class="me-2" />
+              <a href="#" @click.prevent="showFeedback = true"
+                style="text-decoration: none; color: inherit; cursor: pointer;">
+                Give Feedback
+              </a>
+            </p>
+            <p class="footer-text mb-3">
+              <Icon icon="mdi:home" class="me-2" />
+              <router-link to="/home" style="text-decoration: none; color: inherit;">
+                Browse Businesses
+              </router-link>
+            </p>
+            <p class="footer-text mb-0">
+              <Icon icon="mdi:plus-circle" class="me-2" />
+              <router-link to="/newBusiness" style="text-decoration: none; color: inherit;">
+                List Your Business
+              </router-link>
+            </p>
+          </div>
         </div>
       </div>
 
@@ -113,6 +130,24 @@ onBeforeUnmount(() => {
 
 :root.dark-mode .footer-text {
   color: #aaa;
+}
+
+.footer-tagline {
+  font-size: 0.85rem;
+  color: var(--color-primary);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+
+:root.dark-mode .footer-tagline {
+  color: var(--color-primary-lighter);
+}
+
+.footer-links-list a:hover,
+.footer-links-list router-link:hover {
+  text-decoration: underline !important;
+  color: var(--color-primary) !important;
 }
 
 .footer-links {

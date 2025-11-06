@@ -921,27 +921,41 @@ const groupedMessages = computed(() => {
   .user-avatar { width: 50px; height: 50px; }
 }
 @media (max-width: 767.98px) {
-  .chat-layout { height: 75vh; }
+  .chat-layout {
+    height: calc(100vh - 120px);
+    min-height: 500px;
+    max-height: 80vh;
+  }
   .conversations-sidebar { position: absolute; width: 100%; min-width: 100%; height: 100%; z-index: 10; transition: transform .3s ease; }
   .conversations-sidebar.collapsed { transform: translateX(-100%); }
   .toggle-sidebar-btn, .back-btn { display: block; }
   .chat-header { padding: .875rem 1rem; flex-wrap: wrap; gap: .5rem; }
   .listing-preview { order: 3; width: 100%; justify-content: center; }
   .messages-container { padding: 1rem; }
-  .message-bubble { max-width: 80%; }
+  .message-bubble { max-width: 85%; }
   .message-input-container { padding: .75rem 1rem; }
   .preset-questions-container { padding: 0.75rem 1rem; }
   .preset-questions-grid { grid-template-columns: 1fr; gap: 0.5rem; }
   .preset-question-btn { font-size: 0.813rem; padding: 0.625rem 0.875rem; }
+
+  /* Ensure chat takes full width on mobile */
+  .chat-section { width: 100%; }
 }
 @media (max-width: 575.98px) {
-  .chat-layout { height: 70vh; border-radius: 8px; }
-  .user-avatar { width: 48px; height: 48px; }
-  .chat-user-avatar { width: 40px; height: 40px; }
-  .chat-user-name { font-size: 1rem; }
-  .message-text { font-size: .875rem; }
-  .message-time { font-size: .688rem; }
-  .send-btn { width: 36px; height: 36px; }
+  .chat-layout {
+    height: calc(100vh - 100px);
+    min-height: 450px;
+    max-height: 85vh;
+    border-radius: 8px;
+  }
+  .user-avatar { width: 42px; height: 42px; }
+  .chat-user-avatar { width: 36px; height: 36px; }
+  .chat-user-name { font-size: 0.95rem; }
+  .message-text { font-size: .85rem; }
+  .message-time { font-size: .7rem; }
+  .send-btn { width: 38px; height: 38px; }
+  .message-bubble { max-width: 90%; font-size: 0.875rem; padding: 0.625rem 0.875rem; }
+  .message-input { font-size: 0.875rem; }
 }
 .btn-close-custom {
   background:transparent; border:none; font-size:2rem; line-height:1; color:var(--color-text-primary); cursor:pointer; padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;}

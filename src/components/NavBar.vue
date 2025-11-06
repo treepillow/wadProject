@@ -243,10 +243,6 @@ function handleHomeClick() {
                     <li><RouterLink to="/profile" class="dropdown-item">Profile</RouterLink></li>
                     <li v-if="isAdmin"><RouterLink to="/admin" class="dropdown-item">Admin Dashboard</RouterLink></li>
                     <li v-if="isAdmin"><RouterLink to="/manageReport" class="dropdown-item">Manage Feedbacks</RouterLink></li>
-                    <li><RouterLink to="/feedback" class="dropdown-item d-flex align-items-center gap-2">
-                      <Icon icon="mdi:comment" />
-                      <span>Feedback / Report Issue</span>
-                    </RouterLink></li>
                     <li><hr class="dropdown-divider" /></li>
                     <li>
                       <button class="dropdown-item text-danger" @click="logout" :disabled="loggingOut">

@@ -127,36 +127,205 @@ export default {
 </template>
 
 <style scoped>
+/* Container and page title */
+.container {
+    color: var(--color-text-primary);
+}
+
+h2 {
+    color: var(--color-text-primary);
+}
+
+:root.dark-mode h2 {
+    color: var(--color-text-primary);
+}
+
+/* Card styling */
 .card {
     transition: all 0.2s ease;
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    border-width: 2px;
+}
+
+:root.dark-mode .card {
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
 }
 
 .card:hover {
     transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
 }
 
+/* Card borders based on status */
+.card.border-success {
+    border-color: #28a745 !important;
+}
+
+.card.border-danger {
+    border-color: #dc3545 !important;
+}
+
+:root.dark-mode .card.border-success {
+    border-color: #4ade80 !important;
+}
+
+:root.dark-mode .card.border-danger {
+    border-color: #fb7185 !important;
+}
+
+/* Card content */
+.card-title {
+    color: var(--color-text-primary);
+}
+
+.card-subtitle,
+.card-text strong,
+small.text-muted {
+    color: var(--color-text-secondary) !important;
+}
+
+:root.dark-mode .card-subtitle,
+:root.dark-mode .card-text strong,
+:root.dark-mode small.text-muted {
+    color: var(--color-text-secondary) !important;
+}
+
+.card-text {
+    color: var(--color-text-primary);
+}
+
+/* Badge styling */
+.badge.bg-success {
+    background-color: #28a745 !important;
+    color: white;
+}
+
+:root.dark-mode .badge.bg-success {
+    background-color: #3dd365 !important;
+    color: #000;
+}
+
+/* Empty state text */
+p.text-muted {
+    color: var(--color-text-secondary) !important;
+}
+
+/* Filter buttons */
 .all-btn {
-    border-color: #6f42c1;
-    color: #6f42c1;
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: transparent;
+    transition: all 0.2s ease;
+}
+
+:root.dark-mode .all-btn {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
 }
 
 .active-all {
-    background-color: #6f42c1;
-    color: #fff;
-    border-color: #6f42c1;
+    background-color: var(--color-primary) !important;
+    color: #fff !important;
+    border-color: var(--color-primary) !important;
+}
+
+:root.dark-mode .active-all {
+    background-color: var(--color-primary) !important;
+    color: #fff !important;
 }
 
 .all-btn:focus {
     box-shadow: none;
     outline: none;
-    background-color: #6f42c1;
+    background-color: var(--color-primary);
     color: #fff;
-    border-color: #6f42c1;
+    border-color: var(--color-primary);
 }
 
 .all-btn.btn-outline-primary:hover {
-    background-color: #6f42c1;
+    background-color: var(--color-primary);
     color: #fff;
-    border-color: #6f42c1;
+    border-color: var(--color-primary);
+}
+
+/* Reviewed button (green) */
+.btn-outline-success {
+    border-color: #28a745;
+    color: #28a745;
+    background: transparent;
+    transition: all 0.2s ease;
+}
+
+:root.dark-mode .btn-outline-success {
+    border-color: #3dd365;
+    color: #3dd365;
+}
+
+.btn-outline-success.active,
+.btn-outline-success:hover {
+    background-color: #28a745 !important;
+    color: #fff !important;
+    border-color: #28a745 !important;
+}
+
+:root.dark-mode .btn-outline-success.active,
+:root.dark-mode .btn-outline-success:hover {
+    background-color: #3dd365 !important;
+    color: #000 !important;
+    border-color: #3dd365 !important;
+}
+
+/* Unreviewed button (red) */
+.btn-outline-danger {
+    border-color: #dc3545;
+    color: #dc3545;
+    background: transparent;
+    transition: all 0.2s ease;
+}
+
+:root.dark-mode .btn-outline-danger {
+    border-color: #f56e7e;
+    color: #f56e7e;
+}
+
+.btn-outline-danger.active,
+.btn-outline-danger:hover {
+    background-color: #dc3545 !important;
+    color: #fff !important;
+    border-color: #dc3545 !important;
+}
+
+:root.dark-mode .btn-outline-danger.active,
+:root.dark-mode .btn-outline-danger:hover {
+    background-color: #f56e7e !important;
+    color: #000 !important;
+    border-color: #f56e7e !important;
+}
+
+/* Mark as Reviewed button */
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: #fff;
+    transition: all 0.2s ease;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+:root.dark-mode .btn-success {
+    background-color: #3dd365;
+    border-color: #3dd365;
+    color: #000;
+}
+
+:root.dark-mode .btn-success:hover {
+    background-color: #2fc157;
+    border-color: #2fc157;
+    color: #000;
 }
 </style>

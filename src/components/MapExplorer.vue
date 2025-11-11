@@ -83,6 +83,10 @@
                 <Icon icon="mdi:crosshairs-gps" />
               </button>
             </div>
+            <!-- Close Button -->
+          <button class="map-close-btn" @click="closeExplorer" title="Close Map">
+            <Icon icon="mdi:close" />
+          </button>
           </div>
 
           <!-- Location Permission Prompt -->
@@ -1529,7 +1533,7 @@ body.map-explorer-open {
   box-shadow: var(--shadow-md);
 }
 
-.close-btn {
+.map-close-btn {
   background: white;
   border: 1px solid #e0e0e0;
   width: 40px;
@@ -1551,7 +1555,7 @@ body.map-explorer-open {
   color: var(--color-text-primary);
 }
 
-.close-btn:hover {
+.map-close-btn:hover {
   background: var(--color-primary-pale);
   border-color: var(--color-primary);
   color: var(--color-primary);
@@ -2181,7 +2185,7 @@ body.map-explorer-open {
     order: 3;
   }
 
-  .close-btn,
+  .map-close-btn,
   .search-btn,
   .my-location-btn {
     width: 36px;
@@ -2265,7 +2269,7 @@ body.map-explorer-open {
     padding: 4px 24px 4px 8px;
   }
 
-  .close-btn,
+  .map-close-btn,
   .search-btn,
   .my-location-btn {
     width: 32px;

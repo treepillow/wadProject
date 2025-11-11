@@ -1476,7 +1476,8 @@ body.map-explorer-open {
 }
 
 /* My Location Button */
-.my-location-btn {
+.my-location-btn, .map-close-btn
+ {
   background: var(--color-primary);
   border: none;
   width: 40px;
@@ -1499,7 +1500,7 @@ body.map-explorer-open {
   box-shadow: var(--shadow-md);
 }
 
-.map-close-btn {
+/* .map-close-btn {
   background: white;
   border: 1px solid #e0e0e0;
   width: 40px;
@@ -1513,7 +1514,7 @@ body.map-explorer-open {
   transition: all 0.2s ease;
   font-size: 20px;
   color: #666;
-}
+} */
 
 :root.dark-mode .close-btn {
   background: var(--color-bg-secondary);
@@ -1522,11 +1523,9 @@ body.map-explorer-open {
 }
 
 .map-close-btn:hover {
-  background: var(--color-primary-pale);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 /* Location Prompt */

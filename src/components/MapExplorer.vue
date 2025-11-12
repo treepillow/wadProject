@@ -7,7 +7,7 @@
           <div class="map-navbar-top">
             <NavBar />
           </div>
-          
+
           <!-- Navigation Bar with Search -->
           <div class="map-navbar">
             <!-- Search and Filters Bar -->
@@ -15,39 +15,21 @@
               <!-- Search Bar -->
               <div class="search-input-wrapper">
                 <Icon icon="mdi:magnify" class="search-icon" />
-                <input
-                  type="text"
-                  v-model="searchQuery"
-                  placeholder="Search businesses..."
-                  class="search-input"
-                  @keyup.enter="handleSearch"
-                />
-                <button
-                  v-if="searchQuery"
-                  class="search-clear-btn"
-                  @click="clearSearch"
-                >
+                <input type="text" v-model="searchQuery" placeholder="Search businesses..." class="search-input"
+                  @keyup.enter="handleSearch" />
+                <button v-if="searchQuery" class="search-clear-btn" @click="clearSearch">
                   <Icon icon="mdi:close-circle" />
                 </button>
               </div>
-              
+
               <!-- Search Button -->
-              <button
-                class="search-btn"
-                @click="handleSearch"
-                :disabled="!searchQuery.trim()"
-                title="Search"
-              >
+              <button class="search-btn" @click="handleSearch" :disabled="!searchQuery.trim()" title="Search">
                 <Icon icon="mdi:magnify" />
               </button>
 
               <!-- Categories Dropdown -->
               <div class="filter-control">
-                <select
-                  v-model="selectedCategory"
-                  class="category-select"
-                  @change="updateMarkers"
-                >
+                <select v-model="selectedCategory" class="category-select" @change="updateMarkers">
                   <option :value="null">All Categories</option>
                   <option v-for="cat in categories" :key="cat" :value="cat">
                     {{ cat }}
@@ -57,11 +39,7 @@
 
               <!-- Distance Filter -->
               <div v-if="userLocation && mapLoaded" class="filter-control">
-                <select
-                  v-model="distanceFilterOption"
-                  class="distance-select"
-                  @change="handleDistanceFilterChange"
-                >
+                <select v-model="distanceFilterOption" class="distance-select" @change="handleDistanceFilterChange">
                   <option value="singapore">All of Singapore</option>
                   <option value="0.5">Within 0.5 km</option>
                   <option value="1">Within 1 km</option>
@@ -72,17 +50,18 @@
                   <option value="50">Within 50 km</option>
                 </select>
               </div>
-              
+
               <!-- My Location Button -->
-              <button
-                v-if="userLocation && mapLoaded"
-                class="my-location-btn"
-                @click="centerOnMyLocation"
-                title="Center on My Location"
-              >
+              <button v-if="userLocation && mapLoaded" class="my-location-btn" @click="centerOnMyLocation"
+                title="Center on My Location">
                 <Icon icon="mdi:crosshairs-gps" />
               </button>
+              <!-- Close Button -->
+              <button class="map-close-btn" @click="closeExplorer" title="Close Map">
+                <Icon icon="mdi:close" />
+              </button>
             </div>
+
           </div>
 
           <!-- Location Permission Prompt -->
@@ -117,23 +96,16 @@
           <!-- Business Cards (Bottom Sheet) -->
           <div class="business-cards-container" :class="{ collapsed: businessCardsCollapsed }">
             <!-- Collapse Toggle Button -->
-            <button 
-              class="business-cards-toggle-btn" 
-              @click="toggleBusinessCards"
-              :title="businessCardsCollapsed ? 'Show Listings' : 'Hide Listings'"
-            >
+            <button class="business-cards-toggle-btn" @click="toggleBusinessCards"
+              :title="businessCardsCollapsed ? 'Show Listings' : 'Hide Listings'">
               <Icon :icon="businessCardsCollapsed ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
               <span class="toggle-text">{{ businessCardsCollapsed ? 'Show Listings' : 'Hide Listings' }}</span>
             </button>
-            
+
             <Transition name="slide-up">
               <div v-show="!businessCardsCollapsed" class="business-cards-scroll">
-                <div
-                  v-for="listing in filteredListings"
-                  :key="listing.id"
-                  class="business-card"
-                  @click="openListing(listing)"
-                >
+                <div v-for="listing in filteredListings" :key="listing.id" class="business-card"
+                  @click="openListing(listing)">
                   <div class="business-image">
                     <img :src="listing.photoUrls?.[0] || '/placeholder.jpg'" alt="" />
                     <div class="business-category-badge">{{ listing.businessCategory }}</div>
@@ -142,9 +114,12 @@
                     <h4 class="business-name">{{ listing.businessName }}</h4>
                     <div class="business-rating">
                       <Icon icon="mdi:star" class="star-icon" />
-                      <span>{{ (listingsReviews[listing.id || listing.listingId]?.avgRating ?? listing.averageRating ?? listing.rating ?? 0).toFixed(1) }}</span>
-                      <span class="review-count" v-if="(listingsReviews[listing.id || listing.listingId]?.totalReviews ?? listing.totalReviews ?? 0) > 0">
-                        ({{ listingsReviews[listing.id || listing.listingId]?.totalReviews ?? listing.totalReviews ?? 0 }})
+                      <span>{{ (listingsReviews[listing.id || listing.listingId]?.avgRating ?? listing.averageRating ??
+                        listing.rating ?? 0).toFixed(1) }}</span>
+                      <span class="review-count"
+                        v-if="(listingsReviews[listing.id || listing.listingId]?.totalReviews ?? listing.totalReviews ?? 0) > 0">
+                        ({{ listingsReviews[listing.id || listing.listingId]?.totalReviews ?? listing.totalReviews ?? 0
+                        }})
                       </span>
                     </div>
                   </div>
@@ -154,13 +129,8 @@
           </div>
 
           <!-- Listing Drawer -->
-          <ListingDrawer
-            :open="drawerOpen"
-            :listing="drawerListing"
-            :seller-name="drawerSellerName"
-            :seller-avatar="drawerSellerAvatar"
-            @close="closeDrawer"
-          />
+          <ListingDrawer :open="drawerOpen" :listing="drawerListing" :seller-name="drawerSellerName"
+            :seller-avatar="drawerSellerAvatar" @close="closeDrawer" />
         </div>
       </div>
     </Transition>
@@ -225,12 +195,12 @@ const categories = computed(() => {
 
 const filteredListings = computed(() => {
   let filtered = [...listings.value]
-  
+
   // Category filter
   if (selectedCategory.value) {
     filtered = filtered.filter(l => l.businessCategory === selectedCategory.value)
   }
-  
+
   // Search filter
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase().trim()
@@ -241,16 +211,16 @@ const filteredListings = computed(() => {
       return name.includes(query) || desc.includes(query) || category.includes(query)
     })
   }
-  
+
   // Distance filter
   if (distanceFilterEnabled.value && userLocation.value) {
     filtered = filtered.filter(l => {
       // Try multiple location data structures
       const lat = l.location?.lat || l.geo?.lat || l.lat
       const lng = l.location?.lng || l.geo?.lng || l.lng
-      
+
       if (!lat || !lng) return false
-      
+
       const distance = calculateDistance(
         userLocation.value.lat,
         userLocation.value.lng,
@@ -260,7 +230,7 @@ const filteredListings = computed(() => {
       return distance <= distanceFilter.value
     })
   }
-  
+
   return filtered
 })
 
@@ -344,15 +314,15 @@ async function requestLocation() {
         lng: position.coords.longitude
       }
       locationPermissionDenied.value = false
-      
+
       // Center map on user location
       if (map.value) {
         map.value.setCenter(userLocation.value)
         map.value.setZoom(14)
-        
+
         // Add user location marker
         addUserLocationMarker()
-        
+
         // Show distance ring if enabled
         if (distanceFilterEnabled.value) {
           updateDistanceRing()
@@ -363,7 +333,7 @@ async function requestLocation() {
       console.error('Error getting location:', error)
       locationPermissionDenied.value = true
       showLocationPrompt.value = true
-      
+
       if (error.code === 1) {
         // Permission denied
         alert('Location access denied. Please enable location services in your browser settings.')
@@ -382,12 +352,12 @@ async function requestLocation() {
 // Add user location marker
 function addUserLocationMarker() {
   if (!map.value || !userLocation.value) return
-  
+
   // Remove existing marker if any
   if (window.userLocationMarker) {
     window.userLocationMarker.setMap(null)
   }
-  
+
   // Create user location marker
   window.userLocationMarker = new window.google.maps.Marker({
     position: userLocation.value,
@@ -433,10 +403,10 @@ function centerOnMyLocation() {
     requestLocation()
     return
   }
-  
+
   map.value.setCenter(userLocation.value)
   map.value.setZoom(14)
-  
+
   // Add user location marker if not already added
   if (!window.userLocationMarker) {
     addUserLocationMarker()
@@ -492,7 +462,7 @@ async function initMap() {
     })
 
     mapLoaded.value = true
-    
+
     // Check if location services are available and request permission
     if (navigator.geolocation && !hasRequestedLocation.value) {
       // Try to get location silently first
@@ -522,7 +492,7 @@ async function initMap() {
       // Geolocation not supported
       showLocationPrompt.value = true
     }
-    
+
     await loadListings()
   } catch (error) {
     console.error('Error initializing map:', error)
@@ -551,15 +521,15 @@ function attachProfileListeners(rows) {
 // Set up real-time listener for a single listing's reviews
 function startReviewListener(listingId) {
   if (!listingId || reviewUnsubs.has(listingId)) return
-  
+
   // Listen to the listing document for averageRating and totalReviews updates
   const listingUnsub = onSnapshot(doc(db, 'allListings', listingId), (listingSnap) => {
     if (!listingSnap.exists()) return
-    
+
     const data = listingSnap.data()
     const avgRating = Number(data.averageRating) || Number(data.rating) || 0
     const totalReviews = Number(data.totalReviews) || 0
-    
+
     // Update the listing in the listings array
     const listingIndex = listings.value.findIndex(l => (l.id || l.listingId) === listingId)
     if (listingIndex !== -1) {
@@ -573,7 +543,7 @@ function startReviewListener(listingId) {
   }, (error) => {
     console.error(`Error listening to listing ${listingId}:`, error)
   })
-  
+
   // Listen to all reviews and recalculate - same as ListingDrawer
   const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
   const q = query(reviewsRef, orderBy('createdAt', 'desc'))
@@ -583,11 +553,11 @@ function startReviewListener(listingId) {
     let topReview = null
     let totalRating = 0
     let totalWeight = 0
-    
+
     // Calculate from all reviews - same as ListingDrawer
     snapshot.docs.forEach((docSnap) => {
       const reviewData = docSnap.data()
-      
+
       // Get top review (most recent) - same field names as ListingDrawer
       if (!topReview && (reviewData.reviewText || reviewData.text) && (reviewData.reviewText || reviewData.text).length > 0) {
         topReview = {
@@ -595,24 +565,24 @@ function startReviewListener(listingId) {
           author: reviewData.userName || 'Anonymous'
         }
       }
-      
+
       // Weighted rating: verified reviews count 2x, unverified count 1x (same as ListingDrawer)
       const rating = reviewData.rating || 0
       const weight = reviewData.isVerified ? 2 : 1
       totalRating += rating * weight
       totalWeight += weight
     })
-    
+
     totalReviews = snapshot.size
     // Calculate weighted average (verified reviews count more) - same as ListingDrawer
     avgRating = totalWeight > 0 ? totalRating / totalWeight : 0
-    
+
     // Update listingsReviews
     listingsReviews.value = {
       ...listingsReviews.value,
       [listingId]: { avgRating, totalReviews, topReview }
     }
-    
+
     // Update the listing object
     const listingIndex = listings.value.findIndex(l => (l.id || l.listingId) === listingId)
     if (listingIndex !== -1) {
@@ -626,7 +596,7 @@ function startReviewListener(listingId) {
   }, (error) => {
     console.error(`Error listening to reviews for ${listingId}:`, error)
   })
-  
+
   // Store both unsubscribers
   reviewUnsubs.set(listingId, () => {
     listingUnsub()
@@ -637,22 +607,22 @@ function startReviewListener(listingId) {
 // Fetch reviews for a single listing - same approach as ListingDrawer
 async function fetchListingReviews(listingId) {
   if (!listingId) return
-  
+
   try {
     const reviewsRef = collection(db, 'allListings', listingId, 'reviews')
     const q = query(reviewsRef, orderBy('createdAt', 'desc'))
     const snapshot = await getDocs(q)
-    
+
     let avgRating = 0
     let totalReviews = 0
     let topReview = null
     let totalRating = 0
     let totalWeight = 0
-    
+
     // Calculate from all reviews - same as ListingDrawer
     for (const docSnap of snapshot.docs) {
       const reviewData = docSnap.data()
-      
+
       // Get top review (most recent) - same field names as ListingDrawer
       if (!topReview && (reviewData.reviewText || reviewData.text) && (reviewData.reviewText || reviewData.text).length > 0) {
         topReview = {
@@ -660,23 +630,23 @@ async function fetchListingReviews(listingId) {
           author: reviewData.userName || 'Anonymous'
         }
       }
-      
+
       // Weighted rating: verified reviews count 2x, unverified count 1x (same as ListingDrawer)
       const rating = reviewData.rating || 0
       const weight = reviewData.isVerified ? 2 : 1
       totalRating += rating * weight
       totalWeight += weight
     }
-    
+
     totalReviews = snapshot.size
     // Calculate weighted average (verified reviews count more) - same as ListingDrawer
     avgRating = totalWeight > 0 ? totalRating / totalWeight : 0
-    
+
     listingsReviews.value = {
       ...listingsReviews.value,
       [listingId]: { avgRating, totalReviews, topReview }
     }
-    
+
     // Update the listing object with calculated values
     const listingIndex = listings.value.findIndex(l => (l.id || l.listingId) === listingId)
     if (listingIndex !== -1) {
@@ -687,7 +657,7 @@ async function fetchListingReviews(listingId) {
         totalReviews: totalReviews
       }
     }
-    
+
     // Start real-time listener
     startReviewListener(listingId)
   } catch (error) {
@@ -708,8 +678,8 @@ async function loadListings() {
     const snapshot = await getDocs(collection(db, 'allListings'))
     listings.value = snapshot.docs.map(doc => {
       const data = doc.data()
-      return { 
-        id: doc.id, 
+      return {
+        id: doc.id,
         listingId: doc.id,
         ...data,
         // Ensure averageRating and totalReviews are numbers, default to 0
@@ -722,17 +692,17 @@ async function loadListings() {
     console.log('Loaded listings:', listings.value.length)
     console.log('Sample listing:', listings.value[0])
     console.log('Sample listing rating:', listings.value[0]?.averageRating, 'reviews:', listings.value[0]?.totalReviews)
-    
+
     // Attach profile listeners
     attachProfileListeners(listings.value)
-    
+
     // Fetch reviews for all listings
     await fetchAllReviews()
-    
+
     // Ensure distance filter defaults to Singapore (all listings)
     distanceFilterOption.value = 'singapore'
     distanceFilterEnabled.value = false
-    
+
     // Update markers to show all listings
     updateMarkers()
   } catch (error) {
@@ -760,7 +730,7 @@ function updateMarkers() {
     // Try multiple location data structures
     const lat = listing.location?.lat || listing.geo?.lat || listing.lat
     const lng = listing.location?.lng || listing.geo?.lng || listing.lng
-    
+
     if (!lat || !lng) {
       console.log('Listing missing location:', listing.businessName)
       return
@@ -1219,12 +1189,12 @@ body.map-explorer-open {
 }
 
 .map-navbar-top :deep(.navbar) {
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  border-bottom: 1px solid rgba(0,0,0,0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 :root.dark-mode .map-navbar-top :deep(.navbar) {
-  border-bottom-color: rgba(255,255,255,0.1);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
 .map-navbar-top :deep(.elevate) {
@@ -1235,18 +1205,18 @@ body.map-explorer-open {
 .map-navbar {
   position: relative;
   flex-shrink: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.95) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
   backdrop-filter: blur(10px);
   padding: 12px 20px;
   z-index: 105;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
 :root.dark-mode .map-navbar {
-  background: linear-gradient(180deg, rgba(26,26,46,0.98) 0%, rgba(26,26,46,0.95) 100%);
+  background: linear-gradient(180deg, rgba(26, 26, 46, 0.98) 0%, rgba(26, 26, 46, 0.95) 100%);
 }
 
 /* Search and Filters Bar - All in one line */
@@ -1408,7 +1378,7 @@ body.map-explorer-open {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   padding: 8px 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
   min-width: 150px;
 }
@@ -1487,7 +1457,7 @@ body.map-explorer-open {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   font-size: 20px;
   color: white;
@@ -1497,7 +1467,7 @@ body.map-explorer-open {
 .search-btn:hover:not(:disabled) {
   background: var(--color-primary-dark);
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .search-btn:disabled {
@@ -1506,7 +1476,8 @@ body.map-explorer-open {
 }
 
 /* My Location Button */
-.my-location-btn {
+.my-location-btn, .map-close-btn
+ {
   background: var(--color-primary);
   border: none;
   width: 40px;
@@ -1516,7 +1487,7 @@ body.map-explorer-open {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   font-size: 20px;
   color: white;
@@ -1529,7 +1500,7 @@ body.map-explorer-open {
   box-shadow: var(--shadow-md);
 }
 
-.close-btn {
+/* .map-close-btn {
   background: white;
   border: 1px solid #e0e0e0;
   width: 40px;
@@ -1539,11 +1510,11 @@ body.map-explorer-open {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   font-size: 20px;
   color: #666;
-}
+} */
 
 :root.dark-mode .close-btn {
   background: var(--color-bg-secondary);
@@ -1551,12 +1522,10 @@ body.map-explorer-open {
   color: var(--color-text-primary);
 }
 
-.close-btn:hover {
-  background: var(--color-primary-pale);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+.map-close-btn:hover {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 /* Location Prompt */
@@ -1582,7 +1551,7 @@ body.map-explorer-open {
   max-width: 400px;
   width: 90%;
   text-align: center;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
 :root.dark-mode .location-prompt-content {
@@ -1759,7 +1728,7 @@ body.map-explorer-open {
   flex: 0 0 280px;
   background: white;
   border-radius: 20px 20px 0 0;
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
   z-index: 99;
   overflow: hidden;
   display: flex;
@@ -1839,7 +1808,7 @@ body.map-explorer-open {
   background: white;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
@@ -1852,7 +1821,7 @@ body.map-explorer-open {
 
 .business-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .business-image {
@@ -1872,7 +1841,7 @@ body.map-explorer-open {
   position: absolute;
   top: 8px;
   right: 8px;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0, 0, 0, 0.7);
   color: white;
   padding: 4px 8px;
   border-radius: 12px;
@@ -2002,14 +1971,14 @@ body.map-explorer-open {
 
 :root.dark-mode .popup-content {
   background: #1e1e2e;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
 }
 
 .popup-close {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   color: white;
   border: none;
   width: 32px;
@@ -2181,7 +2150,7 @@ body.map-explorer-open {
     order: 3;
   }
 
-  .close-btn,
+  .map-close-btn,
   .search-btn,
   .my-location-btn {
     width: 36px;
@@ -2193,16 +2162,16 @@ body.map-explorer-open {
   .business-cards-container {
     flex: 0 0 180px;
   }
-  
+
   .business-cards-container.collapsed {
     flex: 0 0 40px;
   }
-  
+
   .business-cards-toggle-btn {
     height: 36px;
     font-size: 16px;
   }
-  
+
   .business-cards-toggle-btn .toggle-text {
     font-size: 12px;
   }
@@ -2211,7 +2180,7 @@ body.map-explorer-open {
     width: 180px;
     min-height: 180px;
   }
-  
+
   .business-image {
     height: 110px;
   }
@@ -2265,7 +2234,7 @@ body.map-explorer-open {
     padding: 4px 24px 4px 8px;
   }
 
-  .close-btn,
+  .map-close-btn,
   .search-btn,
   .my-location-btn {
     width: 32px;
@@ -2276,21 +2245,21 @@ body.map-explorer-open {
   .business-cards-container {
     flex: 0 0 150px;
   }
-  
+
   .business-cards-container.collapsed {
     flex: 0 0 36px;
   }
-  
+
   .business-cards-toggle-btn {
     height: 32px;
     font-size: 14px;
     gap: 6px;
   }
-  
+
   .business-cards-toggle-btn .toggle-text {
     font-size: 11px;
   }
-  
+
   .business-cards-toggle-btn svg {
     font-size: 18px;
   }
@@ -2316,11 +2285,11 @@ body.map-explorer-open {
   .business-rating {
     font-size: 11px;
   }
-  
+
   .review-text {
     font-size: 11px;
   }
-  
+
   .review-author {
     font-size: 10px;
   }

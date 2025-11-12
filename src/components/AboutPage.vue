@@ -63,11 +63,8 @@ async function fetchRealReviews() {
               if (userDoc.exists()) {
                 const userData = userDoc.data()
                 userName = userData.displayName || userData.username || userName
-                if (userData.address?.street) {
-                  const street = userData.address.street
-                  const parts = street.split(' ')
-                  userLocation = parts[parts.length - 1] || 'Singapore'
-                }
+                // Always show Singapore as the location
+                userLocation = 'Singapore'
               }
             } catch (e) {}
           }

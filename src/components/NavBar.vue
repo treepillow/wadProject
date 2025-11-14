@@ -411,6 +411,39 @@ function handleHomeClick(event) {
   }
 }
 
+/* Extend mobile sidebar layout until navbar fits in one line (up to 1200px) */
+@media (min-width: 992px) and (max-width: 1200px) {
+  .navbar-container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Force hamburger menu to be visible */
+  .navbar-toggler {
+    display: block !important;
+  }
+
+  /* Force mobile layout - hide desktop elements */
+  .d-none.d-lg-block {
+    display: none !important;
+  }
+
+  /* Force mobile layout - show mobile elements */
+  .d-lg-none {
+    display: block !important;
+  }
+
+  /* Hide desktop dropdown, show mobile buttons */
+  .dropdown.d-none.d-lg-block {
+    display: none !important;
+  }
+
+  /* Show mobile profile button */
+  .btn-brand.d-lg-none {
+    display: flex !important;
+  }
+}
+
 @media (max-width: 575.98px) {
   .navbar-container {
     padding-left: 1rem;
@@ -655,8 +688,8 @@ function handleHomeClick(event) {
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.85%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }
 
-/* Mobile side menu slide from left */
-@media (max-width: 991.98px) {
+/* Mobile side menu slide from left - extended to 1200px */
+@media (max-width: 1200px) {
   .navbar-collapse {
     position: fixed !important;
     top: 0;
